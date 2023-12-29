@@ -97,7 +97,6 @@ if __name__ == "__main__":
     lstm = Network()
     state = create_train_state(lstm, init_rng, config.learning_rate)
     del init_rng  # Must not be used anymore.
-    batch_n = 0
     for epoch in range(config.epochs):
         # log the epoch
         wandb.log({"epoch": epoch})
@@ -109,19 +108,17 @@ if __name__ == "__main__":
             state = train_step(state, batch)
             state = compute_metrics(state=state, batch=batch)
 
-            if batch_n % config.step_freq == 0:
+            if batch_ix % config.step_freq == 0:
                 metrics = state.metrics.compute()
-                print(f"Batch {batch_n} Loss {metrics['loss']}")
                 wandb.log({"train_loss": metrics["loss"]})
                 state = state.replace(metrics=state.metrics.empty())
-        for batch_ix, batch in enumerate(
-            test_dataset.iter(batch_size=config.batch_size),
+        for batch_ix, batch in tqdm(
+            enumerate(test_dataset.iter(batch_size=config.batch_size)),
             total=test_dataset_total // config.batch_size,
         ):
             state = compute_metrics(state=state, batch=batch)
 
         metrics = state.metrics.compute()
-        print(f"Val Loss {metrics['loss']}")
         wandb.log({"val_loss": metrics["loss"]})
         state = state.replace(metrics=state.metrics.empty())
         # checkpoint at beginning as sanity check of checkpointing
