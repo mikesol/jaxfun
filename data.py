@@ -25,7 +25,7 @@ def make_data(paths, window, stride):
     dataset = (
         concatenate_datasets(
             [
-                Dataset.from_generator(audio_gen(pair, window, stride))
+                IterableDataset.from_generator(audio_gen(pair, window, stride))
                 for pair in paths
             ]
         )

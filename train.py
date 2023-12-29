@@ -58,7 +58,6 @@ def compute_metrics(*, state: TrainState, batch):
 
 if __name__ == "__main__":
     from get_files import FILES
-    FILES = FILES[:1]
     wandb.init(
         project="simple-jax-lstm",
     )
@@ -72,9 +71,11 @@ if __name__ == "__main__":
     config.stride = 2**8
     config.step_freq = 100
     config.test_size = 0.1
-    dataset = make_data(FILES, config.window, config.stride).train_test_split(
-        test_size=config.test_size
-    )
+    len_files = len(FILES)
+    test_files = FILES[: int(len_files * config.test_size)]
+    train_files = FILES[int(len_files * config.test_size) :]
+    train_dataset = make_data(train_files, config.window, config.stride)
+    test_dataset = make_data(test_files, config.window, config.stride)
     init_rng = jax.random.PRNGKey(config.seed)
     lstm = Network()
     state = create_train_state(lstm, init_rng, config.learning_rate)
@@ -83,7 +84,7 @@ if __name__ == "__main__":
     for epoch in range(config.epochs):
         wandb.log({"epoch": epoch})
         for batch_ix, batch in enumerate(
-            dataset["train"].iter(batch_size=config.batch_size)
+            train_dataset.iter(batch_size=config.batch_size)
         ):
             state = train_step(state, batch)
             state = compute_metrics(state=state, batch=batch)
@@ -94,7 +95,7 @@ if __name__ == "__main__":
                 wandb.log({"train_loss": state.metrics["loss"]})
                 state = state.replace(metrics=state.metrics.empty())
         for batch_ix, batch in enumerate(
-            dataset["test"].iter(batch_size=config.batch_size)
+            test_dataset.iter(batch_size=config.batch_size)
         ):
             state = compute_metrics(state=state, batch=batch)
 
