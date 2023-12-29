@@ -1,6 +1,5 @@
 from flax import struct
 import wandb
-from flax.training import orbax_utils
 from clu import metrics
 import jax.numpy as jnp
 import flax.linen as nn
@@ -97,8 +96,7 @@ if __name__ == "__main__":
     for epoch in range(config.epochs):
         # checkpoint at beginning as sanity check of checkpointing
         ckpt = {"model": state, "config": config}
-        save_args = orbax_utils.save_args_from_target(ckpt)
-        checkpoint_manager.save(epoch, ckpt, save_kwargs={"save_args": save_args})
+        checkpoint_manager.save(epoch, ckpt)
         artifact = wandb.Artifact("checkpoint", type="model")
         print("CHECKPOINTS", os.listdir(checkpoint_dir))
         artifact.add_file(os.path.join(checkpoint_dir, f"{epoch}"))
