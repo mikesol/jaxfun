@@ -29,8 +29,8 @@ def get_total_len(path, window, stride):
 
     return (num_samples - window) // stride
 
-def get_total_lens(paths):
-    return sum([get_total_len(x[0]) for x in paths], 0)
+def get_total_lens(paths, window, stride):
+    return sum([get_total_len(x[0], window, stride) for x in paths], 0)
 
 def make_data(paths, window, stride):
     dataset = (
@@ -50,7 +50,7 @@ def make_data(paths, window, stride):
         .with_format("jax")
     )
 
-    return dataset, get_total_lens(paths)
+    return dataset, get_total_lens(paths, window, stride)
 
 
 if __name__ == "__main__":
