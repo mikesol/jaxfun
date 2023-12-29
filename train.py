@@ -95,7 +95,16 @@ if __name__ == "__main__":
     del init_rng  # Must not be used anymore.
     batch_n = 0
     for epoch in range(config.epochs):
+        # checkpoint at beginning as sanity check of checkpointing
+        ckpt = {"model": state, "config": config}
+        save_args = orbax_utils.save_args_from_target(ckpt)
+        checkpoint_manager.save(epoch, ckpt, save_kwargs={"save_args": save_args})
+        artifact = wandb.Artifact("checkpoint", type="model")
+        print("CHECKPOINTS", os.listdir(checkpoint_dir))
+        artifact.add_file(os.path.join(checkpoint_dir, f"{epoch}"))
+        # log the epoch
         wandb.log({"epoch": epoch})
+        # train
         for batch_ix, batch in enumerate(
             train_dataset.iter(batch_size=config.batch_size)
         ):
@@ -116,9 +125,3 @@ if __name__ == "__main__":
         print(f"Val Loss {metrics['loss']}")
         wandb.log({"val_loss": metrics["loss"]})
         state = state.replace(metrics=state.metrics.empty())
-        ckpt = {"model": state, "config": config}
-        save_args = orbax_utils.save_args_from_target(ckpt)
-        checkpoint_manager.save(epoch, ckpt, save_kwargs={"save_args": save_args})
-        artifact = wandb.Artifact("checkpoint", type="model")
-        print("CHECKPOINTS", os.listdir(checkpoint_dir))
-        artifact.add_file(os.path.join(checkpoint_dir, f"{epoch}"))
