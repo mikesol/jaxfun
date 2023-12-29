@@ -91,8 +91,8 @@ if __name__ == "__main__":
 
             if batch_n % config.step_freq == 0:
                 metrics = state.metrics.compute()
-                print(f"Batch {batch_n} Loss {state.metrics['loss']}")
-                wandb.log({"train_loss": state.metrics["loss"]})
+                print(f"Batch {batch_n} Loss {metrics['loss']}")
+                wandb.log({"train_loss": metrics["loss"]})
                 state = state.replace(metrics=state.metrics.empty())
         for batch_ix, batch in enumerate(
             test_dataset.iter(batch_size=config.batch_size)
@@ -100,6 +100,6 @@ if __name__ == "__main__":
             state = compute_metrics(state=state, batch=batch)
 
         metrics = state.metrics.compute()
-        print(f"Val Loss {state.metrics['loss']}")
-        wandb.log({"val_loss": state.metrics["loss"]})
+        print(f"Val Loss {metrics['loss']}")
+        wandb.log({"val_loss": metrics["loss"]})
         state = state.replace(metrics=state.metrics.empty())
