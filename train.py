@@ -104,7 +104,7 @@ if __name__ == "__main__":
         # train
         for batch_ix, batch in tqdm(
             enumerate(train_dataset.iter(batch_size=config.batch_size)),
-            total=train_dataset_total,
+            total=train_dataset_total // config.batch_size,
         ):
             state = train_step(state, batch)
             state = compute_metrics(state=state, batch=batch)
@@ -115,7 +115,8 @@ if __name__ == "__main__":
                 wandb.log({"train_loss": metrics["loss"]})
                 state = state.replace(metrics=state.metrics.empty())
         for batch_ix, batch in enumerate(
-            test_dataset.iter(batch_size=config.batch_size), total=test_dataset_total
+            test_dataset.iter(batch_size=config.batch_size),
+            total=test_dataset_total // config.batch_size,
         ):
             state = compute_metrics(state=state, batch=batch)
 
