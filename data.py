@@ -1,4 +1,4 @@
-from datasets import IterableDataset, concatenate_datasets
+from datasets import IterableDataset, Dataset, concatenate_datasets
 import librosa
 import numpy as np
 
@@ -25,7 +25,7 @@ def make_data(paths, window, stride):
     dataset = (
         concatenate_datasets(
             [
-                IterableDataset.from_generator(audio_gen(pair, window, stride))
+                Dataset.from_generator(audio_gen(pair, window, stride))
                 for pair in paths
             ]
         )
