@@ -69,7 +69,7 @@ def compute_metrics(*, state: TrainState, batch):
 if __name__ == "__main__":
     from get_files import FILES
 
-    FILES = FILES[:3]
+    # FILES = FILES[:3]
     wandb.init(
         project="simple-jax-lstm",
     )
@@ -84,8 +84,8 @@ if __name__ == "__main__":
     config.step_freq = 100
     config.test_size = 0.1
     len_files = len(FILES)
-    test_files = FILES[2:]  # [: int(len_files * config.test_size)]
-    train_files = FILES[:2]  # [int(len_files * config.test_size) :]
+    test_files = FILES[: int(len_files * config.test_size)]
+    train_files = FILES[int(len_files * config.test_size) :]
     train_dataset = make_data(train_files, config.window, config.stride)
     test_dataset = make_data(test_files, config.window, config.stride)
     init_rng = jax.random.PRNGKey(config.seed)
