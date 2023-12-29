@@ -22,12 +22,9 @@ def audio_gen(pair, window, stride):
     return _audio_gen
 
 def get_total_len(path, window, stride):
-
     with wave.open(path, 'rb') as wav_file:
-        # Get the number of frames (samples)
         num_samples = wav_file.getnframes()
-
-    return (num_samples - window) // stride
+        return (num_samples - window) // stride
 
 def get_total_lens(paths, window, stride):
     return sum([get_total_len(x[0], window, stride) for x in paths], 0)
