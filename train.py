@@ -1,4 +1,5 @@
 from flax import struct
+import wandb
 from clu import metrics
 import jax.numpy as jnp
 import flax.linen as nn
@@ -23,7 +24,7 @@ class TrainState(train_state.TrainState):
 def create_train_state(
     module: nn.Module, rng: PRNGKey, learning_rate: float
 ) -> TrainState:
-    params = module.init(rng, jnp.ones([1, 2**16, 1]))['params']
+    params = module.init(rng, jnp.ones([1, 2**16, 1]))["params"]
     tx = optax.adam(learning_rate)
     return TrainState.create(
         apply_fn=module.apply, params=params, tx=tx, metrics=Metrics.empty()
@@ -58,26 +59,46 @@ def compute_metrics(*, state: TrainState, batch):
 if __name__ == "__main__":
     from get_files import FILES
 
-    window = 2**16
-    stride = 2**8
-    dataset = make_data(FILES, window, stride)
-    N_EPOCHS = 10
-    init_rng = jax.random.PRNGKey(42)
-    learning_rate = 0.01
+    wandb.init(
+        project="simple-jax-lstm",
+    )
+    config = wandb.config
+    config.seed = 42
+    config.batch_size = 16
+    config.validation_split = 0.2
+    config.learning_rate = 1e-4
+    config.epochs = 15
+    config.window = 2**16
+    config.stride = 2**8
+    config.step_freq = 100
+    config.test_size = 0.1
+    dataset = make_data(FILES, config.window, config.stride).train_test_split(
+        test_size=config.test_size
+    )
+    init_rng = jax.random.PRNGKey(config.seed)
     lstm = Network()
-    state = create_train_state(lstm, init_rng, learning_rate)
+    state = create_train_state(lstm, init_rng, config.learning_rate)
     del init_rng  # Must not be used anymore.
     batch_n = 0
-    for epoch in range(N_EPOCHS):
-        for batch in dataset.iter(batch_size=4):
-            # Run optimization steps over training batches and compute batch metrics
-            state = train_step(
-                state, batch
-            )
+    for epoch in range(config.epochs):
+        wandb.log({"epoch": epoch})
+        for batch_ix, batch in enumerate(
+            dataset["train"].iter(batch_size=config.batch_size)
+        ):
+            state = train_step(state, batch)
             state = compute_metrics(state=state, batch=batch)
 
-            for metric, value in state.metrics.compute().items():
-                print("METRICS", metric, value)
-            state = state.replace(
-                metrics=state.metrics.empty()
-            )
+            if batch_n % config.step_freq == 0:
+                metrics = state.metrics.compute()
+                print(f"Batch {batch_n} Loss {state.metrics['loss']}")
+                wandb.log({"train_loss": state.metrics["loss"]})
+                state = state.replace(metrics=state.metrics.empty())
+        for batch_ix, batch in enumerate(
+            dataset["test"].iter(batch_size=config.batch_size)
+        ):
+            state = compute_metrics(state=state, batch=batch)
+
+        metrics = state.metrics.compute()
+        print(f"Val Loss {state.metrics['loss']}")
+        wandb.log({"val_loss": state.metrics["loss"]})
+        state = state.replace(metrics=state.metrics.empty())
