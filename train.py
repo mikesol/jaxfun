@@ -58,7 +58,7 @@ def compute_metrics(*, state: TrainState, batch):
 
 if __name__ == "__main__":
     from get_files import FILES
-
+    FILES = FILES[:1]
     wandb.init(
         project="simple-jax-lstm",
     )
