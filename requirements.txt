@@ -70,6 +70,7 @@ six==1.16.0
 smmap==5.0.1
 soundfile==0.12.1
 soxr==0.3.7
+tdqm==0.0.1
 tensorstore==0.1.51
 threadpoolctl==3.2.0
 toolz==0.12.0

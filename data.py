@@ -1,6 +1,7 @@
 from datasets import IterableDataset, Dataset, concatenate_datasets
 import librosa
 import numpy as np
+import wave
 
 
 def audio_gen(pair, window, stride):
@@ -20,6 +21,16 @@ def audio_gen(pair, window, stride):
 
     return _audio_gen
 
+def get_total_len(path, window, stride):
+
+    with wave.open(path, 'rb') as wav_file:
+        # Get the number of frames (samples)
+        num_samples = wav_file.getnframes()
+
+    return (num_samples - window) // stride
+
+def get_total_lens(paths):
+    return sum([get_total_len(x[0]) for x in paths], 0)
 
 def make_data(paths, window, stride):
     dataset = (
@@ -39,7 +50,7 @@ def make_data(paths, window, stride):
         .with_format("jax")
     )
 
-    return dataset
+    return dataset, get_total_lens(paths)
 
 
 if __name__ == "__main__":

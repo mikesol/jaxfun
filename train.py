@@ -10,6 +10,7 @@ from model import Network
 import jax
 from data import make_data
 import orbax.checkpoint
+from tqdm import tqdm
 
 checkpoint_dir = "/tmp/flax_ckpt/orbax/managed"
 
@@ -70,7 +71,7 @@ if __name__ == "__main__":
     from get_files import FILES
 
     # FILES = FILES[:3]
-    wandb.init(
+    run = wandb.init(
         project="simple-jax-lstm",
     )
     config = wandb.config
@@ -86,25 +87,24 @@ if __name__ == "__main__":
     len_files = len(FILES)
     test_files = FILES[: int(len_files * config.test_size)]
     train_files = FILES[int(len_files * config.test_size) :]
-    train_dataset = make_data(train_files, config.window, config.stride)
-    test_dataset = make_data(test_files, config.window, config.stride)
+    train_dataset, train_dataset_total = make_data(
+        train_files, config.window, config.stride
+    )
+    test_dataset, test_dataset_total = make_data(
+        test_files, config.window, config.stride
+    )
     init_rng = jax.random.PRNGKey(config.seed)
     lstm = Network()
     state = create_train_state(lstm, init_rng, config.learning_rate)
     del init_rng  # Must not be used anymore.
     batch_n = 0
     for epoch in range(config.epochs):
-        # checkpoint at beginning as sanity check of checkpointing
-        ckpt = {"model": state, "config": config}
-        checkpoint_manager.save(epoch, ckpt)
-        artifact = wandb.Artifact("checkpoint", type="model")
-        print("CHECKPOINTS", os.listdir(checkpoint_dir))
-        artifact.add_dir(os.path.join(checkpoint_dir, f"{epoch}"))
         # log the epoch
         wandb.log({"epoch": epoch})
         # train
-        for batch_ix, batch in enumerate(
-            train_dataset.iter(batch_size=config.batch_size)
+        for batch_ix, batch in tqdm(
+            enumerate(train_dataset.iter(batch_size=config.batch_size)),
+            total=train_dataset_total,
         ):
             state = train_step(state, batch)
             state = compute_metrics(state=state, batch=batch)
@@ -115,7 +115,7 @@ if __name__ == "__main__":
                 wandb.log({"train_loss": metrics["loss"]})
                 state = state.replace(metrics=state.metrics.empty())
         for batch_ix, batch in enumerate(
-            test_dataset.iter(batch_size=config.batch_size)
+            test_dataset.iter(batch_size=config.batch_size), total=test_dataset_total
         ):
             state = compute_metrics(state=state, batch=batch)
 
@@ -123,3 +123,9 @@ if __name__ == "__main__":
         print(f"Val Loss {metrics['loss']}")
         wandb.log({"val_loss": metrics["loss"]})
         state = state.replace(metrics=state.metrics.empty())
+        # checkpoint at beginning as sanity check of checkpointing
+        ckpt = {"model": state, "config": config}
+        checkpoint_manager.save(epoch, ckpt)
+        artifact = wandb.Artifact("checkpoint", type="model")
+        artifact.add_dir(os.path.join(checkpoint_dir, f"{epoch}"))
+        run.log_artifact(artifact)
