@@ -1,13 +1,24 @@
 from flax import struct
 import wandb
+from flax.training import orbax_utils
 from clu import metrics
 import jax.numpy as jnp
 import flax.linen as nn
 from flax.training import train_state
 import optax
+import os
 from model import Network
 import jax
 from data import make_data
+import orbax.checkpoint
+
+checkpoint_dir = "/tmp/flax_ckpt/orbax/managed"
+
+orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
+options = orbax.checkpoint.CheckpointManagerOptions(max_to_keep=2, create=True)
+checkpoint_manager = orbax.checkpoint.CheckpointManager(
+    checkpoint_dir, orbax_checkpointer, options
+)
 
 PRNGKey = jax.Array
 
@@ -58,7 +69,8 @@ def compute_metrics(*, state: TrainState, batch):
 
 if __name__ == "__main__":
     from get_files import FILES
-    FILES=FILES[:3]
+
+    FILES = FILES[:3]
     wandb.init(
         project="simple-jax-lstm",
     )
@@ -73,8 +85,8 @@ if __name__ == "__main__":
     config.step_freq = 100
     config.test_size = 0.1
     len_files = len(FILES)
-    test_files = FILES[2:]#[: int(len_files * config.test_size)]
-    train_files = FILES[:2]#[int(len_files * config.test_size) :]
+    test_files = FILES[2:]  # [: int(len_files * config.test_size)]
+    train_files = FILES[:2]  # [int(len_files * config.test_size) :]
     train_dataset = make_data(train_files, config.window, config.stride)
     test_dataset = make_data(test_files, config.window, config.stride)
     init_rng = jax.random.PRNGKey(config.seed)
@@ -104,3 +116,9 @@ if __name__ == "__main__":
         print(f"Val Loss {metrics['loss']}")
         wandb.log({"val_loss": metrics["loss"]})
         state = state.replace(metrics=state.metrics.empty())
+        ckpt = {"model": state, "config": config}
+        save_args = orbax_utils.save_args_from_target(ckpt)
+        checkpoint_manager.save(epoch, ckpt, save_kwargs={"save_args": save_args})
+        artifact = wandb.Artifact("checkpoint", type="model")
+        print("CHECKPOINTS", os.listdir(checkpoint_dir))
+        artifact.add_file(os.path.join(checkpoint_dir, f"{epoch}"))
