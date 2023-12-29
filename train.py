@@ -99,7 +99,7 @@ if __name__ == "__main__":
         checkpoint_manager.save(epoch, ckpt)
         artifact = wandb.Artifact("checkpoint", type="model")
         print("CHECKPOINTS", os.listdir(checkpoint_dir))
-        artifact.add_file(os.path.join(checkpoint_dir, f"{epoch}"))
+        artifact.add_dir(os.path.join(checkpoint_dir, f"{epoch}"))
         # log the epoch
         wandb.log({"epoch": epoch})
         # train
