@@ -6,7 +6,7 @@ import flax.linen as nn
 from flax.training import train_state
 import optax
 import os
-from model import Network
+from model import LSTM, ComplexLSTMCombinator
 import jax
 from data import make_data
 import orbax.checkpoint
@@ -94,7 +94,7 @@ if __name__ == "__main__":
         test_files, config.window, config.stride
     )
     init_rng = jax.random.PRNGKey(config.seed)
-    lstm = Network()
+    lstm = LSTM(features=2**7, levels=2**5, skip=True, projection=1, combinator=ComplexLSTMCombinator, name="lstm")
     state = create_train_state(lstm, init_rng, config.learning_rate)
     del init_rng  # Must not be used anymore.
     for epoch in range(config.epochs):
