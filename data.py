@@ -1,4 +1,4 @@
-from datasets import IterableDataset, Dataset, concatenate_datasets
+from datasets import IterableDataset, interleave_datasets
 import librosa
 import numpy as np
 import wave
@@ -31,7 +31,7 @@ def get_total_lens(paths, window, stride):
 
 def make_data(paths, window, stride):
     dataset = (
-        concatenate_datasets(
+        interleave_datasets(
             [
                 IterableDataset.from_generator(audio_gen(pair, window, stride))
                 for pair in paths
