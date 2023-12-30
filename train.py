@@ -80,7 +80,7 @@ if __name__ == "__main__":
     config.validation_split = 0.2
     config.learning_rate = 1e-4
     config.epochs = 15
-    config.window = 2**13
+    config.window = 2**14
     config.stride = 2**8
     config.step_freq = 100
     config.test_size = 0.1
