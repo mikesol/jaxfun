@@ -76,7 +76,7 @@ if __name__ == "__main__":
     )
     config = wandb.config
     config.seed = 42
-    config.batch_size = 2**4
+    config.batch_size = 2**3
     config.validation_split = 0.2
     config.learning_rate = 1e-4
     config.epochs = 15
@@ -85,7 +85,7 @@ if __name__ == "__main__":
     config.step_freq = 100
     config.test_size = 0.1
     config.n_features = 2**4
-    config.n_levels = 2**3
+    config.n_levels = 2**2
     len_files = len(FILES)
     test_files = FILES[: int(len_files * config.test_size)]
     train_files = FILES[int(len_files * config.test_size) :]
