@@ -84,6 +84,8 @@ if __name__ == "__main__":
     config.stride = 2**8
     config.step_freq = 100
     config.test_size = 0.1
+    config.n_features = 2**7
+    config.n_levels = 2**4
     len_files = len(FILES)
     test_files = FILES[: int(len_files * config.test_size)]
     train_files = FILES[int(len_files * config.test_size) :]
@@ -94,7 +96,7 @@ if __name__ == "__main__":
         test_files, config.window, config.stride
     )
     init_rng = jax.random.PRNGKey(config.seed)
-    lstm = LSTM(features=2**7, levels=2**5, skip=True, projection=1, combinator=ComplexLSTMCombinator, name="lstm")
+    lstm = LSTM(features=config.n_features, levels=config.n_levels, skip=True, projection=1, combinator=ComplexLSTMCombinator, name="lstm")
     state = create_train_state(lstm, init_rng, config.learning_rate)
     del init_rng  # Must not be used anymore.
     for epoch in range(config.epochs):
