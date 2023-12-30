@@ -285,3 +285,15 @@ class LSTM(nn.Module):
 if __name__ == "__main__":
     model = LSTM(features=2**7, levels=2**5, skip=True, projection=1, combinator=ComplexLSTMCombinator, name="lstm")
     print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**8, 1))))
+
+    key = jax.random.PRNGKey(0)
+    input_shape = (2**2, 2**8, 1)  
+    params = model.init(key, jnp.ones(input_shape))
+
+    # Create dummy input data
+    dummy_input = jnp.ones(input_shape)
+
+    # Run the model on the dummy input
+    output = model.apply(params, dummy_input)
+
+    print("Output:", output)
