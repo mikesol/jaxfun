@@ -76,7 +76,7 @@ if __name__ == "__main__":
     )
     config = wandb.config
     config.seed = 42
-    config.batch_size = 2**6
+    config.batch_size = 2**7
     config.validation_split = 0.2
     config.learning_rate = 1e-4
     config.epochs = 15
