@@ -274,7 +274,7 @@ class AttnBlock(nn.Module):
 class Transformeresque(nn.Module):
     to_wrap: Callable[..., Any]
     heads: int
-    layers: int = 2**2
+    attn_layers: int = 2**2
     projection: Optional[int] = None
     only_last: bool = True
     positional_encodings: bool = True
@@ -294,7 +294,7 @@ class Transformeresque(nn.Module):
                     expand_factor=self.expand_factor,
                     dense_init=self.dense_init,
                     bias_init=self.bias_init,
-                )
+                ) for _ in self.attn_layers
             ]
         )
         if self.projection is not None:
@@ -378,7 +378,7 @@ if __name__ == "__main__":
                 cell=LSTMCell,
             ),
             heads=2**4,
-            layers=2**2,
+            attn_layers=2**2,
         )
     )
     print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**8, 1))))

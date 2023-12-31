@@ -10,7 +10,7 @@ import flax.linen as nn
 from flax.training import train_state
 import optax
 import os
-from rnn import LSTM, LSTMCell, SimpleLSTMCombinator
+from rnn import LSTM, LSTMCell, SimpleLSTMCombinator, Transformeresque, StackedRNNCell
 import jax
 from data import make_data
 import orbax.checkpoint
@@ -42,15 +42,30 @@ class TrainState(train_state.TrainState):
 def create_train_state(
     rng: PRNGKey, config: wandb.Config, learning_rate: float
 ) -> TrainState:
-    module = Convattn(
-        channels=config.channels,
-        depth=config.depth,
-        kernel_size=config.kernel_size,
-        skip_freq=config.skip_freq,
-        norm_factor=config.norm_factor,
-        layernorm=config.layernorm,
-        inner_skip=config.inner_skip,
+    module = nn.RNN(
+        Transformeresque(
+            to_wrap=partial(
+                StackedRNNCell,
+                features=config.features,
+                levels=config.levels,
+                skip=config.skip,
+                only_last=config.only_last,
+                cell=LSTMCell,
+            ),
+            projection=config.projection,
+            heads=config.heads,
+            attn_layers=config.attn_layers,
+        )
     )
+    # module = Convattn(
+    #     channels=config.channels,
+    #     depth=config.depth,
+    #     kernel_size=config.kernel_size,
+    #     skip_freq=config.skip_freq,
+    #     norm_factor=config.norm_factor,
+    #     layernorm=config.layernorm,
+    #     inner_skip=config.inner_skip,
+    # )
     # module = LSTM(
     #     features=config.n_features,
     #     levels=config.n_levels,
@@ -128,22 +143,39 @@ if __name__ == "__main__":
     # config.n_features = 2**4
     # config.n_levels = 2**3
     # cnn
+    # config.seed = 42
+    # config.batch_size = 2**7
+    # config.validation_split = 0.2
+    # config.learning_rate = 1e-4
+    # config.epochs = 100
+    # config.window = 2**12
+    # config.stride = 2**8
+    # config.step_freq = 100
+    # config.test_size = 0.1
+    # config.channels = 2**5
+    # config.depth = 2**3
+    # config.kernel_size = 7
+    # config.skip_freq = 1
+    # config.norm_factor = math.sqrt(config.channels)
+    # config.layernorm = True
+    # config.inner_skip = True
+    # attn cnn
     config.seed = 42
     config.batch_size = 2**7
     config.validation_split = 0.2
     config.learning_rate = 1e-4
-    config.epochs = 100
-    config.window = 2**12
+    config.epochs = 15
+    config.window = 2**13
     config.stride = 2**8
     config.step_freq = 100
     config.test_size = 0.1
-    config.channels = 2**5
-    config.depth = 2**3
-    config.kernel_size = 7
-    config.skip_freq = 1
-    config.norm_factor = math.sqrt(config.channels)
-    config.layernorm = True
-    config.inner_skip = True
+    config.features = 2**4
+    config.levels = 2**5
+    config.skip = True
+    config.only_last = True
+    config.projection = 1
+    config.heads = 2**3
+    config.attn_layers = 2**2
     len_files = len(FILES)
     test_files = FILES[: int(len_files * config.test_size)]
     train_files = FILES[int(len_files * config.test_size) :]
