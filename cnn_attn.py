@@ -15,7 +15,13 @@ class Convblock(nn.Module):
     @nn.compact
     def __call__(self, x):
         if x.shape[-1] != self.channels:
-            x = nn.Conv(features=self.channels, kernel_size=(1,), use_bias=False)(x)
+            x = nn.Conv(
+                features=self.channels,
+                kernel_size=(1,),
+                use_bias=False,
+                dtype=None,
+                param_dtype=jnp.float32,
+            )(x)
             x = nn.PReLU()(x)
         weights = self.param(
             "weights",
@@ -52,7 +58,13 @@ class Convblock(nn.Module):
         if self.layernorm:
             x = nn.LayerNorm()(x)
         x_ = x
-        x = nn.Conv(features=self.channels, kernel_size=(1,), use_bias=True)(x)
+        x = nn.Conv(
+            features=self.channels,
+            kernel_size=(1,),
+            use_bias=True,
+            dtype=None,
+            param_dtype=jnp.float32,
+        )(x)
         x = nn.PReLU()(x)
         return x_ + x if self.skip else x
 
