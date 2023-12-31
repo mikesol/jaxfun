@@ -162,7 +162,7 @@ if __name__ == "__main__":
     # config.inner_skip = True
     # attn cnn
     config.seed = 42
-    config.batch_size = 2**7
+    config.batch_size = 2**4
     config.validation_split = 0.2
     config.learning_rate = 1e-4
     config.epochs = 15
@@ -170,12 +170,12 @@ if __name__ == "__main__":
     config.stride = 2**8
     config.step_freq = 100
     config.test_size = 0.1
-    config.features = 2**6
-    config.levels = 2**5
+    config.features = 2**5
+    config.levels = 2**4
     config.skip = True
     config.only_last = True
     config.projection = 1
-    config.heads = 2**3
+    config.heads = 2**2
     config.attn_layers = 2**2
     len_files = len(FILES)
     test_files = FILES[: int(len_files * config.test_size)]
