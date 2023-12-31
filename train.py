@@ -143,7 +143,7 @@ if __name__ == "__main__":
             state = compute_metrics(state=state, loss=loss)
 
             if batch_ix % config.step_freq == 0:
-                metrics = jax_utils.unreplicate(state.metrics.compute())
+                metrics = jax_utils.unreplicate(state.metrics).compute()
                 wandb.log({"train_loss": metrics["loss"]})
                 state = state.replace(metrics=state.metrics.empty())
         for batch_ix, batch in tqdm(
@@ -155,7 +155,7 @@ if __name__ == "__main__":
             loss = compute_loss(state, input, target)
             state = compute_metrics(state=state, loss=loss)
 
-        metrics = jax_utils.unreplicate(state.metrics.compute())
+        metrics = jax_utils.unreplicate(state.metrics).compute()
         wandb.log({"val_loss": metrics["loss"]})
         state = state.replace(metrics=state.metrics.empty())
         # checkpoint at beginning as sanity check of checkpointing
