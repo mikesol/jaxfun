@@ -138,6 +138,7 @@ if __name__ == "__main__":
             print("STARTING BATCH")
             input = jax_utils.replicate(batch["input"])
             target = jax_utils.replicate(batch["target"])
+            print("DIMS", input.shape, target.shape)
             loss, grads = train_step(state, input, target)
             state = update_model(state, grads)
             print("BEFORE_UNREPLICATED", loss.shape, jax_utils.unreplicate(loss))
