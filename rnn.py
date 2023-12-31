@@ -268,7 +268,7 @@ class AttnBlock(nn.Module):
             bias_init=self.bias_init,
             use_bias=True,
         )(out)
-        return out
+        return nn.LayerNorm()(out_ + out)
 
 
 class Transformeresque(nn.Module):
