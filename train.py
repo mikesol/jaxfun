@@ -127,7 +127,7 @@ if __name__ == "__main__":
 
     # FILES = FILES[:3]
     run = wandb.init(
-        project="simple-jax-convattn",
+        project="simple-jax-lstmattn",
     )
     config = wandb.config
     # lstm
