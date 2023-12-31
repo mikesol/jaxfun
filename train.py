@@ -49,7 +49,6 @@ def create_train_state(
         skip_freq=config.skip_freq,
         norm_factor=config.norm_factor,
         layernorm=config.layernorm,
-        batchnorm=config.batchnorm,
         inner_skip=config.inner_skip,
     )
     # module = LSTM(
@@ -144,7 +143,6 @@ if __name__ == "__main__":
     config.skip_freq = 1
     config.norm_factor = math.sqrt(config.channels)
     config.layernorm = True
-    config.batchnorm = True
     config.inner_skip = True
     len_files = len(FILES)
     test_files = FILES[: int(len_files * config.test_size)]
