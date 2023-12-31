@@ -171,7 +171,7 @@ if __name__ == "__main__":
     config.step_freq = 100
     config.test_size = 0.1
     config.features = 2**5
-    config.levels = 2**2
+    config.levels = 2**3
     config.skip = True
     config.only_last = True
     config.projection = 1
