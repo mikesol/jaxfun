@@ -135,6 +135,7 @@ if __name__ == "__main__":
             enumerate(train_dataset.iter(batch_size=config.batch_size)),
             total=train_dataset_total // config.batch_size,
         ):
+            print("STARTING BATCH")
             input = jax_utils.replicate(batch["input"])
             target = jax_utils.replicate(batch["target"])
             loss, grads = train_step(state, input, target)
@@ -148,6 +149,7 @@ if __name__ == "__main__":
                 print("GOT METRICS")
                 wandb.log({"train_loss": metrics["loss"]})
                 state = state.replace(metrics=state.metrics.empty())
+                print("REPLACING")
         for batch_ix, batch in tqdm(
             enumerate(test_dataset.iter(batch_size=config.batch_size)),
             total=test_dataset_total // config.batch_size,
