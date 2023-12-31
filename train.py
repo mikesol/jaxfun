@@ -194,7 +194,7 @@ if __name__ == "__main__":
     del init_rng  # Must not be used anymore.
     for epoch in range(config.epochs):
         # checkpoint at beginning as sanity check of checkpointing
-        ckpt = {"model": state, "config": config}
+        ckpt = {"model": jax_utils.unreplicate(state), "config": config}
         checkpoint_manager.save(epoch, ckpt)
         artifact = wandb.Artifact("checkpoint", type="model")
         artifact.add_dir(os.path.join(checkpoint_dir, f"{epoch}"))
