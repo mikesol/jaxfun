@@ -8,7 +8,7 @@ import flax.linen as nn
 from flax.training import train_state
 import optax
 import os
-from model import LSTM, LSTMCell, SimpleLSTMCombinator
+from rnn import LSTM, LSTMCell, SimpleLSTMCombinator
 import jax
 from data import make_data
 import orbax.checkpoint
