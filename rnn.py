@@ -294,7 +294,7 @@ class Transformeresque(nn.Module):
                     expand_factor=self.expand_factor,
                     dense_init=self.dense_init,
                     bias_init=self.bias_init,
-                ) for _ in self.attn_layers
+                ) for _ in range(self.attn_layers)
             ]
         )
         if self.projection is not None:
