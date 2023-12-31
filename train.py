@@ -3,6 +3,7 @@ import wandb
 from clu import metrics
 from functools import partial
 import jax.numpy as jnp
+import flax.jax_utils as jax_utils
 import flax.linen as nn
 from flax.training import train_state
 import optax
@@ -35,6 +36,8 @@ class TrainState(train_state.TrainState):
     metrics: Metrics
 
 
+# not really sure what static_broadcasted_argnums is... I think the dims that don't change?
+@partial(jax.pmap, static_broadcasted_argnums=(1,))
 def create_train_state(
     module: nn.Module, rng: PRNGKey, learning_rate: float
 ) -> TrainState:
@@ -45,32 +48,40 @@ def create_train_state(
     )
 
 
-@jax.jit
-def train_step(state, batch):
+@jax.pmap
+def train_step(state, input, target):
     """Train for a single step."""
 
     def loss_fn(params):
-        pred = state.apply_fn({"params": params}, batch["input"])
-        loss = optax.l2_loss(predictions=pred, targets=batch["target"]).mean()
+        pred = state.apply_fn({"params": params}, input)
+        loss = optax.l2_loss(predictions=pred, targets=target).mean()
         return loss
 
-    grad_fn = jax.grad(loss_fn)
-    grads = grad_fn(state.params)
-    state = state.apply_gradients(grads=grads)
-    return state
+    grad_fn = jax.value_and_grad(loss_fn)
+    loss, grads = grad_fn(state.params)
+    return loss, grads
 
-parallel_train_step = jax.pmap(train_step, axis_name="batch", donate_argnums=(0,))
-@jax.jit
-def compute_metrics(*, state: TrainState, batch):
+
+@jax.pmap
+def update_model(state, grads):
+    return state.apply_gradients(grads=grads)
+
+
+@jax.pmap
+def compute_loss(*, state: TrainState, batch):
     pred = state.apply_fn({"params": state.params}, batch["input"])
     loss = optax.l2_loss(predictions=pred, targets=batch["target"]).mean()
+    return loss
+
+
+@jax.jit
+def compute_metrics(state, loss):
     metric_updates = state.metrics.single_from_model_output(loss=loss)
     metrics = state.metrics.merge(metric_updates)
     state = state.replace(metrics=metrics)
     return state
 
 
-parallel_compute_metrics = jax.pmap(compute_metrics, axis_name="batch")
 if __name__ == "__main__":
     from get_files import FILES
 
@@ -99,6 +110,7 @@ if __name__ == "__main__":
     test_dataset, test_dataset_total = make_data(
         test_files, config.window, config.stride
     )
+    test_dataset = jax_utils.replicate(test_dataset)
     init_rng = jax.random.PRNGKey(config.seed)
     lstm = LSTM(
         features=config.n_features,
@@ -109,7 +121,9 @@ if __name__ == "__main__":
         cell=partial(LSTMCell, combinator=ComplexLSTMCombinator),
     )
 
-    state = create_train_state(lstm, init_rng, config.learning_rate)
+    state = create_train_state(
+        lstm, jax.random.split(init_rng, jax.device_count()), config.learning_rate
+    )
     del init_rng  # Must not be used anymore.
     for epoch in range(config.epochs):
         # log the epoch
@@ -120,8 +134,13 @@ if __name__ == "__main__":
             enumerate(train_dataset.iter(batch_size=config.batch_size)),
             total=train_dataset_total // config.batch_size,
         ):
-            state = parallel_train_step(state, batch)
-            state = compute_metrics(state=state, batch=batch)
+            input = jax_utils.replicate(batch["input"])
+            target = jax_utils.replicate(batch["target"])
+            loss, grads = train_step(state, input, target)
+            state = update_model(state, grads)
+            state = compute_metrics(
+                state=state, loss=jax_utils.unreplicate(loss)
+            )
 
             if batch_ix % config.step_freq == 0:
                 metrics = state.metrics.compute()
@@ -131,7 +150,10 @@ if __name__ == "__main__":
             enumerate(test_dataset.iter(batch_size=config.batch_size)),
             total=test_dataset_total // config.batch_size,
         ):
-            state = compute_metrics(state=state, batch=batch)
+            loss = compute_loss(state=state, batch=batch)
+            state = compute_metrics(
+                state=state, loss=jax_utils.unreplicate(loss)
+            )
 
         metrics = state.metrics.compute()
         wandb.log({"val_loss": metrics["loss"]})
