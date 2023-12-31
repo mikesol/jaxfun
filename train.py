@@ -36,7 +36,7 @@ class TrainState(train_state.TrainState):
     metrics: Metrics
 
 
-@partial(jax.pmap, static_broadcasted_argnums=(1, 2, 3))
+@partial(jax.pmap, static_broadcasted_argnums=(1, 2))
 def create_train_state(
     rng: PRNGKey, config: wandb.Config, learning_rate: float
 ) -> TrainState:
