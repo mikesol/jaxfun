@@ -188,7 +188,6 @@ class StackedRNNCell(nn.Module):
             )
 
     def __call__(self, carry, inputs):
-        print("FOO", carry, inputs)
         c, h = carry
         inputs = jnp.expand_dims(inputs, axis=-2)
         # make the inputs match the size of the hidden state
@@ -251,6 +250,7 @@ class AttnBlock(nn.Module):
 
     @nn.compact
     def __call__(self, out):
+        features = out.shape[-1]
         out_ = out
         out = nn.MultiHeadDotProductAttention(self.heads)(out, out)
         out = nn.LayerNorm()(out_ + out)
@@ -263,7 +263,7 @@ class AttnBlock(nn.Module):
         )(out)
         out = nn.gelu(out)
         out = nn.Dense(
-            features=out.shape[-1],
+            features=features,
             kernel_init=self.dense_init,
             bias_init=self.bias_init,
             use_bias=True,
