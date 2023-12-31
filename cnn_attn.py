@@ -90,6 +90,7 @@ class Convattn(nn.Module):
                 inner_skip=self.inner_skip,
             )(x)
         x = nn.Conv(features=1, kernel_size=(1,), use_bias=True)(x)
+        return x
 
 
 if __name__ == "__main__":

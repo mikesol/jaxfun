@@ -72,7 +72,7 @@ def train_step(state, input, target):
 
     def loss_fn(params):
         pred = state.apply_fn(
-            {"params": params}, input, mutable=["batch_stats"]
+            {"params": params}, input
         )
         loss = optax.l2_loss(predictions=pred, targets=target).mean()
         return loss
