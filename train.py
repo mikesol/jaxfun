@@ -61,7 +61,6 @@ def train_step(state, input, target):
 
     def loss_fn(params):
         pred = state.apply_fn({"params": params}, input)
-        print("PRED_SHAPE IN LOSS_FN", pred.shape)
         loss = optax.l2_loss(predictions=pred, targets=target).mean()
         return loss
 
@@ -83,13 +82,11 @@ def replace_metrics(state):
 def compute_loss(state, input, target):
     pred = state.apply_fn({"params": state.params}, input)
     loss = optax.l2_loss(pred, target).mean()
-    print("LOSS_SHAPE IN COMPUTE_LOSS", loss.shape)
     return loss
 
 
 @jax.pmap
 def compute_metrics(state, loss):
-    print("LOSS_SHAPE IN COMPUTE_METRICS", loss)
     metric_updates = state.metrics.single_from_model_output(loss=loss)
     metrics = state.metrics.merge(metric_updates)
     state = state.replace(metrics=metrics)
@@ -105,7 +102,7 @@ if __name__ == "__main__":
     )
     config = wandb.config
     config.seed = 42
-    config.batch_size = 2**3
+    config.batch_size = 2**6
     config.validation_split = 0.2
     config.learning_rate = 1e-4
     config.epochs = 15
@@ -113,7 +110,7 @@ if __name__ == "__main__":
     config.stride = 2**8
     config.step_freq = 100
     config.test_size = 0.1
-    config.n_features = 2**4
+    config.n_features = 2**5
     config.n_levels = 2**4
     len_files = len(FILES)
     test_files = FILES[: int(len_files * config.test_size)]
@@ -139,27 +136,20 @@ if __name__ == "__main__":
             enumerate(train_dataset.iter(batch_size=config.batch_size)),
             total=train_dataset_total // config.batch_size,
         ):
-            print("STARTING BATCH")
             input = jax_utils.replicate(batch["input"])
             target = jax_utils.replicate(batch["target"])
-            print("DIMS", input.shape, target.shape)
             loss, grads = train_step(state, input, target)
             state = update_model(state, grads)
-            print("BEFORE_UNREPLICATED", loss.shape, jax_utils.unreplicate(loss))
             state = compute_metrics(state=state, loss=loss)
 
             if batch_ix % config.step_freq == 0:
-                print("BATCH_INDEX FOUND")
                 metrics = jax_utils.unreplicate(state.metrics).compute()
-                print("GOT METRICS")
                 wandb.log({"train_loss": metrics["loss"]})
                 state = replace_metrics(state)
-                print("REPLACING")
         for batch_ix, batch in tqdm(
             enumerate(test_dataset.iter(batch_size=config.batch_size)),
             total=test_dataset_total // config.batch_size,
         ):
-            print("VAL")
             input = jax_utils.replicate(batch["input"])
             target = jax_utils.replicate(batch["target"])
             loss = compute_loss(state, input, target)
