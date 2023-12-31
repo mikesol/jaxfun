@@ -74,6 +74,10 @@ def train_step(state, input, target):
 def update_model(state, grads):
     return state.apply_gradients(grads=grads)
 
+@jax.pmap
+def replace_metrics(state):
+    return state.replace(metrics=state.metrics.empty())
+
 
 @jax.pmap
 def compute_loss(state, input, target):
@@ -149,7 +153,7 @@ if __name__ == "__main__":
                 metrics = jax_utils.unreplicate(state.metrics).compute()
                 print("GOT METRICS")
                 wandb.log({"train_loss": metrics["loss"]})
-                state = state.replace(metrics=state.metrics.empty())
+                state = replace_metrics(state)
                 print("REPLACING")
         for batch_ix, batch in tqdm(
             enumerate(test_dataset.iter(batch_size=config.batch_size)),
@@ -163,7 +167,7 @@ if __name__ == "__main__":
 
         metrics = jax_utils.unreplicate(state.metrics).compute()
         wandb.log({"val_loss": metrics["loss"]})
-        state = state.replace(metrics=state.metrics.empty())
+        state = replace_metrics(state)
         # checkpoint at beginning as sanity check of checkpointing
         ckpt = {"model": state, "config": config}
         checkpoint_manager.save(epoch, ckpt)
