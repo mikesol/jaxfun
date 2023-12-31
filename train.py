@@ -68,9 +68,9 @@ def update_model(state, grads):
 
 
 @jax.pmap
-def compute_loss(*, state: TrainState, batch):
-    pred = state.apply_fn({"params": state.params}, batch["input"])
-    loss = optax.l2_loss(predictions=pred, targets=batch["target"]).mean()
+def compute_loss(state, input, target):
+    pred = state.apply_fn({"params": state.params},input)
+    loss = optax.l2_loss(pred, target).mean()
     return loss
 
 
@@ -110,7 +110,6 @@ if __name__ == "__main__":
     test_dataset, test_dataset_total = make_data(
         test_files, config.window, config.stride
     )
-    test_dataset = jax_utils.replicate(test_dataset)
     init_rng = jax.random.PRNGKey(config.seed)
     lstm = LSTM(
         features=config.n_features,
@@ -150,7 +149,9 @@ if __name__ == "__main__":
             enumerate(test_dataset.iter(batch_size=config.batch_size)),
             total=test_dataset_total // config.batch_size,
         ):
-            loss = compute_loss(state=state, batch=batch)
+            input = jax_utils.replicate(batch["input"])
+            target = jax_utils.replicate(batch["target"])
+            loss = compute_loss(state, input, target)
             state = compute_metrics(
                 state=state, loss=jax_utils.unreplicate(loss)
             )
