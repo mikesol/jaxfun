@@ -120,7 +120,7 @@ if __name__ == "__main__":
     init_rng = jax.random.PRNGKey(config.seed)
 
     state = create_train_state(
-        config, jax.random.split(init_rng, jax.device_count()), config.learning_rate
+        jax.random.split(init_rng, jax.device_count()), config, config.learning_rate
     )
     del init_rng  # Must not be used anymore.
     for epoch in range(config.epochs):
