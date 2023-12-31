@@ -36,10 +36,18 @@ class TrainState(train_state.TrainState):
     metrics: Metrics
 
 
-@partial(jax.pmap, static_broadcasted_argnums=(2,3))
+@partial(jax.pmap, static_broadcasted_argnums=(1, 2, 3))
 def create_train_state(
-    module: nn.Module, rng: PRNGKey, learning_rate: float
+    rng: PRNGKey, config: wandb.Config, learning_rate: float
 ) -> TrainState:
+    module = LSTM(
+        features=config.n_features,
+        levels=config.n_levels,
+        skip=True,
+        projection=1,
+        name="lstm",
+        cell=partial(LSTMCell, combinator=ComplexLSTMCombinator),
+    )
     params = module.init(rng, jnp.ones([1, 2**16, 1]))["params"]
     tx = optax.adam(learning_rate)
     return TrainState.create(
@@ -68,7 +76,7 @@ def update_model(state, grads):
 
 @jax.pmap
 def compute_loss(state, input, target):
-    pred = state.apply_fn({"params": state.params},input)
+    pred = state.apply_fn({"params": state.params}, input)
     loss = optax.l2_loss(pred, target).mean()
     return loss
 
@@ -110,17 +118,9 @@ if __name__ == "__main__":
         test_files, config.window, config.stride
     )
     init_rng = jax.random.PRNGKey(config.seed)
-    lstm = LSTM(
-        features=config.n_features,
-        levels=config.n_levels,
-        skip=True,
-        projection=1,
-        name="lstm",
-        cell=partial(LSTMCell, combinator=ComplexLSTMCombinator),
-    )
 
     state = create_train_state(
-        lstm, jax.random.split(init_rng, jax.device_count()), config.learning_rate
+        config, jax.random.split(init_rng, jax.device_count()), config.learning_rate
     )
     del init_rng  # Must not be used anymore.
     for epoch in range(config.epochs):
@@ -136,9 +136,7 @@ if __name__ == "__main__":
             target = jax_utils.replicate(batch["target"])
             loss, grads = train_step(state, input, target)
             state = update_model(state, grads)
-            state = compute_metrics(
-                state=state, loss=jax_utils.unreplicate(loss)
-            )
+            state = compute_metrics(state=state, loss=jax_utils.unreplicate(loss))
 
             if batch_ix % config.step_freq == 0:
                 metrics = state.metrics.compute()
@@ -151,9 +149,7 @@ if __name__ == "__main__":
             input = jax_utils.replicate(batch["input"])
             target = jax_utils.replicate(batch["target"])
             loss = compute_loss(state, input, target)
-            state = compute_metrics(
-                state=state, loss=jax_utils.unreplicate(loss)
-            )
+            state = compute_metrics(state=state, loss=jax_utils.unreplicate(loss))
 
         metrics = state.metrics.compute()
         wandb.log({"val_loss": metrics["loss"]})
