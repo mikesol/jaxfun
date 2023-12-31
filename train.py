@@ -139,6 +139,7 @@ if __name__ == "__main__":
             target = jax_utils.replicate(batch["target"])
             loss, grads = train_step(state, input, target)
             state = update_model(state, grads)
+            print("BEFORE_UNREPLICATED", loss.shape)
             state = compute_metrics(state=state, loss=jax_utils.unreplicate(loss))
 
             if batch_ix % config.step_freq == 0:
