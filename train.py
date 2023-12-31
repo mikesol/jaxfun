@@ -61,6 +61,7 @@ def train_step(state, input, target):
 
     def loss_fn(params):
         pred = state.apply_fn({"params": params}, input)
+        print("PRED_SHAPE IN LOSS_FN", pred.shape)
         loss = optax.l2_loss(predictions=pred, targets=target).mean()
         return loss
 
@@ -78,12 +79,13 @@ def update_model(state, grads):
 def compute_loss(state, input, target):
     pred = state.apply_fn({"params": state.params}, input)
     loss = optax.l2_loss(pred, target).mean()
+    print("LOSS_SHAPE IN COMPUTE_LOSS", loss.shape)
     return loss
 
 
 @jax.jit
 def compute_metrics(state, loss):
-    print("LOSS_SHAPE", loss.shape)
+    print("LOSS_SHAPE IN COMPUTE_METRICS", loss.shape)
     metric_updates = state.metrics.single_from_model_output(loss=loss)
     metrics = state.metrics.merge(metric_updates)
     state = state.replace(metrics=metrics)
