@@ -140,10 +140,10 @@ if __name__ == "__main__":
             loss, grads = train_step(state, input, target)
             state = update_model(state, grads)
             print("BEFORE_UNREPLICATED", loss.shape, jax_utils.unreplicate(loss))
-            state = compute_metrics(state=state, loss=jax_utils.unreplicate(loss))
+            state = compute_metrics(state=state, loss=loss)
 
             if batch_ix % config.step_freq == 0:
-                metrics = state.metrics.compute()
+                metrics = jax_utils.unreplicate(state.metrics.compute())
                 wandb.log({"train_loss": metrics["loss"]})
                 state = state.replace(metrics=state.metrics.empty())
         for batch_ix, batch in tqdm(
@@ -153,9 +153,9 @@ if __name__ == "__main__":
             input = jax_utils.replicate(batch["input"])
             target = jax_utils.replicate(batch["target"])
             loss = compute_loss(state, input, target)
-            state = compute_metrics(state=state, loss=jax_utils.unreplicate(loss))
+            state = compute_metrics(state=state, loss=loss)
 
-        metrics = state.metrics.compute()
+        metrics = jax_utils.unreplicate(state.metrics.compute())
         wandb.log({"val_loss": metrics["loss"]})
         state = state.replace(metrics=state.metrics.empty())
         # checkpoint at beginning as sanity check of checkpointing
