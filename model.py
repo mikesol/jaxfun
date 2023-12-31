@@ -101,28 +101,18 @@ class LSTMCell(nn.Module):
     combinator: Callable[..., Any] = None
     gate_fn: Callable[..., Any] = nn.sigmoid
     activation_fn: Callable[..., Any] = nn.tanh
-    kernel_init: nn.initializers.Initializer = nn.linear.default_kernel_init
-    recurrent_kernel_init: nn.initializers.Initializer = nn.initializers.orthogonal()
-    bias_init: nn.initializers.Initializer = nn.initializers.zeros_init()
-    dtype: Optional[Dtype] = None
-    param_dtype: Dtype = jnp.float32
     carry_init: nn.initializers.Initializer = nn.initializers.zeros_init()
 
     def setup(self):
-        if self.combinator == None:
-            self.combinator = partial(
-                SimpleLSTMCombinator,
-                kernel_init=self.kernel_init,
-                recurrent_kernel_init=self.recurrent_kernel_init,
-                bias_init=self.bias_init,
-                dtype=self.dtype,
-                param_dtype=self.param_dtype,
-            )
-
-        self.i = self.combinator(name="i")
-        self.f = self.combinator(name="f")
-        self.g = self.combinator(name="g")
-        self.o = self.combinator(name="o")
+        self._combinator = (
+            partial(SimpleLSTMCombinator)
+            if self.combinator == None
+            else self.combinator
+        )
+        self.i = self._combinator(name="i")
+        self.f = self._combinator(name="f")
+        self.g = self._combinator(name="g")
+        self.o = self._combinator(name="o")
 
     def __call__(self, carry, inputs):
         c, h = carry
@@ -158,14 +148,11 @@ def remove_last_entry_of_second_last_dim(tensor):
     return tensor[tuple(slices)]
 
 
-class StackedLSTMCell(nn.Module):
+class StackedRNNCell(nn.Module):
     features: int
+    cell: Callable[..., Any]
     skip: bool = False
-    combinator: Callable[..., Any] = None
-    gate_fn: Callable[..., Any] = nn.sigmoid
-    activation_fn: Callable[..., Any] = nn.tanh
-    kernel_init: nn.initializers.Initializer = nn.linear.default_kernel_init
-    recurrent_kernel_init: nn.initializers.Initializer = nn.initializers.orthogonal()
+    dense_init: nn.initializers.Initializer = nn.linear.default_kernel_init
     bias_init: nn.initializers.Initializer = nn.initializers.zeros_init()
     dtype: Optional[Dtype] = None
     param_dtype: Dtype = jnp.float32
@@ -173,55 +160,46 @@ class StackedLSTMCell(nn.Module):
     levels: int = 1
     projection: Optional[int] = None
 
-    @nn.compact
+    def setup(self):
+        self.scale_up_inputs = nn.Dense(
+            features=self.features,
+            use_bias=True,
+            kernel_init=self.dense_init,
+            bias_init=self.bias_init,
+            dtype=self.dtype,
+            param_dtype=self.param_dtype,
+        )
+        self.vmap = nn.vmap(
+            self.cell,
+            variable_axes={"params": 0},
+            split_rngs={"params": True},
+            in_axes=2,
+            out_axes=2,
+        )(features=self.features)
+        if self.projection is not None:
+            self.proj_dense = nn.Dense(
+                features=self.projection,
+                use_bias=True,
+                kernel_init=self.dense_init,
+                bias_init=self.bias_init,
+                dtype=self.dtype,
+                param_dtype=self.param_dtype,
+            )
+
     def __call__(self, carry, inputs):
         c, h = carry
         inputs = jnp.expand_dims(inputs, axis=-2)
         # make the inputs match the size of the hidden state
-        inputs = nn.Dense(
-            features=self.features,
-            use_bias=True,
-            kernel_init=self.recurrent_kernel_init,
-            bias_init=self.bias_init,
-            dtype=self.dtype,
-            param_dtype=self.param_dtype,
-        )(inputs)
+        inputs = self.scale_up_inputs(inputs)
         inputs = jax.lax.concatenate(
             [inputs, remove_last_entry_of_second_last_dim(h)],
             dimension=inputs.ndim - 2,
         )
 
-        carry, out = nn.vmap(
-            LSTMCell,
-            variable_axes={"params": 0},
-            split_rngs={"params": True},
-            in_axes=inputs.ndim - 2,
-            out_axes=inputs.ndim - 2,
-        )(
-            features=self.features,
-            skip=self.skip,
-            combinator=self.combinator,
-            gate_fn=self.gate_fn,
-            activation_fn=self.activation_fn,
-            kernel_init=self.kernel_init,
-            recurrent_kernel_init=self.recurrent_kernel_init,
-            bias_init=self.bias_init,
-            dtype=self.dtype,
-            param_dtype=self.param_dtype,
-            carry_init=self.carry_init,
-        )(
-            (c, h), inputs
-        )
+        carry, out = self.vmap((c, h), inputs)
 
         if self.projection is not None:
-            out = nn.Dense(
-                features=self.projection,
-                use_bias=True,
-                kernel_init=self.recurrent_kernel_init,
-                bias_init=self.bias_init,
-                dtype=self.dtype,
-                param_dtype=self.param_dtype,
-            )(out[..., -1, :])
+            out = self.proj_dense(out[..., -1, :])
 
         return carry, out
 
@@ -247,53 +225,38 @@ class StackedLSTMCell(nn.Module):
 
 class LSTM(nn.Module):
     features: int
+    cell: Callable[..., Any] = None
     skip: bool = False
-    combinator: Callable[..., Any] = None
-    gate_fn: Callable[..., Any] = nn.sigmoid
-    activation_fn: Callable[..., Any] = nn.tanh
-    kernel_init: nn.initializers.Initializer = nn.linear.default_kernel_init
-    recurrent_kernel_init: nn.initializers.Initializer = nn.initializers.orthogonal()
-    bias_init: nn.initializers.Initializer = nn.initializers.zeros_init()
-    dtype: Optional[Dtype] = None
-    param_dtype: Dtype = jnp.float32
-    carry_init: nn.initializers.Initializer = nn.initializers.zeros_init()
-    projection: Optional[int] = None
     levels: int = 1
+    projection: Optional[int] = None
 
-    @nn.compact
+    def setup(self):
+        self._cell = (
+            partial(LSTMCell, features=self.features)
+            if self.cell == None
+            else self.cell
+        )
+        self.stack = StackedRNNCell(
+            features=self.features,
+            levels=self.levels,
+            skip=self.skip,
+            projection=self.projection,
+            cell=self._cell,
+        )
+        self.rnn = nn.RNN(self.stack)
+
     def __call__(self, x):
-        x = nn.RNN(
-            StackedLSTMCell(
-                features=self.features,
-                levels=self.levels,
-                skip=self.skip,
-                projection=self.projection,
-                gate_fn=self.gate_fn,
-                combinator=self.combinator,
-                activation_fn=self.activation_fn,
-                kernel_init=self.kernel_init,
-                recurrent_kernel_init=self.recurrent_kernel_init,
-                bias_init=self.bias_init,
-                dtype=self.dtype,
-                param_dtype=self.param_dtype,
-                carry_init=self.carry_init,
-            )
-        )(x)
+        x = self.rnn(x)
         return x
 
 
 if __name__ == "__main__":
-    model = LSTM(features=2**7, levels=2**5, skip=True, projection=1, combinator=ComplexLSTMCombinator, name="lstm")
+    model = LSTM(
+        features=2**7,
+        levels=2**5,
+        skip=True,
+        projection=1,
+        name="lstm",
+        cell=partial(LSTMCell, combinator=ComplexLSTMCombinator),
+    )
     print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**8, 1))))
-
-    key = jax.random.PRNGKey(0)
-    input_shape = (2**2, 2**8, 1)  
-    params = model.init(key, jnp.ones(input_shape))
-
-    # Create dummy input data
-    dummy_input = jnp.ones(input_shape)
-
-    # Run the model on the dummy input
-    output = model.apply(params, dummy_input)
-
-    print("Output:", output)

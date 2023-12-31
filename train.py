@@ -1,12 +1,13 @@
 from flax import struct
 import wandb
 from clu import metrics
+from functools import partial
 import jax.numpy as jnp
 import flax.linen as nn
 from flax.training import train_state
 import optax
 import os
-from model import LSTM, SimpleLSTMCombinator
+from model import LSTM, LSTMCell, ComplexLSTMCombinator
 import jax
 from data import make_data
 import orbax.checkpoint
@@ -96,7 +97,15 @@ if __name__ == "__main__":
         test_files, config.window, config.stride
     )
     init_rng = jax.random.PRNGKey(config.seed)
-    lstm = LSTM(features=config.n_features, levels=config.n_levels, skip=True, projection=1, combinator=SimpleLSTMCombinator, name="lstm")
+    lstm = LSTM(
+        features=config.n_features,
+        levels=config.n_levels,
+        skip=True,
+        projection=1,
+        name="lstm",
+        cell=partial(LSTMCell, combinator=ComplexLSTMCombinator),
+    )
+
     state = create_train_state(lstm, init_rng, config.learning_rate)
     del init_rng  # Must not be used anymore.
     for epoch in range(config.epochs):
