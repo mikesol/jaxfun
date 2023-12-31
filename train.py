@@ -49,6 +49,7 @@ def create_train_state(
                 features=config.features,
                 levels=config.levels,
                 skip=config.skip,
+                only_last=False
                 cell=LSTMCell,
             ),
             only_last=config.only_last,
