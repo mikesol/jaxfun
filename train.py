@@ -8,7 +8,7 @@ import flax.linen as nn
 from flax.training import train_state
 import optax
 import os
-from model import LSTM, LSTMCell, ComplexLSTMCombinator
+from model import LSTM, LSTMCell, SimpleLSTMCombinator
 import jax
 from data import make_data
 import orbax.checkpoint
@@ -46,9 +46,9 @@ def create_train_state(
         skip=True,
         projection=1,
         name="lstm",
-        cell=partial(LSTMCell, combinator=ComplexLSTMCombinator),
+        cell=partial(LSTMCell, combinator=SimpleLSTMCombinator),
     )
-    params = module.init(rng, jnp.ones([1, 2**16, 1]))["params"]
+    params = module.init(rng, jnp.ones([1, config.window, 1]))["params"]
     tx = optax.adam(learning_rate)
     return TrainState.create(
         apply_fn=module.apply, params=params, tx=tx, metrics=Metrics.empty()
@@ -98,7 +98,7 @@ if __name__ == "__main__":
     )
     config = wandb.config
     config.seed = 42
-    config.batch_size = 2**4
+    config.batch_size = 2**7
     config.validation_split = 0.2
     config.learning_rate = 1e-4
     config.epochs = 15
