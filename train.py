@@ -4,6 +4,7 @@ from cnn_attn import Convattn
 from clu import metrics
 from functools import partial
 import jax.numpy as jnp
+import math
 import flax.jax_utils as jax_utils
 import flax.linen as nn
 from flax.training import train_state
@@ -139,7 +140,7 @@ if __name__ == "__main__":
     config.depth=2**5
     config.kernel_size=7
     config.skip_freq=1
-    config.norm_factor=jnp.sqrt(config.channels)
+    config.norm_factor=math.sqrt(config.channels)
     config.layernorm=True
     config.batchnorm=True
     config.inner_skip=True
