@@ -83,7 +83,7 @@ def compute_loss(state, input, target):
     return loss
 
 
-@jax.jit
+@jax.pmap
 def compute_metrics(state, loss):
     print("LOSS_SHAPE IN COMPUTE_METRICS", loss)
     metric_updates = state.metrics.single_from_model_output(loss=loss)
