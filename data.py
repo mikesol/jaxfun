@@ -29,7 +29,7 @@ def get_total_len(path, window, stride):
 def get_total_lens(paths, window, stride):
     return sum([get_total_len(x[0], window, stride) for x in paths], 0)
 
-def make_data(paths, window, stride):
+def make_data(paths, window, stride, feature_dim=-1):
     dataset = (
         interleave_datasets(
             [
@@ -39,8 +39,8 @@ def make_data(paths, window, stride):
         )
         .map(
             lambda x: {
-                "input": np.expand_dims(x["input"], axis=-1),
-                "target": np.expand_dims(x["target"], axis=-1),
+                "input": np.expand_dims(x["input"], axis=feature_dim),
+                "target": np.expand_dims(x["target"], axis=feature_dim),
             }, remove_columns=["input_path", "target_path", "start"]
         )
         .shuffle(seed=42, buffer_size=2**10)

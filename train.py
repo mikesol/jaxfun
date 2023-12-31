@@ -1,5 +1,6 @@
 from flax import struct
 import wandb
+from cnn_attn import Convattn
 from clu import metrics
 from functools import partial
 import jax.numpy as jnp
@@ -40,14 +41,24 @@ class TrainState(train_state.TrainState):
 def create_train_state(
     rng: PRNGKey, config: wandb.Config, learning_rate: float
 ) -> TrainState:
-    module = LSTM(
-        features=config.n_features,
-        levels=config.n_levels,
-        skip=True,
-        projection=1,
-        name="lstm",
-        cell=partial(LSTMCell, combinator=SimpleLSTMCombinator),
+    module = Convattn(
+        channels=config.channels,
+        depth=config.depth,
+        kernel_size=config.kernel_size,
+        skip_freq=config.skip_freq,
+        norm_factor=config.norm_factor,
+        layernorm=config.layernorm,
+        batchnorm=config.batchnorm,
+        inner_skip=config.inner_skip,
     )
+    # module = LSTM(
+    #     features=config.n_features,
+    #     levels=config.n_levels,
+    #     skip=True,
+    #     projection=1,
+    #     name="lstm",
+    #     cell=partial(LSTMCell, combinator=SimpleLSTMCombinator),
+    # )
     params = module.init(rng, jnp.ones([1, config.window, 1]))["params"]
     tx = optax.adam(learning_rate)
     return TrainState.create(
@@ -72,6 +83,7 @@ def train_step(state, input, target):
 @jax.pmap
 def update_model(state, grads):
     return state.apply_gradients(grads=grads)
+
 
 @jax.pmap
 def replace_metrics(state):
@@ -101,17 +113,36 @@ if __name__ == "__main__":
         project="simple-jax-lstm",
     )
     config = wandb.config
+    # lstm
+    # config.seed = 42
+    # config.batch_size = 2**7
+    # config.validation_split = 0.2
+    # config.learning_rate = 1e-4
+    # config.epochs = 15
+    # config.window = 2**13
+    # config.stride = 2**8
+    # config.step_freq = 100
+    # config.test_size = 0.1
+    # config.n_features = 2**4
+    # config.n_levels = 2**3
+    # cnn
     config.seed = 42
     config.batch_size = 2**7
     config.validation_split = 0.2
     config.learning_rate = 1e-4
-    config.epochs = 15
+    config.epochs = 100
     config.window = 2**13
     config.stride = 2**8
     config.step_freq = 100
     config.test_size = 0.1
-    config.n_features = 2**4
-    config.n_levels = 2**3
+    config.channels=2**7
+    config.depth=2**5
+    config.kernel_size=7
+    config.skip_freq=1
+    config.norm_factor=jnp.sqrt(config.channels)
+    config.layernorm=True
+    config.batchnorm=True
+    config.inner_skip=True
     len_files = len(FILES)
     test_files = FILES[: int(len_files * config.test_size)]
     train_files = FILES[int(len_files * config.test_size) :]
