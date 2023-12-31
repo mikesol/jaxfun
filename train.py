@@ -72,7 +72,9 @@ def train_step(state, input, target):
     """Train for a single step."""
 
     def loss_fn(params):
-        pred = state.apply_fn({"params": params}, input)
+        pred = state.apply_fn(
+            {"params": params}, input, training=True, mutable=["batch_stats"]
+        )
         loss = optax.l2_loss(predictions=pred, targets=target).mean()
         return loss
 
@@ -93,7 +95,7 @@ def replace_metrics(state):
 
 @jax.pmap
 def compute_loss(state, input, target):
-    pred = state.apply_fn({"params": state.params}, input)
+    pred = state.apply_fn({"params": state.params}, input, training=False)
     loss = optax.l2_loss(pred, target).mean()
     return loss
 
@@ -136,14 +138,14 @@ if __name__ == "__main__":
     config.stride = 2**8
     config.step_freq = 100
     config.test_size = 0.1
-    config.channels=2**7
-    config.depth=2**5
-    config.kernel_size=7
-    config.skip_freq=1
-    config.norm_factor=math.sqrt(config.channels)
-    config.layernorm=True
-    config.batchnorm=True
-    config.inner_skip=True
+    config.channels = 2**7
+    config.depth = 2**5
+    config.kernel_size = 7
+    config.skip_freq = 1
+    config.norm_factor = math.sqrt(config.channels)
+    config.layernorm = True
+    config.batchnorm = True
+    config.inner_skip = True
     len_files = len(FILES)
     test_files = FILES[: int(len_files * config.test_size)]
     train_files = FILES[int(len_files * config.test_size) :]

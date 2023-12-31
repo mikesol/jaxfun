@@ -14,7 +14,7 @@ class Convblock(nn.Module):
     inner_skip: bool = True
 
     @nn.compact
-    def __call__(self, x):
+    def __call__(self, x, training):
         if x.shape[-1] != self.channels:
             x = nn.Conv(features=self.channels, kernel_size=(1,), use_bias=False)(x)
             x = nn.PReLU()(x)
@@ -55,7 +55,9 @@ class Convblock(nn.Module):
         x_ = x
         x = nn.Conv(features=self.channels, kernel_size=(1,), use_bias=False)(x)
         if self.batchnorm:
-            x = nn.BatchNorm(use_running_average=False, momentum=0.9, epsilon=1e-5)(x)
+            x = nn.BatchNorm(
+                use_running_average=not training, momentum=0.9, epsilon=1e-5
+            )(x)
         x = nn.PReLU()(x)
         return x_ + x if self.skip else x
 
@@ -71,24 +73,17 @@ class Convattn(nn.Module):
     inner_skip: bool = True
 
     @nn.compact
-    def __call__(
-        self,
-        x,
-    ):
-        x = nn.Sequential(
-            [
-                Convblock(
-                    channels=self.channels,
-                    kernel_size=self.kernel_size,
-                    norm_factor=self.norm_factor,
-                    skip=(i % self.skip_freq) == (self.skip_freq - 1),
-                    layernorm=self.layernorm,
-                    batchnorm=self.batchnorm,
-                    inner_skip=self.inner_skip,
-                )
-                for i in range(self.depth)
-            ]
-        )(x)
+    def __call__(self, x, training: bool):
+        for i in range(self.depth):
+            x = Convblock(
+                channels=self.channels,
+                kernel_size=self.kernel_size,
+                norm_factor=self.norm_factor,
+                skip=(i % self.skip_freq) == (self.skip_freq - 1),
+                layernorm=self.layernorm,
+                batchnorm=self.batchnorm,
+                inner_skip=self.inner_skip,
+            )(x, training)
         x = nn.Conv(features=1, kernel_size=(1,), use_bias=True)(x)
 
 
