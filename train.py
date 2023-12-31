@@ -36,7 +36,7 @@ class TrainState(train_state.TrainState):
     metrics: Metrics
 
 
-@jax.pmap
+@partial(jax.pmap, static_broadcasted_argnums=(2,3))
 def create_train_state(
     module: nn.Module, rng: PRNGKey, learning_rate: float
 ) -> TrainState:
