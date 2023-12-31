@@ -73,7 +73,7 @@ def train_step(state, input, target):
 
     def loss_fn(params):
         pred = state.apply_fn(
-            {"params": params}, input, True, mutable=["batch_stats"]
+            {"params": params}, input, mutable=["batch_stats"]
         )
         loss = optax.l2_loss(predictions=pred, targets=target).mean()
         return loss
@@ -95,7 +95,7 @@ def replace_metrics(state):
 
 @jax.pmap
 def compute_loss(state, input, target):
-    pred = state.apply_fn({"params": state.params}, input, False)
+    pred = state.apply_fn({"params": state.params}, input)
     loss = optax.l2_loss(pred, target).mean()
     return loss
 
