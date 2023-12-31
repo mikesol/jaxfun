@@ -137,7 +137,7 @@ if __name__ == "__main__":
     config.stride = 2**8
     config.step_freq = 100
     config.test_size = 0.1
-    config.channels = 2**4
+    config.channels = 2**5
     config.depth = 2**3
     config.kernel_size = 7
     config.skip_freq = 1
