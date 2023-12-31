@@ -138,7 +138,7 @@ if __name__ == "__main__":
     config.step_freq = 100
     config.test_size = 0.1
     config.channels = 2**7
-    config.depth = 2**5
+    config.depth = 2**4
     config.kernel_size = 7
     config.skip_freq = 1
     config.norm_factor = math.sqrt(config.channels)
