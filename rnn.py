@@ -150,7 +150,7 @@ def remove_last_entry_of_second_last_dim(tensor):
 
 class StackedRNNCell(nn.Module):
     features: int
-    cell: Callable[..., Any]
+    cell: Callable[..., Any] = LSTMCell
     skip: bool = False
     dense_init: nn.initializers.Initializer = nn.linear.default_kernel_init
     bias_init: nn.initializers.Initializer = nn.initializers.zeros_init()
@@ -159,6 +159,7 @@ class StackedRNNCell(nn.Module):
     carry_init: nn.initializers.Initializer = nn.initializers.zeros_init()
     levels: int = 1
     projection: Optional[int] = None
+    only_last: bool = True
 
     def setup(self):
         self.scale_up_inputs = nn.Dense(
@@ -187,6 +188,7 @@ class StackedRNNCell(nn.Module):
             )
 
     def __call__(self, carry, inputs):
+        print("FOO", carry, inputs)
         c, h = carry
         inputs = jnp.expand_dims(inputs, axis=-2)
         # make the inputs match the size of the hidden state
@@ -198,8 +200,10 @@ class StackedRNNCell(nn.Module):
 
         carry, out = self.vmap((c, h), inputs)
 
+        if self.only_last:
+            out = out[..., -1, :]
         if self.projection is not None:
-            out = self.proj_dense(out[..., -1, :])
+            out = self.proj_dense(out)
 
         return carry, out
 
@@ -217,6 +221,109 @@ class StackedRNNCell(nn.Module):
         c = self.carry_init(key1, mem_shape, self.param_dtype)
         h = self.carry_init(key2, mem_shape, self.param_dtype)
         return (c, h)
+
+    @property
+    def num_feature_axes(self) -> int:
+        return 1
+
+
+class PositionalEncoding(nn.Module):
+    @nn.compact
+    def __call__(self, x):
+        seq_length, d_model = x.shape[-2], x.shape[-1]
+
+        position = jnp.arange(seq_length)[:, jnp.newaxis]
+        div_term = jnp.exp(jnp.arange(0, d_model, 2) * -(jnp.log(10000.0) / d_model))
+        pos_encoding = jnp.zeros((seq_length, d_model))
+        pos_encoding = pos_encoding.at[:, 0::2].set(jnp.sin(position * div_term))
+        pos_encoding = pos_encoding.at[:, 1::2].set(jnp.cos(position * div_term))
+
+        x += pos_encoding
+
+        return x
+
+
+class AttnBlock(nn.Module):
+    heads: int
+    expand_factor: float = 2.0
+    dense_init: nn.initializers.Initializer = nn.linear.default_kernel_init
+    bias_init: nn.initializers.Initializer = nn.initializers.zeros_init()
+
+    @nn.compact
+    def __call__(self, out):
+        out_ = out
+        out = nn.MultiHeadDotProductAttention(self.heads)(out, out)
+        out = nn.LayerNorm()(out_ + out)
+        out_ = out
+        out = nn.Dense(
+            features=int(out.shape[-1] * self.expand_factor),
+            kernel_init=self.dense_init,
+            bias_init=self.bias_init,
+            use_bias=True,
+        )(out)
+        out = nn.gelu(out)
+        out = nn.Dense(
+            features=out.shape[-1],
+            kernel_init=self.dense_init,
+            bias_init=self.bias_init,
+            use_bias=True,
+        )(out)
+        return out
+
+
+class Transformeresque(nn.Module):
+    to_wrap: Callable[..., Any]
+    heads: int
+    layers: int = 2**2
+    projection: Optional[int] = None
+    only_last: bool = True
+    positional_encodings: bool = True
+    expand_factor: float = 2.0
+    param_dtype: Dtype = jnp.float32
+    dense_init: nn.initializers.Initializer = nn.linear.default_kernel_init
+    bias_init: nn.initializers.Initializer = nn.initializers.zeros_init()
+
+    def setup(self):
+        self.wrapped = self.to_wrap()
+        if self.positional_encodings:
+            self.pe = PositionalEncoding()
+        self.attentions = nn.Sequential(
+            [
+                AttnBlock(
+                    heads=self.heads,
+                    expand_factor=self.expand_factor,
+                    dense_init=self.dense_init,
+                    bias_init=self.bias_init,
+                )
+            ]
+        )
+        if self.projection is not None:
+            self.proj_dense = nn.Dense(
+                features=self.projection,
+                use_bias=True,
+                kernel_init=self.dense_init,
+                bias_init=self.bias_init,
+            )
+
+    def __call__(self, carry, inputs):
+        carry, out = self.wrapped(carry, inputs)
+
+        if self.positional_encodings:
+            out = self.pe(out)
+        out = self.attentions(out)
+
+        if self.only_last:
+            out = out[..., -1, :]
+        if self.projection is not None:
+            out = self.proj_dense(out)
+
+        return carry, out
+
+    @nn.nowrap
+    def initialize_carry(
+        self, rng: PRNGKey, input_shape: Tuple[int, ...]
+    ) -> Tuple[Array, Array]:
+        return self.wrapped.initialize_carry(rng, input_shape)
 
     @property
     def num_feature_axes(self) -> int:
@@ -251,12 +358,27 @@ class LSTM(nn.Module):
 
 
 if __name__ == "__main__":
-    model = LSTM(
-        features=2**7,
-        levels=2**5,
-        skip=True,
-        projection=1,
-        name="lstm",
-        cell=partial(LSTMCell, combinator=ComplexLSTMCombinator),
+    # model = LSTM(
+    #     features=2**7,
+    #     levels=2**5,
+    #     skip=True,
+    #     projection=1,
+    #     name="lstm",
+    #     cell=partial(LSTMCell, combinator=ComplexLSTMCombinator),
+    # )
+    # print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**8, 1))))
+    model = nn.RNN(
+        Transformeresque(
+            to_wrap=partial(
+                StackedRNNCell,
+                features=2**7,
+                levels=2**5,
+                skip=True,
+                only_last=False,
+                cell=LSTMCell,
+            ),
+            heads=2**4,
+            layers=2**2,
+        )
     )
     print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**8, 1))))
