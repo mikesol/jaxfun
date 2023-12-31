@@ -36,8 +36,7 @@ class TrainState(train_state.TrainState):
     metrics: Metrics
 
 
-# not really sure what static_broadcasted_argnums is... I think the dims that don't change?
-@partial(jax.pmap, static_broadcasted_argnums=(1,))
+@jax.pmap
 def create_train_state(
     module: nn.Module, rng: PRNGKey, learning_rate: float
 ) -> TrainState:
