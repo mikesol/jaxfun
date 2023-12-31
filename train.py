@@ -83,6 +83,7 @@ def compute_loss(state, input, target):
 
 @jax.jit
 def compute_metrics(state, loss):
+    print("LOSS_SHAPE", loss.shape)
     metric_updates = state.metrics.single_from_model_output(loss=loss)
     metrics = state.metrics.merge(metric_updates)
     state = state.replace(metrics=metrics)
