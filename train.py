@@ -143,13 +143,16 @@ if __name__ == "__main__":
             state = compute_metrics(state=state, loss=loss)
 
             if batch_ix % config.step_freq == 0:
+                print("BATCH_INDEX FOUND")
                 metrics = jax_utils.unreplicate(state.metrics).compute()
+                print("GOT METRICS")
                 wandb.log({"train_loss": metrics["loss"]})
                 state = state.replace(metrics=state.metrics.empty())
         for batch_ix, batch in tqdm(
             enumerate(test_dataset.iter(batch_size=config.batch_size)),
             total=test_dataset_total // config.batch_size,
         ):
+            print("VAL")
             input = jax_utils.replicate(batch["input"])
             target = jax_utils.replicate(batch["target"])
             loss = compute_loss(state, input, target)
