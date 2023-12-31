@@ -13,6 +13,8 @@ from data import make_data
 import orbax.checkpoint
 from tqdm import tqdm
 
+jax.distributed.initialize()
+
 checkpoint_dir = "/tmp/flax_ckpt/orbax/managed"
 
 orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
@@ -57,7 +59,7 @@ def train_step(state, batch):
     state = state.apply_gradients(grads=grads)
     return state
 
-
+parallel_train_step = jax.pmap(train_step, axis_name="batch", donate_argnums=(0,))
 @jax.jit
 def compute_metrics(*, state: TrainState, batch):
     pred = state.apply_fn({"params": state.params}, batch["input"])
@@ -68,6 +70,7 @@ def compute_metrics(*, state: TrainState, batch):
     return state
 
 
+parallel_compute_metrics = jax.pmap(compute_metrics, axis_name="batch")
 if __name__ == "__main__":
     from get_files import FILES
 
@@ -117,7 +120,7 @@ if __name__ == "__main__":
             enumerate(train_dataset.iter(batch_size=config.batch_size)),
             total=train_dataset_total // config.batch_size,
         ):
-            state = train_step(state, batch)
+            state = parallel_train_step(state, batch)
             state = compute_metrics(state=state, batch=batch)
 
             if batch_ix % config.step_freq == 0:
