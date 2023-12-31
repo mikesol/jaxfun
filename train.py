@@ -170,12 +170,12 @@ if __name__ == "__main__":
     config.stride = 2**8
     config.step_freq = 100
     config.test_size = 0.1
-    config.features = 2**5
+    config.features = 2**4
     config.levels = 2**3
     config.skip = True
     config.only_last = True
     config.projection = 1
-    config.heads = 2**3
+    config.heads = 2**2
     config.attn_layers = 2**2
     len_files = len(FILES)
     test_files = FILES[: int(len_files * config.test_size)]
