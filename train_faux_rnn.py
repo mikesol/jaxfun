@@ -16,12 +16,13 @@ from data import make_2d_data
 import orbax.checkpoint
 from tqdm import tqdm
 
-jax.distributed.initialize()
-
 checkpoint_dir = "/tmp/flax_ckpt/orbax/managed"
 
 if os.path.exists(checkpoint_dir):
-    raise ValueError("clear checkpoint dir first")
+    raise ValueError(f"clear checkpoint dir first: {checkpoint_dir}")
+
+jax.distributed.initialize()
+
 
 orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
 options = orbax.checkpoint.CheckpointManagerOptions(max_to_keep=2, create=True)
