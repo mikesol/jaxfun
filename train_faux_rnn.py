@@ -166,7 +166,7 @@ if __name__ == "__main__":
     to_mask = config.to_mask
     for epoch in range(config.epochs):
         state = regenerate_model(state, config, to_mask)
-        to_mask *= 2
+        to_mask += config.to_mask
         # checkpoint at beginning as sanity check of checkpointing
         ckpt = {"model": jax_utils.unreplicate(state), "config": config}
         checkpoint_manager.save(epoch, ckpt)
