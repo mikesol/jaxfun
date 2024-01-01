@@ -88,7 +88,7 @@ def train_step(state, input, target):
 
     def loss_fn(params):
         pred = state.apply_fn({"params": params}, input)
-        loss = optax.l2_loss(predictions=pred, targets=target).mean()
+        loss = optax.l2_loss(pred, target[:,-pred.shape[1]:,:]).mean()
         return loss
 
     grad_fn = jax.value_and_grad(loss_fn)
@@ -109,7 +109,7 @@ def replace_metrics(state):
 @jax.pmap
 def compute_loss(state, input, target):
     pred = state.apply_fn({"params": state.params}, input)
-    loss = optax.l2_loss(pred, target).mean()
+    loss = optax.l2_loss(pred, target[:,-pred.shape[1]:,:]).mean()
     return loss
 
 
