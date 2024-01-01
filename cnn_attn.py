@@ -33,11 +33,6 @@ class Convblock(nn.Module):
         )
         # skip
         x_ = x
-        # weights == (b, k, c, s)
-        # x = (b, s, c) weights = (c, c, k) w' = (b, c, s, k) w = (b, k, c, s)
-        w = jnp.transpose(jnp.einsum("abc,dcg->adbg", x, weights), (0, 3, 1, 2))
-        w = nn.tanh(w / self.norm_factor)
-
         def do_unfold(x):
             half_kernel_size = self.kernel_size // 2
             x = jax.lax.conv_general_dilated_patches(
@@ -55,6 +50,11 @@ class Convblock(nn.Module):
             return x
 
         x = do_unfold(x)
+
+        # weights == (b, k, c, s)
+        # x = (b, s, c) weights = (c, c, k) w' = (b, c, s, k) w = (b, k, c, s)
+        w = jnp.transpose(jnp.einsum("abc,dcg->adbg", x_[:,-x.shape[3]:,:], weights), (0, 3, 1, 2))
+        w = nn.tanh(w / self.norm_factor)
         x = x * w
         x = jnp.sum(x, axis=1)
         x = jnp.transpose(x, (0, 2, 1))
@@ -179,11 +179,11 @@ class ConvAttnFauxLarsen(nn.Module):
         for j in range(self.depth - 1):
             zlen=c1d(zlen,self.kernel_size,1)
         zlen=c1d(zlen,self.kernel_size*2,2)
-        print("ZLEN",zlen)
         for m in range(self.to_mask):
             z = nn.Conv(features=self.channels, kernel_size=(1,), use_bias=True)(z)
             for i in range(self.depth):
                 if i == 0:
+                    IZ = z.shape
                     z = ConvblockWithTarget(
                         channels=self.channels,
                         kernel_size=self.kernel_size,
@@ -192,7 +192,10 @@ class ConvAttnFauxLarsen(nn.Module):
                         layernorm=self.layernorm,
                         inner_skip=self.inner_skip,
                     )(z)
+                    OZ = z.shape
+                    assert IZ[1] == c1d(OZ[1],self.kernel_size*2,2)
                 else:
+                    IZ = z.shape
                     z = Convblock(
                         channels=self.channels,
                         kernel_size=self.kernel_size,
@@ -202,16 +205,18 @@ class ConvAttnFauxLarsen(nn.Module):
                         inner_skip=self.inner_skip,
                         pad_to_input_size=False
                     )(z)
+                    OZ=z.shape
+                    assert IZ[1] == c1d(OZ[1],self.kernel_size,1)
 
+            if m != 1:
+                z.shape[1] == 1
             z = nn.Conv(features=1, kernel_size=(1,), use_bias=True)(z)
             z = nn.PReLU()(z)
-            print("Z ENDS AT", z.shape[1])
             z = jnp.concatenate([
                 foundry[:, -(zlen - 2) :, :],
                 x_final[:, m : m + 1, :],
                 z[:, -1:, :],
             ], axis=1)
-            print("NEW Z", z.shape[1])
             foundry = z
         return z
 
