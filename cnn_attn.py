@@ -32,6 +32,7 @@ class Convblock(nn.Module):
         # skip
         x_ = x
         # weights == (b, k, c, s)
+        # x = (b, s, c) weights = (c, c, k) w' = (b, c, s, k) w = (b, k, c, s)
         w = jnp.transpose(jnp.einsum("abc,dcg->adbg", x, weights), (0, 3, 1, 2))
         w = nn.tanh(w / self.norm_factor)
 
@@ -39,7 +40,7 @@ class Convblock(nn.Module):
             seq_len = x.shape[-2]
             half_kernel_size = self.kernel_size // 2
             x = jax.lax.conv_general_dilated_patches(
-                x,
+                jnp.transpose(x, (0, 2, 1)),
                 filter_shape=(self.kernel_size,),
                 window_strides=(1,),
                 padding=((half_kernel_size, half_kernel_size),),
