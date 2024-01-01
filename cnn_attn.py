@@ -46,7 +46,7 @@ class Convblock(nn.Module):
                 window_strides=(1,),
                 padding=((half_kernel_size, half_kernel_size),)
                 if self.pad_to_input_size
-                else (0, 0),
+                else ((0, 0),)
             )
             x = jnp.transpose(
                 jnp.reshape(x, (batch_size, self.channels, self.kernel_size, -1)),
@@ -155,6 +155,9 @@ class ConvblockWithTarget(nn.Module):
         return x_ + x if self.skip else x
 
 
+def c1d(o,k,s):
+    return (s*(o - 1)) + 1 + (k-1)
+
 class ConvAttnFauxLarsen(nn.Module):
     to_mask:int = 4
     depth:int = 2**4
@@ -172,7 +175,11 @@ class ConvAttnFauxLarsen(nn.Module):
         x_final = x[:, -(self.to_mask * 2) :: 2, :]
         z = x_masked
         foundry = x_masked
-        z_seq_size = None
+        zlen = 1
+        for j in range(self.depth - 1):
+            zlen=c1d(zlen,self.kernel_size,1)
+        zlen=c1d(zlen,self.kernel_size*2,2)
+        print("ZLEN",zlen)
         for m in range(self.to_mask):
             z = nn.Conv(features=self.channels, kernel_size=(1,), use_bias=True)(z)
             for i in range(self.depth):
@@ -193,21 +200,18 @@ class ConvAttnFauxLarsen(nn.Module):
                         skip=(i % self.skip_freq) == (self.skip_freq - 1),
                         layernorm=self.layernorm,
                         inner_skip=self.inner_skip,
+                        pad_to_input_size=False
                     )(z)
 
             z = nn.Conv(features=1, kernel_size=(1,), use_bias=True)(z)
             z = nn.PReLU()(z)
-            if m == 0:
-                # now that we know how much the input is slimmed down,
-                # we can use this to know how long a sequence length we need
-                # to get a result of length 1
-                z_seq_size = z.shape[1]
-            # last sample of the output of this is the next to interleave
+            print("Z ENDS AT", z.shape[1])
             z = jnp.concatenate([
-                foundry[:, -(z_seq_size - 2) :, :],
-                x_final[:, i : i + 1, :],
+                foundry[:, -(zlen - 2) :, :],
+                x_final[:, m : m + 1, :],
                 z[:, -1:, :],
             ], axis=1)
+            print("NEW Z", z.shape[1])
             foundry = z
         return z
 
