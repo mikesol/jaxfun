@@ -126,7 +126,7 @@ if __name__ == "__main__":
 
     # FILES = FILES[:3]
     run = wandb.init(
-        project="simple-jax-convattn",
+        project="jax-cnn-faux-rnn",
     )
     config = wandb.config
     # cnn
