@@ -21,13 +21,16 @@ def audio_gen(pair, window, stride):
 
     return _audio_gen
 
+
 def get_total_len(path, window, stride):
-    with wave.open(path, 'rb') as wav_file:
+    with wave.open(path, "rb") as wav_file:
         num_samples = wav_file.getnframes()
         return (num_samples - window) // stride
 
+
 def get_total_lens(paths, window, stride):
     return sum([get_total_len(x[0], window, stride) for x in paths], 0)
+
 
 def make_data(paths, window, stride, feature_dim=-1):
     dataset = (
@@ -41,7 +44,39 @@ def make_data(paths, window, stride, feature_dim=-1):
             lambda x: {
                 "input": np.expand_dims(x["input"], axis=feature_dim),
                 "target": np.expand_dims(x["target"], axis=feature_dim),
-            }, remove_columns=["input_path", "target_path", "start"]
+            },
+            remove_columns=["input_path", "target_path", "start"],
+        )
+        .shuffle(seed=42, buffer_size=2**10)
+        .with_format("jax")
+    )
+
+    return dataset, get_total_lens(paths, window, stride)
+
+
+def Paul(a, b):
+    c = np.empty((a.size + b.size,), dtype=a.dtype)
+    c[0::2] = a
+    c[1::2] = b
+    return c
+
+
+def make_2d_data(paths, window, stride, feature_dim=-1):
+    dataset = (
+        interleave_datasets(
+            [
+                IterableDataset.from_generator(audio_gen(pair, window + 1, stride))
+                for pair in paths
+            ]
+        )
+        .map(
+            lambda x: {
+                "input": np.expand_dims(
+                    Paul(x["input"][1:], x["target"][:-1]), axis=feature_dim
+                ),
+                "target": np.expand_dims(x["target"][1:], axis=feature_dim),
+            },
+            remove_columns=["input_path", "target_path", "start"],
         )
         .shuffle(seed=42, buffer_size=2**10)
         .with_format("jax")
@@ -52,5 +87,6 @@ def make_data(paths, window, stride, feature_dim=-1):
 
 if __name__ == "__main__":
     from get_files import FILES
+
     dataset = make_data(FILES[:1], 2**16, 2**8)
     print(next(dataset.iter(8, drop_last_batch=True))["input"].shape)

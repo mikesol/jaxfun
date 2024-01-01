@@ -50,7 +50,15 @@ assert out[0][1][6][1] == randy[0][1][4]
 
 ####
 
-randy = jrnd.normal(jrnd.PRNGKey(0), (4,5,2,10))
+randy = jrnd.normal(jrnd.PRNGKey(0), (4,5,10,2))
 out = jax.lax.conv_general_dilated_patches(randy, filter_shape=(7,3), window_strides=(1,1), padding=((3,3),(1,1)))
 print(out.shape)
-out = jnp.reshape(out, (4,5,2,21,10))
+out = jnp.reshape(out, (4, 5, 7, 3, 10, 2))
+        #  b  c  kh kw h  w
+assert out[0][0][0][0][0][0] == 0.0
+assert out[0][0][1][0][0][0] == 0.0
+assert out[0][0][2][0][0][0] == 0.0
+assert out[0][0][3][0][0][0] == 0.0
+assert out[0][0][4][0][0][0] == 0.0
+assert out[0][0][5][0][0][0] == 0.0
+assert out[0][0][6][0][0][0] == 0.0
