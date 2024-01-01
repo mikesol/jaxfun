@@ -141,7 +141,6 @@ if __name__ == "__main__":
     config.test_size = 0.1
     config.channels = 2**6
     config.depth = 2**3
-    config.depth = 2**3
     config.to_mask = 2**4
     config.kernel_size = 7
     config.skip_freq = 1
