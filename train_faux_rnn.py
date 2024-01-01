@@ -134,7 +134,7 @@ if __name__ == "__main__":
     config.batch_size = 2**7
     config.validation_split = 0.2
     config.learning_rate = 1e-4
-    config.epochs = 2**7
+    config.epochs = 2**8
     config.window = 2**12
     config.stride = 2**8
     config.step_freq = 100
