@@ -21,7 +21,7 @@ jax.distributed.initialize()
 checkpoint_dir = "/tmp/flax_ckpt/orbax/managed"
 
 if os.path.exists(checkpoint_dir):
-    raise ValueError("clear checkpoint dir first")
+    raise ValueError(f"clear checkpoint dir first: {checkpoint_dir}")
 
 
 orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
