@@ -211,7 +211,7 @@ class ConvAttnFauxLarsen(nn.Module):
             if m != 1:
                 z.shape[1] == 1
             z = nn.Conv(features=1, kernel_size=(1,), use_bias=True)(z)
-            z = nn.PReLU()(z)
+            # no activation at the end
             z = jnp.concatenate([
                 foundry[:, -(zlen - 2) :, :],
                 x_final[:, m : m + 1, :],
