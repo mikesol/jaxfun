@@ -10,9 +10,8 @@ import flax.linen as nn
 from flax.training import train_state
 import optax
 import os
-from rnn import LSTM, LSTMCell, SimpleLSTMCombinator, Transformeresque, StackedRNNCell
 import jax
-from data import make_2d_data
+from data import make_2d_data_with_delays_and_dilations
 import orbax.checkpoint
 from tqdm import tqdm
 
@@ -131,10 +130,10 @@ if __name__ == "__main__":
     len_files = len(FILES)
     test_files = FILES[: int(len_files * config.test_size)]
     train_files = FILES[int(len_files * config.test_size) :]
-    train_dataset, train_dataset_total = make_2d_data(
+    train_dataset, train_dataset_total = make_2d_data_with_delays_and_dilations(
         train_files, config.window, config.stride
     )
-    test_dataset, test_dataset_total = make_2d_data(
+    test_dataset, test_dataset_total = make_2d_data_with_delays_and_dilations(
         test_files, config.window, config.stride
     )
     init_rng = jax.random.PRNGKey(config.seed)

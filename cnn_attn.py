@@ -178,6 +178,7 @@ class ConvAttnFauxLarsen(nn.Module):
 
     def setup(self):
         self.start = nn.Conv(features=self.channels, kernel_size=(1,), use_bias=True)
+        self.start_prelu = nn.PReLU()
         layers = []
         for i in range(self.depth):
             if i == 0:
@@ -218,6 +219,7 @@ class ConvAttnFauxLarsen(nn.Module):
         zlen = c1d(zlen, self.kernel_size * 2, 2)
         for m in range(self.to_mask):
             z = self.start(z)
+            z = self.start_prelu(z)
             z = self.layers(z)
             if m != 0:
                 assert z.shape[1] == 1
