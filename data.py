@@ -32,15 +32,16 @@ def audio_gen_2d(pair, window, stride):
         o, _ = librosa.load(pair[1])
         start = 0
         while start + window <= len(i):
-            ii = i[start + 1 : start + 1 + window]
-            oo = o[start : start + 1 + window]
-            ii = Paul(ii, oo[:-1])
-            oo = oo[1:]
-            yield {
-                "input": ii,
-                "target": oo,
-            }
-            start += stride
+            for m in [-1.0, 1.0]:
+                ii = i[start + 1 : start + 1 + window]
+                oo = o[start : start + 1 + window] * m
+                ii = Paul(ii, oo[:-1])
+                oo = oo[1:]
+                yield {
+                    "input": ii,
+                    "target": oo,
+                }
+                start += stride
 
     return _audio_gen
 
@@ -103,7 +104,8 @@ def make_2d_data(paths, window, stride, feature_dim=-1):
         .with_format("jax")
     )
 
-    return dataset, get_total_lens(paths, window, stride, f=get_total_len_2d)
+    # * 2 because we do flip for data augmentation
+    return dataset, get_total_lens(paths, window, stride, f=get_total_len_2d) * 2
 
 
 if __name__ == "__main__":

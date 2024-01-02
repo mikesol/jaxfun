@@ -62,37 +62,13 @@ def create_train_state(
         apply_fn=module.apply, params=params, tx=tx, metrics=Metrics.empty()
     )
 
-
-@partial(
-    jax.pmap,
-    static_broadcasted_argnums=(
-        1,
-        2,
-    ),
-)
-def regenerate_model(
-    state: TrainState, config: wandb.Config, to_mask: int
-) -> TrainState:
-    module = ConvAttnFauxLarsen(
-        to_mask=to_mask,
-        channels=config.channels,
-        depth=config.depth,
-        kernel_size=config.kernel_size,
-        skip_freq=config.skip_freq,
-        norm_factor=config.norm_factor,
-        layernorm=config.layernorm,
-        inner_skip=config.inner_skip,
-    )
-    return state.replace(apply_fn=module.apply)
-
-
-@jax.pmap
-def train_step(state, input, target):
+@partial(jax.pmap, static_broadcasted_argnums=(3,))
+def train_step(state, input, target, comparable_field):
     """Train for a single step."""
 
     def loss_fn(params):
         pred = state.apply_fn({"params": params}, input)
-        loss = optax.l2_loss(pred, target[:,-pred.shape[1]:,:]).mean()
+        loss = optax.l2_loss(pred[:, -comparable_field:, :], target[:, -comparable_field:, :]).mean()
         return loss
 
     grad_fn = jax.value_and_grad(loss_fn)
@@ -110,10 +86,10 @@ def replace_metrics(state):
     return state.replace(metrics=state.metrics.empty())
 
 
-@jax.pmap
-def compute_loss(state, input, target):
+@partial(jax.pmap, static_broadcasted_argnums=(3,))
+def compute_loss(state, input, target, comparable_field):
     pred = state.apply_fn({"params": state.params}, input)
-    loss = optax.l2_loss(pred, target[:,-pred.shape[1]:,:]).mean()
+    loss = optax.l2_loss(pred[:, -comparable_field:, :], target[:, -comparable_field:, :]).mean()
     return loss
 
 
@@ -145,7 +121,8 @@ if __name__ == "__main__":
     config.test_size = 0.1
     config.channels = 2**5
     config.depth = 2**3
-    config.to_mask = 2**4
+    config.to_mask = 2**11
+    config.comparable_field = 2**10
     config.kernel_size = 7
     config.skip_freq = 1
     config.norm_factor = math.sqrt(config.channels)
@@ -166,10 +143,7 @@ if __name__ == "__main__":
         jax.random.split(init_rng, jax.device_count()), config, config.learning_rate
     )
     del init_rng  # Must not be used anymore.
-    to_mask = config.to_mask
     for epoch in range(config.epochs):
-        state = regenerate_model(state, config, to_mask)
-        to_mask += config.to_mask
         # checkpoint at beginning as sanity check of checkpointing
         ckpt = {"model": jax_utils.unreplicate(state), "config": config}
         checkpoint_manager.save(epoch, ckpt)
@@ -186,7 +160,7 @@ if __name__ == "__main__":
         ):
             input = jax_utils.replicate(batch["input"])
             target = jax_utils.replicate(batch["target"])
-            loss, grads = train_step(state, input, target)
+            loss, grads = train_step(state, input, target, config.comparable_field)
             state = update_model(state, grads)
             state = compute_metrics(state=state, loss=loss)
 
@@ -200,7 +174,7 @@ if __name__ == "__main__":
         ):
             input = jax_utils.replicate(batch["input"])
             target = jax_utils.replicate(batch["target"])
-            loss = compute_loss(state, input, target)
+            loss = compute_loss(state, input, target, config.comparable_field)
             state = compute_metrics(state=state, loss=loss)
 
         metrics = jax_utils.unreplicate(state.metrics).compute()
