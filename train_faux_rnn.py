@@ -61,13 +61,16 @@ def create_train_state(
         apply_fn=module.apply, params=params, tx=tx, metrics=Metrics.empty()
     )
 
+
 @partial(jax.pmap, static_broadcasted_argnums=(3,))
 def train_step(state, input, target, comparable_field):
     """Train for a single step."""
 
     def loss_fn(params):
         pred = state.apply_fn({"params": params}, input)
-        loss = optax.l2_loss(pred[:, -comparable_field:, :], target[:, -comparable_field:, :]).mean()
+        loss = optax.l2_loss(
+            pred[:, -comparable_field:, :], target[:, -comparable_field:, :]
+        ).mean()
         return loss
 
     grad_fn = jax.value_and_grad(loss_fn)
@@ -88,7 +91,9 @@ def replace_metrics(state):
 @partial(jax.pmap, static_broadcasted_argnums=(3,))
 def compute_loss(state, input, target, comparable_field):
     pred = state.apply_fn({"params": state.params}, input)
-    loss = optax.l2_loss(pred[:, -comparable_field:, :], target[:, -comparable_field:, :]).mean()
+    loss = optax.l2_loss(
+        pred[:, -comparable_field:, :], target[:, -comparable_field:, :]
+    ).mean()
     return loss
 
 
@@ -110,11 +115,13 @@ if __name__ == "__main__":
     config = wandb.config
     # cnn
     config.seed = 42
+    config.inference_artifacts_per_epoch = 2**3
     config.batch_size = 2**7
     config.validation_split = 0.2
     config.learning_rate = 1e-4
     config.epochs = 2**7
     config.window = 2**12
+    config.inference_window = 2**12
     config.stride = 2**8
     config.step_freq = 100
     config.test_size = 0.1
@@ -136,6 +143,9 @@ if __name__ == "__main__":
     test_dataset, test_dataset_total = make_2d_data_with_delays_and_dilations(
         test_files, config.window, config.stride
     )
+    inference_dataset, inference_dataset_total = make_2d_data_with_delays_and_dilations(
+        test_files[:1], config.inference_window, config.inference_window
+    )
     init_rng = jax.random.PRNGKey(config.seed)
 
     state = create_train_state(
@@ -144,10 +154,25 @@ if __name__ == "__main__":
     del init_rng  # Must not be used anymore.
     for epoch in range(config.epochs):
         # checkpoint at beginning as sanity check of checkpointing
-        ckpt = {"model": jax_utils.unreplicate(state), "config": config}
+        ckpt_model = jax_utils.unreplicate(state)
+        ckpt = {"model": ckpt_model, "config": config}
         checkpoint_manager.save(epoch, ckpt)
         artifact = wandb.Artifact("checkpoint", type="model")
         artifact.add_dir(os.path.join(checkpoint_dir, f"{epoch}"))
+        run.log_artifact(artifact)
+        # inference
+        artifact = wandb.Artifact("inference", type="audio")
+        for batch_ix, batch in tqdm(
+            enumerate(
+                inference_dataset.take(config.inference_artifacts_per_epoch).iter(
+                    batch_size=1
+                )
+            ),
+            total=config.inference_artifacts_per_epoch,
+        ):
+            o = ckpt_model.apply_fn({"params": ckpt_model.params}, input)
+            audio = wandb.Audio(o[0, :, 0], sample_rate=44100)
+            artifact.add(audio, f"audio_{batch_ix}")
         run.log_artifact(artifact)
         # log the epoch
         wandb.log({"epoch": epoch})
