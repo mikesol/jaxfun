@@ -31,7 +31,7 @@ if local_env.do_manual_parallelism_setup:
         process_id=local_env.process_id,
     )
 else:
-    jax.distributed.initialize()s
+    jax.distributed.initialize()
 
 orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
 options = orbax.checkpoint.CheckpointManagerOptions(max_to_keep=2, create=True)
