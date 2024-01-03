@@ -108,7 +108,7 @@ class ConvblockWithTarget(nn.Module):
                 kernel_init=nn.with_partitioning(
                     initializers.lecun_normal(), (None, "model")
                 ),
-                bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
+                # bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
             )(x)
             x = nn.gelu(x)
         weights = self.param(
@@ -175,7 +175,7 @@ class ConvblockWithTarget(nn.Module):
             kernel_init=nn.with_partitioning(
                 initializers.lecun_normal(), (None, "model")
             ),
-            bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
+            # bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
         )(x)
         x = nn.gelu(x)
         return x_ + x if self.skip else x
