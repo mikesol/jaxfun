@@ -225,16 +225,16 @@ class ConvAttnFauxLarsen(nn.Module):
                 assert z.shape[1] == 1
             z = self.end(z)
             # no activation at the end
-            z = jnp.concatenate(
+            foundry = jnp.concatenate(
                 [
-                    foundry[:, -(zlen - 2) :, :],
+                    foundry,
                     x_final[:, m : m + 1, :],
                     z[:, -1:, :],
                 ],
                 axis=1,
             )
-            foundry = z
-        return z
+            z = foundry[:, -zlen :, :],
+        return foundry
 
 
 class Convattn(nn.Module):
