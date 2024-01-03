@@ -22,12 +22,14 @@ checkpoint_dir = "/tmp/flax_ckpt/orbax/managed"
 if os.path.exists(checkpoint_dir):
     raise ValueError(f"clear checkpoint dir first: {checkpoint_dir}")
 
-jax.distributed.initialize(
-    coordinator_address=local_env.coordinator_address,
-    num_processes=local_env.num_processes,
-    process_id=local_env.process_id,
-)
-
+if local_env.do_manual_parallelism_setup:
+    jax.distributed.initialize(
+        coordinator_address=local_env.coordinator_address,
+        num_processes=local_env.num_processes,
+        process_id=local_env.process_id,
+    )
+else:
+    jax.distributed.initialize()
 
 orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
 options = orbax.checkpoint.CheckpointManagerOptions(max_to_keep=2, create=True)
