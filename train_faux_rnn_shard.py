@@ -118,7 +118,7 @@ def mesh_sharding(pspec: PartitionSpec) -> NamedSharding:
 if __name__ == "__main__":
     from get_files import FILES
 
-    device_len = jax.devices()
+    device_len = len(jax.devices())
 
     print(f'Using {device_len} devices')
 
