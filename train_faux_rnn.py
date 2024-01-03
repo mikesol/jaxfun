@@ -150,6 +150,7 @@ if __name__ == "__main__":
     len_files = len(FILES)
     test_files = FILES[: int(len_files * config.test_size)]
     train_files = FILES[int(len_files * config.test_size) :]
+    print('making datasets')
     # can't use make_2d_data_with_delays_and_dilations because the RNN becomes too dicey :-(
     train_dataset, train_dataset_total = make_2d_data(
         paths=train_files, window=config.window, stride=config.stride #, shift=config.shift, dilation=config.dilation, channels=config.channels, feature_dim=-1, shuffle=True
@@ -160,6 +161,7 @@ if __name__ == "__main__":
     inference_dataset, inference_dataset_total = make_2d_data(
         paths=test_files[:1], window=config.window, stride=config.stride #, shift=config.shift, dilation=config.dilation, channels=config.channels, feature_dim=-1, shuffle=True
     )
+    print('datasets generated')
     init_rng = jax.random.PRNGKey(config.seed)
 
     state = create_train_state(
