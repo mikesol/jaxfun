@@ -21,19 +21,17 @@ class Convblock(nn.Module):
                 features=self.channels,
                 kernel_size=(1,),
                 use_bias=False,
-                dtype=None,
+                dtype=jnp.float32,
                 param_dtype=jnp.float32,
                 kernel_init=nn.with_partitioning(
-                    initializers.lecun_normal, (None, "model")
+                    initializers.lecun_normal(), (None, "model")
                 ),
-                bias_init=nn.with_partitioning(
-                    initializers.zeros_init, (None, "model")
-                ),
+                bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
             )(x)
             x = nn.gelu(x)
         weights = self.param(
             "weights",
-            nn.with_partitioning(initializers.lecun_normal, (None, "model")),
+            nn.with_partitioning(initializers.lecun_normal(), (None, "model")),
             (self.channels, self.channels, self.kernel_size),
             jnp.float32,
         )
@@ -70,24 +68,20 @@ class Convblock(nn.Module):
         x = x_[:, (-x.shape[1]) :, :] + x if self.skip and self.inner_skip else x
         if self.layernorm:
             x = nn.LayerNorm(
-                bias_init=nn.with_partitioning(
-                    initializers.zeros_init, (None, "model")
-                ),
-                scale_init=nn.with_partitioning(
-                    initializers.ones_init, (None, "model")
-                ),
+                bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
+                scale_init=nn.with_partitioning(initializers.ones_init(), (None, "model")),
             )(x)
         x_ = x
         x = nn.Conv(
             features=self.channels,
             kernel_size=(1,),
             use_bias=True,
-            dtype=None,
+            dtype=jnp.float32,
             param_dtype=jnp.float32,
             kernel_init=nn.with_partitioning(
-                initializers.lecun_normal, (None, "model")
+                initializers.lecun_normal(), (None, "model")
             ),
-            bias_init=nn.with_partitioning(initializers.zeros_init, (None, "model")),
+            bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
         )(x)
         x = nn.gelu(x)
         return x_ + x if self.skip else x
@@ -109,19 +103,17 @@ class ConvblockWithTarget(nn.Module):
                 features=self.channels,
                 kernel_size=(1,),
                 use_bias=False,
-                dtype=None,
+                dtype=jnp.float32,
                 param_dtype=jnp.float32,
                 kernel_init=nn.with_partitioning(
-                    initializers.lecun_normal, (None, "model")
+                    initializers.lecun_normal(), (None, "model")
                 ),
-                bias_init=nn.with_partitioning(
-                    initializers.zeros_init, (None, "model")
-                ),
+                bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
             )(x)
             x = nn.gelu(x)
         weights = self.param(
             "weights",
-            nn.with_partitioning(initializers.lecun_normal, (None, "model")),
+            nn.with_partitioning(initializers.lecun_normal(), (None, "model")),
             (self.channels, self.channels, self.kernel_size),
             jnp.float32,
         )
@@ -178,12 +170,12 @@ class ConvblockWithTarget(nn.Module):
             features=self.channels,
             kernel_size=(1,),
             use_bias=True,
-            dtype=None,
-            kernel_init=nn.with_partitioning(
-                initializers.lecun_normal, (None, "model")
-            ),
-            bias_init=nn.with_partitioning(initializers.zeros_init, (None, "model")),
+            dtype=jnp.float32,
             param_dtype=jnp.float32,
+            kernel_init=nn.with_partitioning(
+                initializers.lecun_normal(), (None, "model")
+            ),
+            bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
         )(x)
         x = nn.gelu(x)
         return x_ + x if self.skip else x
@@ -208,10 +200,12 @@ class ConvAttnFauxLarsen(nn.Module):
             features=self.channels,
             kernel_size=(1,),
             use_bias=True,
+            dtype=jnp.float32,
+            param_dtype=jnp.float32,
             kernel_init=nn.with_partitioning(
-                initializers.lecun_normal, (None, "model")
+                initializers.lecun_normal(), (None, "model")
             ),
-            bias_init=nn.with_partitioning(initializers.zeros_init, (None, "model")),
+            bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
         )
         layers = []
         for i in range(self.depth):
@@ -242,11 +236,13 @@ class ConvAttnFauxLarsen(nn.Module):
         self.end = nn.Conv(
             features=1,
             kernel_size=(1,),
+            dtype=jnp.float32,
+            param_dtype=jnp.float32,
             use_bias=True,
             kernel_init=nn.with_partitioning(
-                initializers.lecun_normal, (None, "model")
+                initializers.lecun_normal(), (None, "model")
             ),
-            bias_init=nn.with_partitioning(initializers.zeros_init, (None, "model")),
+            bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
         )
 
     def __call__(self, x):
@@ -307,11 +303,13 @@ class Convattn(nn.Module):
         x = nn.Conv(
             features=1,
             kernel_size=(1,),
+            dtype=jnp.float32,
+            param_dtype=jnp.float32,
             use_bias=True,
             kernel_init=nn.with_partitioning(
-                initializers.lecun_normal, (None, "model")
+                initializers.lecun_normal(), (None, "model")
             ),
-            bias_init=nn.with_partitioning(initializers.zeros_init, (None, "model")),
+            bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
         )(x)
         return x
 

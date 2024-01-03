@@ -1,3 +1,10 @@
+import os
+import GPUtil
+IS_CPU =  len(GPUtil.getAvailable()) == 0
+if IS_CPU:
+    print("in cpu land")
+    os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
+
 from flax import struct
 import wandb
 from cnn_attn import ConvAttnFauxLarsen
@@ -9,7 +16,6 @@ import flax.linen as nn
 import math
 from flax.training import train_state
 import optax
-import os
 import jax
 from data import make_2d_data
 import orbax.checkpoint
@@ -19,9 +25,6 @@ from jax.sharding import Mesh, PartitionSpec, NamedSharding
 from jax.lax import with_sharding_constraint
 from jax.experimental import mesh_utils
 
-if jax.default_backend() == "cpu":
-    print("in cpu land")
-    os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
 
 checkpoint_dir = "/tmp/flax_ckpt/orbax/managed"
 
@@ -115,8 +118,6 @@ def mesh_sharding(pspec: PartitionSpec) -> NamedSharding:
 if __name__ == "__main__":
     from get_files import FILES
 
-    if jax.default_backend() == "cpu":
-        FILES = FILES[:3]
     run = wandb.init(
         project="jax-cnn-faux-rnn",
     )
@@ -158,8 +159,8 @@ if __name__ == "__main__":
     ###
 
     len_files = len(FILES)
-    test_files = FILES[: int(len_files * config.test_size)]
-    train_files = FILES[int(len_files * config.test_size) :]
+    test_files = FILES[: int(len_files * config.test_size)] if not IS_CPU else FILES[0:1]
+    train_files = FILES[int(len_files * config.test_size) :] if not IS_CPU else FILES[1:2]
     print("making datasets")
     # can't use make_2d_data_with_delays_and_dilations because the RNN becomes too dicey :-(
     train_dataset, train_dataset_total = make_2d_data(
