@@ -61,7 +61,8 @@ def create_train_state(
         layernorm=config.layernorm,
         inner_skip=config.inner_skip,
     )
-    params = module.init(rng, jnp.ones([1, config.window, config.channels]))["params"]
+    # window is 2x'd because input is interleaved
+    params = module.init(rng, jnp.ones([1, config.window * 2, config.channels]))["params"]
     tx = optax.adam(learning_rate)
     return TrainState.create(
         apply_fn=module.apply, params=params, tx=tx, metrics=Metrics.empty()
