@@ -205,7 +205,7 @@ class ConvAttnFauxLarsen(nn.Module):
             kernel_init=nn.with_partitioning(
                 initializers.lecun_normal(), (None, "model")
             ),
-            bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
+            # bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
         )
         layers = []
         for i in range(self.depth):
