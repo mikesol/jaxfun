@@ -1,6 +1,7 @@
 import os
 import GPUtil
-IS_CPU =  len(GPUtil.getAvailable()) == 0
+
+IS_CPU = len(GPUtil.getAvailable()) == 0
 if IS_CPU:
     print("in cpu land")
     os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
@@ -51,20 +52,9 @@ class TrainState(train_state.TrainState):
     metrics: Metrics
 
 
-def create_train_state(rng: PRNGKey, x, config: wandb.Config) -> TrainState:
-    module = ConvAttnFauxLarsen(
-        to_mask=config.to_mask,
-        channels=config.channels,
-        depth=config.depth,
-        kernel_size=config.kernel_size,
-        skip_freq=config.skip_freq,
-        norm_factor=config.norm_factor,
-        layernorm=config.layernorm,
-        inner_skip=config.inner_skip,
-    )
+def create_train_state(rng: PRNGKey, x, module, tx) -> TrainState:
     # window is 2x'd because input is interleaved
     params = module.init(rng, x)["params"]
-    tx = optax.adam(config.learning_rate)
     return TrainState.create(
         apply_fn=module.apply, params=params, tx=tx, metrics=Metrics.empty()
     )
@@ -120,10 +110,10 @@ if __name__ == "__main__":
 
     device_len = len(jax.devices())
 
-    print(f'Using {device_len} devices')
+    print(f"Using {device_len} devices")
 
     if (device_len != 1) and (device_len % 2 == 1):
-        raise ValueError('not ')
+        raise ValueError("not ")
 
     run = wandb.init(
         project="jax-cnn-faux-rnn",
@@ -166,8 +156,12 @@ if __name__ == "__main__":
     ###
 
     len_files = len(FILES)
-    test_files = FILES[: int(len_files * config.test_size)] if not IS_CPU else FILES[0:1]
-    train_files = FILES[int(len_files * config.test_size) :] if not IS_CPU else FILES[1:2]
+    test_files = (
+        FILES[: int(len_files * config.test_size)] if not IS_CPU else FILES[0:1]
+    )
+    train_files = (
+        FILES[int(len_files * config.test_size) :] if not IS_CPU else FILES[1:2]
+    )
     print("making datasets")
     # can't use make_2d_data_with_delays_and_dilations because the RNN becomes too dicey :-(
     train_dataset, train_dataset_total = make_2d_data(
@@ -188,21 +182,34 @@ if __name__ == "__main__":
     print("datasets generated")
     init_rng = jax.random.PRNGKey(config.seed)
     onez = jnp.ones([config.batch_size, config.window * 2, 1])
+
+    module = ConvAttnFauxLarsen(
+        to_mask=config.to_mask,
+        channels=config.channels,
+        depth=config.depth,
+        kernel_size=config.kernel_size,
+        skip_freq=config.skip_freq,
+        norm_factor=config.norm_factor,
+        layernorm=config.layernorm,
+        inner_skip=config.inner_skip,
+    )
+    tx = optax.adam(config.learning_rate)
+
     abstract_variables = jax.eval_shape(
-        partial(create_train_state, config=config),
+        partial(create_train_state, module=module, tx=tx),
         init_rng,
         onez,
     )
 
     state_sharding = nn.get_sharding(abstract_variables, mesh)
+
     jit_create_train_state = jax.jit(
         create_train_state,
-        static_argnums=(2,),
+        static_argnums=(2, 3),
         in_shardings=(mesh_sharding(None), x_sharding),  # PRNG key and x
         out_shardings=state_sharding,
     )
-
-    state = jit_create_train_state(init_rng, onez, config)
+    state = jit_create_train_state(init_rng, onez, module, tx)
 
     jit_train_step = partial(
         jax.jit, in_shardings=(state_sharding, x_sharding), out_shardings=state_sharding
