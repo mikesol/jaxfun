@@ -130,7 +130,7 @@ if __name__ == "__main__":
     # cnn
     config.seed = 42
     config.inference_artifacts_per_batch_per_epoch = 2**2
-    config.batch_size = 2**3 # On multi-host platforms, the input to pmapped functions must have leading axis size equal to the number of local devices if no `devices` argument is specified. Got axis_size=32, num_local_devices=8
+    config.batch_size = 8*32 # On multi-host platforms, the input to pmapped functions must have leading axis size equal to the number of local devices if no `devices` argument is specified. Got axis_size=32, num_local_devices=8
     config.validation_split = 0.2
     config.learning_rate = 1e-4
     config.epochs = 2**7
