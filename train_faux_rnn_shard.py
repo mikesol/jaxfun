@@ -118,6 +118,11 @@ def mesh_sharding(pspec: PartitionSpec) -> NamedSharding:
 if __name__ == "__main__":
     from get_files import FILES
 
+    device_len = jax.devices()
+
+    if (device_len != 1) and (device_len % 2 == 1):
+        raise ValueError('not ')
+
     run = wandb.init(
         project="jax-cnn-faux-rnn",
     )
@@ -148,7 +153,7 @@ if __name__ == "__main__":
     config.shift = 2**4
     config.dilation = 2**0
     config.mesh_x = 2
-    config.mesh_y = 4
+    config.mesh_y = device_len // 2
     # messshhh
     device_mesh = mesh_utils.create_device_mesh((config.mesh_x, config.mesh_y))
     mesh = Mesh(devices=device_mesh, axis_names=("data", "model"))
