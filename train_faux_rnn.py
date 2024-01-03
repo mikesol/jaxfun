@@ -17,8 +17,6 @@ from data import make_2d_data
 import orbax.checkpoint
 from tqdm import tqdm
 
-print(jax.devices())
-
 checkpoint_dir = "/tmp/flax_ckpt/orbax/managed"
 
 if os.path.exists(checkpoint_dir):
