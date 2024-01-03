@@ -120,6 +120,8 @@ if __name__ == "__main__":
 
     device_len = jax.devices()
 
+    print(f'Using {device_len} devices')
+
     if (device_len != 1) and (device_len % 2 == 1):
         raise ValueError('not ')
 
