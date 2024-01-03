@@ -1,4 +1,5 @@
 from flax import struct
+import local_env
 import wandb
 from cnn_attn import ConvAttnFauxLarsen
 from clu import metrics
@@ -21,7 +22,11 @@ checkpoint_dir = "/tmp/flax_ckpt/orbax/managed"
 if os.path.exists(checkpoint_dir):
     raise ValueError(f"clear checkpoint dir first: {checkpoint_dir}")
 
-jax.distributed.initialize()
+jax.distributed.initialize(
+    coordinator_address=local_env.coordinator_address,
+    num_processes=local_env.num_processes,
+    process_id=local_env.process_id,
+)
 
 
 orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
