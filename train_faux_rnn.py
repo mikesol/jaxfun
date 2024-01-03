@@ -17,6 +17,8 @@ from data import make_2d_data
 import orbax.checkpoint
 from tqdm import tqdm
 
+print(jax.devices())
+
 checkpoint_dir = "/tmp/flax_ckpt/orbax/managed"
 
 if os.path.exists(checkpoint_dir):
@@ -29,7 +31,7 @@ if local_env.do_manual_parallelism_setup:
         process_id=local_env.process_id,
     )
 else:
-    jax.distributed.initialize()
+    jax.distributed.initialize()s
 
 orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
 options = orbax.checkpoint.CheckpointManagerOptions(max_to_keep=2, create=True)
