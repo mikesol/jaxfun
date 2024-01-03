@@ -21,6 +21,8 @@ checkpoint_dir = "/tmp/flax_ckpt/orbax/managed"
 
 if os.path.exists(checkpoint_dir):
     raise ValueError(f"clear checkpoint dir first: {checkpoint_dir}")
+else:
+    os.makedirs(checkpoint_dir)
 
 if local_env.do_manual_parallelism_setup:
     jax.distributed.initialize(
