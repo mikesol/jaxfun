@@ -66,7 +66,7 @@ def create_train_state(
         inner_skip=config.inner_skip,
     )
     # window is 2x'd because input is interleaved
-    params = module.init(rng, jnp.ones([1, config.window * 2, 1]))["params"]
+    params = module.init(rng, jnp.ones([config.batch_size, config.window * 2, 1]))["params"]
     tx = optax.adam(learning_rate)
     return TrainState.create(
         apply_fn=module.apply, params=params, tx=tx, metrics=Metrics.empty()
@@ -127,7 +127,7 @@ if __name__ == "__main__":
     # cnn
     config.seed = 42
     config.inference_artifacts_per_batch_per_epoch = 2**2
-    config.batch_size = 2**2
+    config.batch_size = 2**3
     config.validation_split = 0.2
     config.learning_rate = 1e-4
     config.epochs = 2**7
