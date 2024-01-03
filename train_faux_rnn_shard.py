@@ -115,7 +115,8 @@ def mesh_sharding(pspec: PartitionSpec) -> NamedSharding:
 if __name__ == "__main__":
     from get_files import FILES
 
-    # FILES = FILES[:3]
+    if jax.default_backend() == "cpu":
+        FILES = FILES[:3]
     run = wandb.init(
         project="jax-cnn-faux-rnn",
     )
