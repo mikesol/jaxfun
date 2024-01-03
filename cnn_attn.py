@@ -233,7 +233,7 @@ class ConvAttnFauxLarsen(nn.Module):
                 ],
                 axis=1,
             )
-            z = foundry[:, -zlen :, :],
+            z = foundry[:, -zlen :, :]
         return foundry
 
 
