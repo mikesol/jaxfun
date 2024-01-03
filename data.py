@@ -78,8 +78,8 @@ def audio_gen(pair, window, stride):
         start = 0
         while start + window <= len(i):
             yield {
-                "input": i[start : start + window],
-                "target": o[start : start + window],
+                "input":  librosa.util.normalize(i[start : start + window]),
+                "target": librosa.util.normalize(o[start : start + window]),
             }
             start += stride
 
@@ -109,8 +109,8 @@ def audio_gen_2d(pair, window, stride):
                 ii = i[start + 1 : start + 1 + window]
                 oo = o[start : start + 1 + window] * m
                 yield {
-                    "input": ii,
-                    "target": oo,
+                    "input":  librosa.util.normalize(ii),
+                    "target":  librosa.util.normalize(oo),
                 }
             start += stride
 
