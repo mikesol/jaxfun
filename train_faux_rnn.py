@@ -180,9 +180,9 @@ if __name__ == "__main__":
             ),
             total=config.inference_artifacts_per_epoch,
         ):
-            o = ckpt_model.apply_fn({"params": ckpt_model.params}, input)
+            o = ckpt_model.apply_fn({"params": ckpt_model.params}, batch['input'])
             # make it 1d
-            audio = wandb.Audio(np.array(o)[0, :, 0], sample_rate=44100)
+            audio = wandb.Audio(np.squeeze(np.array(o)), sample_rate=44100)
             artifact.add(audio, f"audio_{batch_ix}")
         run.log_artifact(artifact)
         # log the epoch
