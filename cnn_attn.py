@@ -26,7 +26,7 @@ class Convblock(nn.Module):
                 kernel_init=nn.with_partitioning(
                     initializers.lecun_normal(), (None, "model")
                 ),
-                #bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
+                bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
             )(x)
             x = nn.gelu(x)
         weights = self.param(
@@ -68,8 +68,8 @@ class Convblock(nn.Module):
         x = x_[:, (-x.shape[1]) :, :] + x if self.skip and self.inner_skip else x
         if self.layernorm:
             x = nn.LayerNorm(
-                #bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
-                #scale_init=nn.with_partitioning(initializers.ones_init(), (None, "model")),
+                bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
+                scale_init=nn.with_partitioning(initializers.ones_init(), (None, "model")),
             )(x)
         x_ = x
         x = nn.Conv(
@@ -81,7 +81,7 @@ class Convblock(nn.Module):
             kernel_init=nn.with_partitioning(
                 initializers.lecun_normal(), (None, "model")
             ),
-            #bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
+            bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
         )(x)
         x = nn.gelu(x)
         return x_ + x if self.skip else x
@@ -108,7 +108,7 @@ class ConvblockWithTarget(nn.Module):
                 kernel_init=nn.with_partitioning(
                     initializers.lecun_normal(), (None, "model")
                 ),
-                #bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
+                bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
             )(x)
             x = nn.gelu(x)
         weights = self.param(
@@ -175,7 +175,7 @@ class ConvblockWithTarget(nn.Module):
             kernel_init=nn.with_partitioning(
                 initializers.lecun_normal(), (None, "model")
             ),
-            #bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
+            bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
         )(x)
         x = nn.gelu(x)
         return x_ + x if self.skip else x
@@ -205,7 +205,7 @@ class ConvAttnFauxLarsen(nn.Module):
             kernel_init=nn.with_partitioning(
                 initializers.lecun_normal(), (None, "model")
             ),
-            #bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
+            bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
         )
         layers = []
         for i in range(self.depth):
@@ -242,7 +242,7 @@ class ConvAttnFauxLarsen(nn.Module):
             kernel_init=nn.with_partitioning(
                 initializers.lecun_normal(), (None, "model")
             ),
-            #bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
+            # bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
         )
 
     def __call__(self, x):
@@ -309,7 +309,7 @@ class Convattn(nn.Module):
             kernel_init=nn.with_partitioning(
                 initializers.lecun_normal(), (None, "model")
             ),
-            #bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
+            bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
         )(x)
         return x
 
