@@ -13,7 +13,7 @@ from flax.training import train_state
 import optax
 import os
 import jax
-from data import make_2d_data_with_delays_and_dilations
+from data import make_2d_data
 import orbax.checkpoint
 from tqdm import tqdm
 
@@ -62,7 +62,7 @@ def create_train_state(
         inner_skip=config.inner_skip,
     )
     # window is 2x'd because input is interleaved
-    params = module.init(rng, jnp.ones([1, config.window * 2, config.channels]))["params"]
+    params = module.init(rng, jnp.ones([1, config.window * 2, 1]))["params"]
     tx = optax.adam(learning_rate)
     return TrainState.create(
         apply_fn=module.apply, params=params, tx=tx, metrics=Metrics.empty()
@@ -146,14 +146,15 @@ if __name__ == "__main__":
     len_files = len(FILES)
     test_files = FILES[: int(len_files * config.test_size)]
     train_files = FILES[int(len_files * config.test_size) :]
-    train_dataset, train_dataset_total = make_2d_data_with_delays_and_dilations(
-        paths=train_files, window=config.window, stride=config.stride, shift=config.shift, dilation=config.dilation, channels=config.channels, feature_dim=-1, shuffle=True
+    # can't use make_2d_data_with_delays_and_dilations because the RNN becomes too dicey :-(
+    train_dataset, train_dataset_total = make_2d_data(
+        paths=train_files, window=config.window, stride=config.stride #, shift=config.shift, dilation=config.dilation, channels=config.channels, feature_dim=-1, shuffle=True
     )
-    test_dataset, test_dataset_total = make_2d_data_with_delays_and_dilations(
-        paths=test_files, window=config.window, stride=config.stride, shift=config.shift, dilation=config.dilation, channels=config.channels, feature_dim=-1, shuffle=True
+    test_dataset, test_dataset_total = make_2d_data(
+        paths=test_files, window=config.window, stride=config.stride #, shift=config.shift, dilation=config.dilation, channels=config.channels, feature_dim=-1, shuffle=True
     )
-    inference_dataset, inference_dataset_total = make_2d_data_with_delays_and_dilations(
-        paths=test_files[:1], window=config.window, stride=config.stride, shift=config.shift, dilation=config.dilation, channels=config.channels, feature_dim=-1, shuffle=True
+    inference_dataset, inference_dataset_total = make_2d_data(
+        paths=test_files[:1], window=config.window, stride=config.stride #, shift=config.shift, dilation=config.dilation, channels=config.channels, feature_dim=-1, shuffle=True
     )
     init_rng = jax.random.PRNGKey(config.seed)
 
