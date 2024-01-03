@@ -126,7 +126,7 @@ if __name__ == "__main__":
     config = wandb.config
     # cnn
     config.seed = 42
-    config.inference_artifacts_per_epoch = 2**3
+    config.inference_artifacts_per_batch_per_epoch = 2**2
     config.batch_size = 2**2
     config.validation_split = 0.2
     config.learning_rate = 1e-4
@@ -206,11 +206,11 @@ if __name__ == "__main__":
         artifact = wandb.Artifact("inference", type="audio")
         for batch_ix, batch in tqdm(
             enumerate(
-                inference_dataset.take(config.inference_artifacts_per_epoch).iter(
-                    batch_size=1
+                inference_dataset.take(config.inference_artifacts_per_batch_per_epoch).iter(
+                    batch_size=config.batch_size
                 )
             ),
-            total=config.inference_artifacts_per_epoch,
+            total=config.inference_artifacts_per_batch_per_epoch,
         ):
             o = ckpt_model.apply_fn({"params": ckpt_model.params}, batch['input'])
             # make it 1d
