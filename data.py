@@ -64,7 +64,7 @@ def mix_input_and_output(batch):
     input = batch["input"]
     to_interleave = batch["to_interleave"]
     target = batch["target"]
-    input_chunk = Paul(input, to_interleave)
+    input_chunk = Paul(np.array(input), np.array(to_interleave))
     return dict(input=input_chunk, target=target)
 
 
@@ -154,7 +154,7 @@ def make_data(paths, window, stride, feature_dim=-1):
     return dataset, get_total_lens(paths, window, stride)
 
 
-def make_2d_data(paths, window, stride, feature_dim=-1):
+def make_2d_data(paths, window, stride, feature_dim=-1, shuffle=True):
     dataset = (
         interleave_datasets(
             [
@@ -163,14 +163,20 @@ def make_2d_data(paths, window, stride, feature_dim=-1):
             ]
         )
         .map(
+            lambda x: {"to_interleave": x["target"][:-1], **x},
+        )
+        .map(mix_input_and_output, remove_columns=["to_interleave"])
+        .map(partial(truncate_target, window))
+        .map(
             lambda x: {
                 "input": np.expand_dims(x["input"], axis=feature_dim),
                 "target": np.expand_dims(x["target"], axis=feature_dim),
             },
         )
-        .shuffle(seed=42, buffer_size=2**10)
-        .with_format("jax")
     )
+    if shuffle:
+        dataset = dataset.shuffle(seed=42, buffer_size=2**10)
+    dataset = dataset.with_format("jax")
 
     # * 2 because we do flip for data augmentation
     return dataset, get_total_lens(paths, window, stride, f=get_total_len_2d) * 2
