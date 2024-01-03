@@ -16,6 +16,8 @@ import jax
 from data import make_2d_data
 import orbax.checkpoint
 from tqdm import tqdm
+import sys
+group_name = sys.argv[1]
 
 checkpoint_dir = "/tmp/flax_ckpt/orbax/managed"
 
@@ -122,6 +124,7 @@ if __name__ == "__main__":
     # FILES = FILES[:3]
     run = wandb.init(
         project="jax-cnn-faux-rnn",
+        group=group_name,
     )
     config = wandb.config
     # cnn
