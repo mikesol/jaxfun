@@ -140,17 +140,19 @@ if __name__ == "__main__":
     config.norm_factor = math.sqrt(config.channels)
     config.layernorm = True
     config.inner_skip = True
+    config.shift = 2**4
+    config.dilation = 2**0
     len_files = len(FILES)
     test_files = FILES[: int(len_files * config.test_size)]
     train_files = FILES[int(len_files * config.test_size) :]
     train_dataset, train_dataset_total = make_2d_data_with_delays_and_dilations(
-        train_files, config.window, config.stride
+        paths=train_files, window=config.window, stride=config.stride, shift=config.shift, dilation=config.dilation, channels=config.channels, feature_dim=-1, shuffle=True
     )
     test_dataset, test_dataset_total = make_2d_data_with_delays_and_dilations(
-        test_files, config.window, config.stride
+        paths=test_files, window=config.window, stride=config.stride, shift=config.shift, dilation=config.dilation, channels=config.channels, feature_dim=-1, shuffle=True
     )
     inference_dataset, inference_dataset_total = make_2d_data_with_delays_and_dilations(
-        test_files[:1], config.inference_window, config.inference_window
+        paths=test_files[:1], window=config.window, stride=config.stride, shift=config.shift, dilation=config.dilation, channels=config.channels, feature_dim=-1, shuffle=True
     )
     init_rng = jax.random.PRNGKey(config.seed)
 
