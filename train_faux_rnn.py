@@ -163,28 +163,6 @@ if __name__ == "__main__":
     )
     del init_rng  # Must not be used anymore.
     for epoch in range(config.epochs):
-        # checkpoint at beginning as sanity check of checkpointing
-        ckpt_model = jax_utils.unreplicate(state)
-        ckpt = {"model": ckpt_model, "config": config}
-        checkpoint_manager.save(epoch, ckpt)
-        artifact = wandb.Artifact("checkpoint", type="model")
-        artifact.add_dir(os.path.join(checkpoint_dir, f"{epoch}"))
-        run.log_artifact(artifact)
-        # inference
-        artifact = wandb.Artifact("inference", type="audio")
-        for batch_ix, batch in tqdm(
-            enumerate(
-                inference_dataset.take(config.inference_artifacts_per_epoch).iter(
-                    batch_size=1
-                )
-            ),
-            total=config.inference_artifacts_per_epoch,
-        ):
-            o = ckpt_model.apply_fn({"params": ckpt_model.params}, batch['input'])
-            # make it 1d
-            audio = wandb.Audio(np.squeeze(np.array(o)), sample_rate=44100)
-            artifact.add(audio, f"audio_{batch_ix}")
-        run.log_artifact(artifact)
         # log the epoch
         wandb.log({"epoch": epoch})
         train_dataset.set_epoch(epoch)
@@ -211,6 +189,28 @@ if __name__ == "__main__":
             target = jax_utils.replicate(batch["target"])
             loss = compute_loss(state, input, target, config.comparable_field)
             state = compute_metrics(state=state, loss=loss)
+        # checkpoint
+        ckpt_model = jax_utils.unreplicate(state)
+        ckpt = {"model": ckpt_model, "config": config}
+        checkpoint_manager.save(epoch, ckpt)
+        artifact = wandb.Artifact("checkpoint", type="model")
+        artifact.add_dir(os.path.join(checkpoint_dir, f"{epoch}"))
+        run.log_artifact(artifact)
+        # inference
+        artifact = wandb.Artifact("inference", type="audio")
+        for batch_ix, batch in tqdm(
+            enumerate(
+                inference_dataset.take(config.inference_artifacts_per_epoch).iter(
+                    batch_size=1
+                )
+            ),
+            total=config.inference_artifacts_per_epoch,
+        ):
+            o = ckpt_model.apply_fn({"params": ckpt_model.params}, batch['input'])
+            # make it 1d
+            audio = wandb.Audio(np.squeeze(np.array(o)), sample_rate=44100)
+            artifact.add(audio, f"audio_{batch_ix}")
+        run.log_artifact(artifact)
 
         metrics = jax_utils.unreplicate(state.metrics).compute()
         wandb.log({"val_loss": metrics["loss"]})
