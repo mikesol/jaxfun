@@ -71,15 +71,16 @@ def mix_input_and_output(batch):
 #####
 
 
-def audio_gen(pair, window, stride):
+def audio_gen(pair, window, stride, normalize=True):
     def _audio_gen():
         i, _ = librosa.load(pair[0])
         o, _ = librosa.load(pair[1])
         start = 0
+        normy = librosa.util.normalize if normalize else lambda x: x
         while start + window <= len(i):
             yield {
-                "input":  librosa.util.normalize(i[start : start + window]),
-                "target": librosa.util.normalize(o[start : start + window]),
+                "input": normy(i[start : start + window]),
+                "target": normy(o[start : start + window]),
             }
             start += stride
 
@@ -99,18 +100,19 @@ def Paul(a, b):
     return c
 
 
-def audio_gen_2d(pair, window, stride):
+def audio_gen_2d(pair, window, stride, normalize=True):
     def _audio_gen():
         i, _ = librosa.load(pair[0])
         o, _ = librosa.load(pair[1])
         start = 0
+        normy = librosa.util.normalize if normalize else lambda x: x
         while start + window <= len(i):
             for m in [1.0, -1.0]:
                 ii = i[start + 1 : start + 1 + window]
                 oo = o[start : start + 1 + window] * m
                 yield {
-                    "input":  librosa.util.normalize(ii),
-                    "target":  librosa.util.normalize(oo),
+                    "input": normy(ii),
+                    "target": normy(oo),
                 }
             start += stride
 
@@ -133,7 +135,7 @@ def get_total_lens(paths, window, stride, f=get_total_len):
     return sum([f(x[0], window, stride) for x in paths], 0)
 
 
-def make_data(paths, window, stride, feature_dim=-1):
+def make_data(paths, window, stride, feature_dim=-1, normalize=True):
     dataset = (
         interleave_datasets(
             [
@@ -154,11 +156,13 @@ def make_data(paths, window, stride, feature_dim=-1):
     return dataset, get_total_lens(paths, window, stride)
 
 
-def make_2d_data(paths, window, stride, feature_dim=-1, shuffle=True):
+def make_2d_data(paths, window, stride, feature_dim=-1, shuffle=True, normalize=True):
     dataset = (
         interleave_datasets(
             [
-                IterableDataset.from_generator(audio_gen_2d(pair, window, stride))
+                IterableDataset.from_generator(
+                    audio_gen_2d(pair, window, stride, normalize=normalize)
+                )
                 for pair in paths
             ]
         )
@@ -190,14 +194,24 @@ def truncate_target(window, batch):
 
 
 def make_2d_data_with_delays_and_dilations(
-    paths, window, stride, shift, dilation, channels, feature_dim=-1, shuffle=True
+    paths,
+    window,
+    stride,
+    shift,
+    dilation,
+    channels,
+    feature_dim=-1,
+    shuffle=True,
+    normalize=True,
 ):
     zone_size = channels // 4
     sample_width = (window + (zone_size * shift)) * (4 * dilation)
     dataset = (
         interleave_datasets(
             [
-                IterableDataset.from_generator(audio_gen_2d(pair, sample_width, stride))
+                IterableDataset.from_generator(
+                    audio_gen_2d(pair, sample_width, stride, normalize=normalize)
+                )
                 for pair in paths
             ]
         )

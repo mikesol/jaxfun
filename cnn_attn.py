@@ -287,7 +287,7 @@ class ConvAttnFauxCell(nn.Module):
         )
         if not is_first:
             z = jnp.squeeze(z, axis=1)
-        return foundry[:,-foundry_len:,:], z
+        return foundry[:, -foundry_len:, :], z
 
 
 class ConvAttnFauxLarsen(nn.Module):
@@ -301,6 +301,7 @@ class ConvAttnFauxLarsen(nn.Module):
     inner_skip: bool = True
 
     def setup(self):
+        print("CALLING SETUP")
         self.cell = ConvAttnFauxCell(
             to_mask=self.to_mask,
             depth=self.depth,
@@ -325,11 +326,14 @@ class ConvAttnFauxLarsen(nn.Module):
         )
 
     def __call__(self, x):
+        print("IN CALL")
         x_masked = x[:, : -(self.to_mask * 2), :]
         x_final = x[:, -(self.to_mask * 2) :: 2, :]
         foundry = x_masked
         z = x_masked
+        print("BEFORE CELL", foundry.shape, z.shape)
         foundry, z0 = self.cell(foundry, z, is_first=True)
+        print("PASSED CELL 1", foundry.shape, x_final.shape)
         foundry, z1 = self.scanned_cell(self.cell, foundry, x_final)
         return jnp.concatenate([z0, z1], axis=1)
 
