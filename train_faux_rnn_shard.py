@@ -69,7 +69,11 @@ def create_train_state(rng: PRNGKey, x, module, tx) -> TrainState:
     params = variables["params"]
     batch_stats = variables["batch_stats"]
     return TrainState.create(
-        apply_fn=module.apply, params=params, tx=tx, metrics=Metrics.empty()
+        apply_fn=module.apply,
+        params=params,
+        tx=tx,
+        batch_stats=batch_stats,
+        metrics=Metrics.empty(),
     )
 
 
@@ -89,7 +93,7 @@ def train_step(state, input, target, comparable_field):
     grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
     (loss, updates), grads = grad_fn(state.params)
     state = state.apply_gradients(grads=grads)
-    state = state.replace(batch_stats=updates['batch_stats'])
+    state = state.replace(batch_stats=updates["batch_stats"])
     return state, loss
 
 
@@ -99,7 +103,9 @@ def replace_metrics(state):
 
 
 def compute_loss(state, input, target, comparable_field):
-    pred = state.apply_fn({"params": state.params, "batch_stats": state.batch_stats}, input, train=False)
+    pred = state.apply_fn(
+        {"params": state.params, "batch_stats": state.batch_stats}, input, train=False
+    )
     loss = ESRLoss(pred[:, -comparable_field:, :], target[:, -comparable_field:, :])
     return loss
 
