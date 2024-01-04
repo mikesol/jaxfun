@@ -153,7 +153,7 @@ if __name__ == "__main__":
     config.step_freq = 100
     config.test_size = 0.1
     config.channels = 2**6
-    config.depth = 2**3
+    config.depth = 2**4
     config.to_mask = 2**5
     config.comparable_field = config.to_mask // 2
     config.kernel_size = 7
