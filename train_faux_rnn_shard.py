@@ -132,8 +132,8 @@ if __name__ == "__main__":
     config.stride = 2**8
     config.step_freq = 100
     config.test_size = 0.1
-    config.channels = 2**5
-    config.depth = 2**2
+    config.channels = 2**4
+    config.depth = 2**3
     config.to_mask = config.inference_window * 3 // 4
     config.comparable_field = 2**10
     config.kernel_size = 7
