@@ -27,9 +27,10 @@ from jax.lax import with_sharding_constraint
 from jax.experimental import mesh_utils
 
 
-def ESRLoss(self, input, target):
+def ESRLoss(input, target):
+    eps = 1e-8
     num = jnp.sum(((target - input) ** 2), axis=1)
-    denom = (target**2).sum(dim=1) + self.eps
+    denom = (target**2).sum(dim=1) + eps
     losses = num / denom
     losses = jnp.mean(losses)
     return losses
