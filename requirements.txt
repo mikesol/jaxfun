@@ -4,6 +4,8 @@ aiosignal==1.3.1
 appdirs==1.4.4
 attrs==23.1.0
 audioread==3.0.1
+auraloss==0.4.0
+black==23.12.1
 boto==2.49.0
 cached-property==1.5.2
 certifi==2023.11.17
@@ -48,6 +50,7 @@ mpmath==1.3.0
 msgpack==1.0.7
 multidict==6.0.4
 multiprocess==0.70.15
+mypy-extensions==1.0.0
 nest-asyncio==1.5.8
 networkx==3.2.1
 numba==0.58.1
@@ -58,6 +61,7 @@ orbax==0.1.9
 orbax-checkpoint==0.4.8
 packaging==23.2
 pandas==2.1.4
+pathspec==0.12.1
 platformdirs==4.1.0
 pluggy==1.3.0
 pooch==1.8.0

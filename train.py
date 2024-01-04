@@ -91,9 +91,7 @@ def train_step(state, input, target):
     """Train for a single step."""
 
     def loss_fn(params):
-        pred = state.apply_fn(
-            {"params": params}, input
-        )
+        pred = state.apply_fn({"params": params}, input)
         loss = optax.l2_loss(predictions=pred, targets=target).mean()
         return loss
 

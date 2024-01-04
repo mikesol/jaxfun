@@ -139,7 +139,9 @@ def make_data(paths, window, stride, feature_dim=-1, normalize=True):
     dataset = (
         interleave_datasets(
             [
-                IterableDataset.from_generator(audio_gen(pair, window, stride))
+                IterableDataset.from_generator(
+                    audio_gen(pair, window, stride, normalize=normalize)
+                )
                 for pair in paths
             ]
         )

@@ -5,6 +5,7 @@ import pytest
 
 from get_files import FILES
 
+
 def test_data():
     paths = FILES[:1]
     window = 2**12
@@ -16,7 +17,7 @@ def test_data():
         stride=stride,
         feature_dim=feature_dim,
         shuffle=False,
-        normalize=False
+        normalize=False,
     )
 
     batch = next(dataset.iter(1, drop_last_batch=True))
@@ -36,6 +37,7 @@ def test_data():
     assert np.isclose(o_[window - 2], i[0][-3][0])
     assert np.isclose(o_[window - 3], i[0][-5][0])
 
+
 def test_data_with_dilations():
     paths = FILES[:1]
     window = 2**12
@@ -53,7 +55,7 @@ def test_data_with_dilations():
         channels=channels,
         feature_dim=feature_dim,
         shuffle=False,
-        normalize=False
+        normalize=False,
     )
     zone_size = channels // 4
     sample_width = (window + (zone_size * shift)) * (4 * dilation)

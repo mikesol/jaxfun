@@ -17,6 +17,7 @@ from data import make_2d_data
 import orbax.checkpoint
 from tqdm import tqdm
 import sys
+
 group_name = sys.argv[1]
 
 checkpoint_dir = "/tmp/flax_ckpt/orbax/managed"
@@ -68,7 +69,9 @@ def create_train_state(
         inner_skip=config.inner_skip,
     )
     # window is 2x'd because input is interleaved
-    params = module.init(rng, jnp.ones([config.batch_size, config.window * 2, 1]))["params"]
+    params = module.init(rng, jnp.ones([config.batch_size, config.window * 2, 1]))[
+        "params"
+    ]
     tx = optax.adam(learning_rate)
     return TrainState.create(
         apply_fn=module.apply, params=params, tx=tx, metrics=Metrics.empty()
@@ -130,7 +133,9 @@ if __name__ == "__main__":
     # cnn
     config.seed = 42
     config.inference_artifacts_per_batch_per_epoch = 2**2
-    config.batch_size = 8*32 # On multi-host platforms, the input to pmapped functions must have leading axis size equal to the number of local devices if no `devices` argument is specified. Got axis_size=32, num_local_devices=8
+    config.batch_size = (
+        8 * 32
+    )  # On multi-host platforms, the input to pmapped functions must have leading axis size equal to the number of local devices if no `devices` argument is specified. Got axis_size=32, num_local_devices=8
     config.validation_split = 0.2
     config.learning_rate = 1e-4
     config.epochs = 2**7
@@ -153,18 +158,24 @@ if __name__ == "__main__":
     len_files = len(FILES)
     test_files = FILES[: int(len_files * config.test_size)]
     train_files = FILES[int(len_files * config.test_size) :]
-    print('making datasets')
+    print("making datasets")
     # can't use make_2d_data_with_delays_and_dilations because the RNN becomes too dicey :-(
     train_dataset, train_dataset_total = make_2d_data(
-        paths=train_files, window=config.window, stride=config.stride #, shift=config.shift, dilation=config.dilation, channels=config.channels, feature_dim=-1, shuffle=True
+        paths=train_files,
+        window=config.window,
+        stride=config.stride,  # , shift=config.shift, dilation=config.dilation, channels=config.channels, feature_dim=-1, shuffle=True
     )
     test_dataset, test_dataset_total = make_2d_data(
-        paths=test_files, window=config.window, stride=config.stride #, shift=config.shift, dilation=config.dilation, channels=config.channels, feature_dim=-1, shuffle=True
+        paths=test_files,
+        window=config.window,
+        stride=config.stride,  # , shift=config.shift, dilation=config.dilation, channels=config.channels, feature_dim=-1, shuffle=True
     )
     inference_dataset, inference_dataset_total = make_2d_data(
-        paths=test_files[:1], window=config.window, stride=config.stride #, shift=config.shift, dilation=config.dilation, channels=config.channels, feature_dim=-1, shuffle=True
+        paths=test_files[:1],
+        window=config.window,
+        stride=config.stride,  # , shift=config.shift, dilation=config.dilation, channels=config.channels, feature_dim=-1, shuffle=True
     )
-    print('datasets generated')
+    print("datasets generated")
     init_rng = jax.random.PRNGKey(config.seed)
 
     state = create_train_state(
@@ -209,13 +220,13 @@ if __name__ == "__main__":
         artifact = wandb.Artifact("inference", type="audio")
         for batch_ix, batch in tqdm(
             enumerate(
-                inference_dataset.take(config.inference_artifacts_per_batch_per_epoch).iter(
-                    batch_size=config.batch_size
-                )
+                inference_dataset.take(
+                    config.inference_artifacts_per_batch_per_epoch
+                ).iter(batch_size=config.batch_size)
             ),
             total=config.inference_artifacts_per_batch_per_epoch,
         ):
-            o = ckpt_model.apply_fn({"params": ckpt_model.params}, batch['input'])
+            o = ckpt_model.apply_fn({"params": ckpt_model.params}, batch["input"])
             # make it 1d
             audio = wandb.Audio(np.squeeze(np.array(o)), sample_rate=44100)
             artifact.add(audio, f"audio_{batch_ix}")
