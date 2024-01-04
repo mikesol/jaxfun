@@ -77,7 +77,8 @@ def create_train_state(rng: PRNGKey, x, module, tx) -> TrainState:
 
 
 def update_train_state(state: TrainState, model: nn.Module) -> TrainState:
-    state.update_train_state(apply_fn=model.apply)
+    state = state.replace(apply_fn=model.apply)
+    return state
 
 
 def train_step(state, input, target, comparable_field):
