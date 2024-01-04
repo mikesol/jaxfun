@@ -361,7 +361,16 @@ class ConvFauxCell(nn.Module):
                 )(z, train)
                 z = nn.BatchNorm(use_running_average=not train)(z)
                 z = nn.gelu(z)
-
+            elif i % 4 == 2:
+                z = Convblock(
+                    channels=self.channels,
+                    kernel_size=self.kernel_size,
+                    norm_factor=self.norm_factor,
+                    skip=(i % self.skip_freq) == (self.skip_freq - 1),
+                    layernorm=self.layernorm,
+                    inner_skip=self.inner_skip,
+                    pad_to_input_size=False,
+                )(z)
             else:
                 z = ConvWithSkip(
                     channels=self.channels, kernel_size=self.kernel_size, stride=1
@@ -461,9 +470,11 @@ class ConvFauxLarsen(nn.Module):
         )
 
     def __call__(self, x, train: bool = True):
-        if (self.to_mask >= x.shape[1]) or (type(self.to_mask) == type((1,2))):
+        if (self.to_mask >= x.shape[1]) or (type(self.to_mask) == type((1, 2))):
             # from a bug during training
-            raise ValueError(f"to_mask must be less than the input sequence length: {x.shape[1]} vs {self.to_mask}")
+            raise ValueError(
+                f"to_mask must be less than the input sequence length: {x.shape[1]} vs {self.to_mask}"
+            )
         x_masked = x[:, : -(self.to_mask * 2), :]
         x_final = x[:, -(self.to_mask * 2) :: 2, :]
         foundry = x_masked
