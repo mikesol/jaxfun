@@ -143,7 +143,7 @@ if __name__ == "__main__":
     config.inner_skip = True
     config.shift = 2**4
     config.dilation = 2**0
-    config.mesh_x = 2
+    config.mesh_x = 1
     config.mesh_y = device_len // config.mesh_x
     # messshhh
     device_mesh = mesh_utils.create_device_mesh((config.mesh_x, config.mesh_y))
