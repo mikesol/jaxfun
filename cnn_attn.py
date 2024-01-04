@@ -185,7 +185,7 @@ def c1d(o, k, s):
     return (s * (o - 1)) + 1 + (k - 1)
 
 
-class ConvAttnFauxLarsen(nn.Module):
+class ConvAttnFauxCell(nn.Module):
     to_mask: int = 4
     depth: int = 2**4
     channels: int = 2**6
@@ -245,14 +245,10 @@ class ConvAttnFauxLarsen(nn.Module):
             # bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
         )
 
-    def __call__(self, x):
-        x_masked = x[:, : -(self.to_mask * 2), :]
-        # get rid of the target
-        x_final = x[:, -(self.to_mask * 2) :: 2, :]
-        z = x_masked
-        foundry = x_masked
+    def __call__(self, foundry, ipt, is_first=True):
+        foundry_len = foundry.shape[1]
         zlen = 1
-        for j in range(self.depth - 1):
+        for _ in range(self.depth - 1):
             zlen = c1d(zlen, self.kernel_size, 1)
         zlen = c1d(zlen, self.kernel_size * 2, 2)
         # todo: convert to a variant of scan
@@ -260,24 +256,82 @@ class ConvAttnFauxLarsen(nn.Module):
         # so we'll want to use nn.RNN
         # not urgent, should be as fast to train via fusing,
         # but compilation is slower
-        for m in range(self.to_mask):
-            z = self.start(z)
-            z = nn.gelu(z)
-            z = self.layers(z)
-            if m != 0:
-                assert z.shape[1] == 1
-            z = self.end(z)
-            # no activation at the end
+        z = None
+        if not is_first:
+            # the input x needs to be interleaved into the foundry
             foundry = jnp.concatenate(
                 [
-                    foundry,
-                    x_final[:, m : m + 1, :],
-                    z[:, -1:, :],
+                    foundry[:, :-1, :],
+                    jnp.expand_dims(ipt, axis=1),
+                    foundry[:, -1:, :],
                 ],
                 axis=1,
             )
             z = foundry[:, -zlen:, :]
-        return foundry
+        else:
+            z = ipt
+        z = self.start(z)
+        z = nn.gelu(z)
+        z = self.layers(z)
+        if not is_first:
+            assert z.shape[1] == 1
+        z = self.end(z)
+        # no activation at the end
+        foundry = jnp.concatenate(
+            [
+                foundry,
+                # we tack z onto the end of the foundry
+                z[:, -1:, :],
+            ],
+            axis=1,
+        )
+        if not is_first:
+            z = jnp.squeeze(z, axis=1)
+        return foundry[:,-foundry_len:,:], z
+
+
+class ConvAttnFauxLarsen(nn.Module):
+    to_mask: int = 4
+    depth: int = 2**4
+    channels: int = 2**6
+    kernel_size: int = 7
+    norm_factor: float = 1.0
+    skip_freq: int = 1
+    layernorm: bool = True
+    inner_skip: bool = True
+
+    def setup(self):
+        self.cell = ConvAttnFauxCell(
+            to_mask=self.to_mask,
+            depth=self.depth,
+            channels=self.channels,
+            kernel_size=self.kernel_size,
+            norm_factor=self.norm_factor,
+            skip_freq=self.skip_freq,
+            layernorm=self.layernorm,
+            inner_skip=self.inner_skip,
+        )
+
+        def body_fn(cell, carry, x):
+            carry, y = cell(carry, x, is_first=False)
+            return carry, y
+
+        self.scanned_cell = nn.scan(
+            body_fn,
+            variable_broadcast="params",
+            split_rngs={"params": False},
+            in_axes=1,
+            out_axes=1,
+        )
+
+    def __call__(self, x):
+        x_masked = x[:, : -(self.to_mask * 2), :]
+        x_final = x[:, -(self.to_mask * 2) :: 2, :]
+        foundry = x_masked
+        z = x_masked
+        foundry, z0 = self.cell(foundry, z, is_first=True)
+        foundry, z1 = self.scanned_cell(self.cell, foundry, x_final)
+        return jnp.concatenate([z0, z1], axis=1)
 
 
 class Convattn(nn.Module):
