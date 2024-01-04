@@ -202,9 +202,8 @@ class ConvAttnFauxCell(nn.Module):
             use_bias=True,
             dtype=jnp.float32,
             param_dtype=jnp.float32,
-            kernel_init=nn.with_partitioning(
-                initializers.lecun_normal(), (None, "model")
-            ),
+            # don't shard as it is going from 1 to 32
+            # kernel_init=nn.with_partitioning(initializers.lecun_normal(), (None, "model")),
             # bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
         )
         layers = []
