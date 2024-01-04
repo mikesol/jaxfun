@@ -154,7 +154,7 @@ if __name__ == "__main__":
     config.channels = 2**4
     config.depth = 2**3
     config.initial_to_mask = 2**5
-    config.to_mask = config.to_mask
+    config.to_mask = config.initial_to_mask
     config.initial_comparable_field = config.to_mask // 2
     config.comparable_field = config.initial_comparable_field
     config.kernel_size = 7
