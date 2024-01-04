@@ -30,7 +30,7 @@ from jax.experimental import mesh_utils
 def ESRLoss(input, target):
     eps = 1e-8
     num = jnp.sum(((target - input) ** 2), axis=1)
-    denom = (target**2).sum(dim=1) + eps
+    denom = jnp.sum(target**2, axis=1) + eps
     losses = num / denom
     losses = jnp.mean(losses)
     return losses
@@ -74,9 +74,7 @@ def train_step(state, input, target, comparable_field):
 
     def loss_fn(params):
         pred = state.apply_fn({"params": params}, input)
-        loss = ESRLoss(
-            pred[:, -comparable_field:, :], target[:, -comparable_field:, :]
-        )
+        loss = ESRLoss(pred[:, -comparable_field:, :], target[:, -comparable_field:, :])
         return loss
 
     grad_fn = jax.value_and_grad(loss_fn)
@@ -96,9 +94,7 @@ def replace_metrics(state):
 
 def compute_loss(state, input, target, comparable_field):
     pred = state.apply_fn({"params": state.params}, input)
-    loss = ESRLoss(
-        pred[:, -comparable_field:, :], target[:, -comparable_field:, :]
-    )
+    loss = ESRLoss(pred[:, -comparable_field:, :], target[:, -comparable_field:, :])
     return loss
 
 
@@ -219,11 +215,17 @@ if __name__ == "__main__":
     state = jit_create_train_state(init_rng, onez, module, tx)
 
     jit_train_step = partial(
-        jax.jit, static_argnums=(3,), in_shardings=(state_sharding, x_sharding, None), out_shardings=state_sharding
+        jax.jit,
+        static_argnums=(3,),
+        in_shardings=(state_sharding, x_sharding, None),
+        out_shardings=state_sharding,
     )(train_step)
 
     jit_compute_loss = partial(
-        jax.jit, static_argnums=(3,), in_shardings=(state_sharding, x_sharding, None), out_shardings=x_sharding
+        jax.jit,
+        static_argnums=(3,),
+        in_shardings=(state_sharding, x_sharding, None),
+        out_shardings=x_sharding,
     )(compute_loss)
 
     del init_rng  # Must not be used anymore.
