@@ -262,13 +262,13 @@ if __name__ == "__main__":
 
         state_sharding = nn.get_sharding(abstract_variables, mesh)
 
-        jit_create_train_state = jax.jit(
-            create_train_state,
-            static_argnums=(2, 3),
-            in_shardings=(mesh_sharding(None), x_sharding),  # PRNG key and x
+        jit_update_train_state = jax.jit(
+            update_train_state,
+            static_argnums=(1,),
+            in_shardings=state_sharding,
             out_shardings=state_sharding,
         )
-        state = update_train_state(state, module)
+        state = jit_update_train_state(state, module)
 
         jit_train_step = partial(
             jax.jit,
@@ -284,7 +284,6 @@ if __name__ == "__main__":
         )(compute_loss)
         # end uggggh
 
-        
         config.to_mask += config.to_mask
         config.comparable_field = config.to_mask // 2
         # log the epoch
