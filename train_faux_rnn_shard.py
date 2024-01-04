@@ -221,7 +221,6 @@ if __name__ == "__main__":
         jax.jit,
         static_argnums=(3,),
         in_shardings=(state_sharding, x_sharding, x_sharding),
-        out_shardings=x_sharding,
     )(compute_loss)
 
     del init_rng  # Must not be used anymore.
