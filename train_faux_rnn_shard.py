@@ -27,6 +27,14 @@ from jax.lax import with_sharding_constraint
 from jax.experimental import mesh_utils
 
 
+def ESRLoss(self, input, target):
+    num = jnp.sum(((target - input) ** 2), axis=1)
+    denom = (target**2).sum(dim=1) + self.eps
+    losses = num / denom
+    losses = jnp.mean(losses)
+    return losses
+
+
 checkpoint_dir = "/tmp/flax_ckpt/orbax/managed"
 
 if os.path.exists(checkpoint_dir):
@@ -65,9 +73,9 @@ def train_step(state, input, target, comparable_field):
 
     def loss_fn(params):
         pred = state.apply_fn({"params": params}, input)
-        loss = optax.l2_loss(
+        loss = ESRLoss(
             pred[:, -comparable_field:, :], target[:, -comparable_field:, :]
-        ).mean()
+        )
         return loss
 
     grad_fn = jax.value_and_grad(loss_fn)
@@ -87,9 +95,9 @@ def replace_metrics(state):
 
 def compute_loss(state, input, target, comparable_field):
     pred = state.apply_fn({"params": state.params}, input)
-    loss = optax.l2_loss(
+    loss = ESRLoss(
         pred[:, -comparable_field:, :], target[:, -comparable_field:, :]
-    ).mean()
+    )
     return loss
 
 
