@@ -64,7 +64,6 @@ class TrainState(train_state.TrainState):
 
 
 def create_train_state(rng: PRNGKey, x, module, tx) -> TrainState:
-    # window is 2x'd because input is interleaved
     variables = module.init(rng, x)
     params = variables["params"]
     batch_stats = variables["batch_stats"]
@@ -75,6 +74,10 @@ def create_train_state(rng: PRNGKey, x, module, tx) -> TrainState:
         batch_stats=batch_stats,
         metrics=Metrics.empty(),
     )
+
+
+def update_train_state(state: TrainState, model: nn.Module) -> TrainState:
+    state.update_train_state(apply_fn=model.apply)
 
 
 def train_step(state, input, target, comparable_field):
@@ -150,8 +153,8 @@ if __name__ == "__main__":
     config.test_size = 0.1
     config.channels = 2**4
     config.depth = 2**3
-    config.to_mask = config.inference_window * 3 // 4
-    config.comparable_field = 2**10
+    config.to_mask = 2**5
+    config.comparable_field = config.to_mask // 2
     config.kernel_size = 7
     config.skip_freq = 1
     config.norm_factor = math.sqrt(config.channels)
@@ -239,6 +242,51 @@ if __name__ == "__main__":
 
     del init_rng  # Must not be used anymore.
     for epoch in range(config.epochs):
+        # ugggh
+        module = ConvFauxLarsen(
+            to_mask=config.to_mask,
+            channels=config.channels,
+            depth=config.depth,
+            kernel_size=config.kernel_size,
+            skip_freq=config.skip_freq,
+            norm_factor=config.norm_factor,
+            layernorm=config.layernorm,
+            inner_skip=config.inner_skip,
+        )
+
+        abstract_variables = jax.eval_shape(
+            partial(create_train_state, module=module, tx=tx),
+            init_rng,
+            onez,
+        )
+
+        state_sharding = nn.get_sharding(abstract_variables, mesh)
+
+        jit_create_train_state = jax.jit(
+            create_train_state,
+            static_argnums=(2, 3),
+            in_shardings=(mesh_sharding(None), x_sharding),  # PRNG key and x
+            out_shardings=state_sharding,
+        )
+        state = update_train_state(state, module)
+
+        jit_train_step = partial(
+            jax.jit,
+            static_argnums=(3,),
+            in_shardings=(state_sharding, x_sharding, x_sharding),
+            out_shardings=(state_sharding, None),
+        )(train_step)
+
+        jit_compute_loss = partial(
+            jax.jit,
+            static_argnums=(3,),
+            in_shardings=(state_sharding, x_sharding, x_sharding),
+        )(compute_loss)
+        # end uggggh
+
+        
+        config.to_mask += config.to_mask
+        config.comparable_field = config.to_mask // 2
         # log the epoch
         wandb.log({"epoch": epoch})
         train_dataset.set_epoch(epoch)
