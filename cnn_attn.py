@@ -2,6 +2,7 @@ import flax.linen as nn
 import jax.numpy as jnp
 import jax
 from flax.linen import initializers
+import math
 
 
 class Convblock(nn.Module):
@@ -71,12 +72,12 @@ class Convblock(nn.Module):
             features=self.channels,
             kernel_size=(1,),
             padding=((0,)),
+            use_bias=False,
             dtype=jnp.float32,
             param_dtype=jnp.float32,
             kernel_init=nn.with_partitioning(
                 initializers.lecun_normal(), (None, "model")
             ),
-            # bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
         )(x)
         x = nn.BatchNorm(use_running_average=not train)(x)
         x = nn.gelu(x)
@@ -88,11 +89,10 @@ class ConvblockWithTarget(nn.Module):
     kernel_size: int = 7
     norm_factor: float = 1.0
     skip: bool = True
-    layernorm: bool = True
     inner_skip: bool = True
 
     @nn.compact
-    def __call__(self, x):
+    def __call__(self, x, train: bool = True):
         batch_size = x.shape[0]
         if x.shape[-1] != self.channels:
             x = nn.Conv(
@@ -105,8 +105,8 @@ class ConvblockWithTarget(nn.Module):
                 kernel_init=nn.with_partitioning(
                     initializers.lecun_normal(), (None, "model")
                 ),
-                # bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
             )(x)
+            x = nn.BatchNorm(use_running_average=not train)(x)
             x = nn.gelu(x)
         weights = self.param(
             "weights",
@@ -160,21 +160,20 @@ class ConvblockWithTarget(nn.Module):
             if self.skip and self.inner_skip
             else x
         )
-        if self.layernorm:
-            x = nn.LayerNorm()(x)
+        x = nn.BatchNorm(use_running_average=not train)(x)
         x_ = x
         x = nn.Conv(
             features=self.channels,
             padding=((0,)),
             kernel_size=(1,),
-            use_bias=True,
+            use_bias=False,
             dtype=jnp.float32,
             param_dtype=jnp.float32,
             kernel_init=nn.with_partitioning(
                 initializers.lecun_normal(), (None, "model")
             ),
-            # bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
         )(x)
+        x = nn.BatchNorm(use_running_average=not train)(x)
         x = nn.gelu(x)
         return x_ + x if self.skip else x
 
@@ -190,61 +189,10 @@ class ConvAttnFauxCell(nn.Module):
     kernel_size: int = 7
     norm_factor: float = 1.0
     skip_freq: int = 1
-    layernorm: bool = True
     inner_skip: bool = True
 
-    def setup(self):
-        self.start = nn.Conv(
-            features=self.channels,
-            kernel_size=(1,),
-            padding=((0,)),
-            use_bias=True,
-            dtype=jnp.float32,
-            param_dtype=jnp.float32,
-            # don't shard as it is going from 1 to 32
-            # kernel_init=nn.with_partitioning(initializers.lecun_normal(), (None, "model")),
-            # bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
-        )
-        layers = []
-        for i in range(self.depth):
-            if i == 0:
-                layers.append(
-                    ConvblockWithTarget(
-                        channels=self.channels,
-                        kernel_size=self.kernel_size,
-                        norm_factor=self.norm_factor,
-                        skip=(i % self.skip_freq) == (self.skip_freq - 1),
-                        layernorm=self.layernorm,
-                        inner_skip=self.inner_skip,
-                    )
-                )
-            else:
-                layers.append(
-                    Convblock(
-                        channels=self.channels,
-                        kernel_size=self.kernel_size,
-                        norm_factor=self.norm_factor,
-                        skip=(i % self.skip_freq) == (self.skip_freq - 1),
-                        layernorm=self.layernorm,
-                        inner_skip=self.inner_skip,
-                        pad_to_input_size=False,
-                    )
-                )
-        self.layers = nn.Sequential(layers)
-        self.end = nn.Conv(
-            features=1,
-            kernel_size=(1,),
-            padding=((0,)),
-            dtype=jnp.float32,
-            param_dtype=jnp.float32,
-            use_bias=True,
-            kernel_init=nn.with_partitioning(
-                initializers.lecun_normal(), (None, "model")
-            ),
-            # bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
-        )
-
-    def __call__(self, foundry, ipt, is_first: bool = True):
+    @nn.compact
+    def __call__(self, foundry, ipt, is_first: bool = True, train: bool = True):
         foundry_len = foundry.shape[1]
         zlen = 1
         for _ in range(self.depth - 1):
@@ -264,12 +212,31 @@ class ConvAttnFauxCell(nn.Module):
             z = foundry[:, -zlen:, :]
         else:
             z = ipt
-        z = self.start(z)
+        z = nn.Conv(
+            features=self.channels,
+            kernel_size=(1,),
+            padding=((0,)),
+            use_bias=False,
+            dtype=jnp.float32,
+            param_dtype=jnp.float32,
+        )(z)
+        z = nn.BatchNorm(use_running_average=not train)(z)
         z = nn.gelu(z)
         z = self.layers(z)
         if not is_first:
             assert z.shape[1] == 1
-        z = self.end(z)
+        z = nn.Conv(
+            features=1,
+            kernel_size=(1,),
+            padding=((0,)),
+            dtype=jnp.float32,
+            param_dtype=jnp.float32,
+            use_bias=False,
+            kernel_init=nn.with_partitioning(
+                initializers.lecun_normal(), (None, "model")
+            ),
+        )(z)
+        z = nn.BatchNorm(use_running_average=not train)(z)
         # no activation at the end
         foundry = jnp.concatenate(
             [
@@ -296,6 +263,7 @@ class ConvWithSkip(nn.Module):
         x = nn.Conv(
             features=self.channels,
             strides=(self.stride,),
+            use_bias=False,
             kernel_size=(self.kernel_size,),
             padding=((0,)),
         )(x)
@@ -311,7 +279,6 @@ class ConvFauxCell(nn.Module):
     kernel_size: int = 7
     norm_factor: float = 1.0
     skip_freq: int = 1
-    layernorm: bool = True
     inner_skip: bool = True
 
     @nn.compact
@@ -340,6 +307,7 @@ class ConvFauxCell(nn.Module):
             features=self.channels,
             padding=((0,)),
             kernel_size=(1,),
+            use_bias=False,
             dtype=jnp.float32,
             param_dtype=jnp.float32,
         )(z)
@@ -361,7 +329,6 @@ class ConvFauxCell(nn.Module):
                     kernel_size=self.kernel_size,
                     norm_factor=self.norm_factor,
                     skip=(i % self.skip_freq) == (self.skip_freq - 1),
-                    layernorm=self.layernorm,
                     inner_skip=self.inner_skip,
                     pad_to_input_size=False,
                 )(z, train)
@@ -379,11 +346,12 @@ class ConvFauxCell(nn.Module):
             padding=((0,)),
             dtype=jnp.float32,
             param_dtype=jnp.float32,
-            use_bias=True,
+            use_bias=False,
             kernel_init=nn.with_partitioning(
                 initializers.lecun_normal(), (None, "model")
             ),
         )(z)
+        z = nn.BatchNorm(use_running_average=not train)(z)
         # no activation at the end
         foundry = jnp.concatenate(
             [
@@ -405,7 +373,6 @@ class ConvAttnFauxLarsen(nn.Module):
     kernel_size: int = 7
     norm_factor: float = 1.0
     skip_freq: int = 1
-    layernorm: bool = True
     inner_skip: bool = True
 
     def setup(self):
@@ -416,7 +383,6 @@ class ConvAttnFauxLarsen(nn.Module):
             kernel_size=self.kernel_size,
             norm_factor=self.norm_factor,
             skip_freq=self.skip_freq,
-            layernorm=self.layernorm,
             inner_skip=self.inner_skip,
         )
 
@@ -448,7 +414,6 @@ class ConvFauxLarsen(nn.Module):
     kernel_size: int = 7
     norm_factor: float = 1.0
     skip_freq: int = 1
-    layernorm: bool = True
     inner_skip: bool = True
 
     def setup(self):
@@ -459,7 +424,6 @@ class ConvFauxLarsen(nn.Module):
             kernel_size=self.kernel_size,
             norm_factor=self.norm_factor,
             skip_freq=self.skip_freq,
-            layernorm=self.layernorm,
             inner_skip=self.inner_skip,
         )
 
@@ -503,31 +467,27 @@ class Convattn(nn.Module):
     kernel_size: int = 7
     skip_freq: int = 1
     norm_factor: float = 1.0
-    layernorm: bool = True
     inner_skip: bool = True
 
     @nn.compact
-    def __call__(self, x):
+    def __call__(self, x, train: bool = True):
         for i in range(self.depth):
             x = Convblock(
                 channels=self.channels,
                 kernel_size=self.kernel_size,
                 norm_factor=self.norm_factor,
                 skip=(i % self.skip_freq) == (self.skip_freq - 1),
-                layernorm=self.layernorm,
                 inner_skip=self.inner_skip,
-            )(x)
+            )(x, train)
         x = nn.Conv(
             features=1,
             kernel_size=(1,),
             padding=((0,)),
             dtype=jnp.float32,
             param_dtype=jnp.float32,
-            use_bias=True,
             kernel_init=nn.with_partitioning(
                 initializers.lecun_normal(), (None, "model")
             ),
-            # bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
         )(x)
         return x
 
