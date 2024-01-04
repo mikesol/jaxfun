@@ -218,11 +218,11 @@ if __name__ == "__main__":
     state = jit_create_train_state(init_rng, onez, module, tx)
 
     jit_train_step = partial(
-        jax.jit, static_argnums=(3,), in_shardings=(state_sharding, x_sharding, None, None), out_shardings=state_sharding
+        jax.jit, static_argnums=(3,), in_shardings=(state_sharding, x_sharding, None), out_shardings=state_sharding
     )(train_step)
 
     jit_compute_loss = partial(
-        jax.jit, static_argnums=(3,), in_shardings=(state_sharding, x_sharding, None, None), out_shardings=x_sharding
+        jax.jit, static_argnums=(3,), in_shardings=(state_sharding, x_sharding, None), out_shardings=x_sharding
     )(compute_loss)
 
     del init_rng  # Must not be used anymore.
