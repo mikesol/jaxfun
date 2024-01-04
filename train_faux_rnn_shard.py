@@ -154,10 +154,8 @@ if __name__ == "__main__":
     config.test_size = 0.1
     config.channels = 2**4
     config.depth = 2**3
-    config.initial_to_mask = 2**5
-    config.to_mask = config.initial_to_mask
-    config.initial_comparable_field = config.to_mask // 2
-    config.comparable_field = config.initial_comparable_field
+    config.to_mask = 2**5
+    config.comparable_field = config.to_mask // 2
     config.kernel_size = 7
     config.skip_freq = 1
     config.norm_factor = math.sqrt(config.channels)
@@ -243,6 +241,8 @@ if __name__ == "__main__":
         in_shardings=(state_sharding, x_sharding, x_sharding),
     )(compute_loss)
 
+    to_mask = config.to_mask
+    comparable_field = to_mask // 2
     del init_rng  # Must not be used anymore.
     for epoch in range(config.epochs):
         # ugggh
@@ -250,7 +250,7 @@ if __name__ == "__main__":
         onez = jnp.ones([config.batch_size, config.window * 2, 1])
 
         module = ConvFauxLarsen(
-            to_mask=config.to_mask,
+            to_mask=to_mask,
             channels=config.channels,
             depth=config.depth,
             kernel_size=config.kernel_size,
@@ -291,8 +291,6 @@ if __name__ == "__main__":
         del init_rng
         # end uggggh
 
-        config.to_mask += config.to_mask
-        config.comparable_field = config.to_mask // 2
         # log the epoch
         wandb.log({"epoch": epoch})
         train_dataset.set_epoch(epoch)
@@ -306,7 +304,7 @@ if __name__ == "__main__":
             target = batch["target"]
             with mesh:
                 state, loss = jit_train_step(
-                    state, input, target, config.comparable_field
+                    state, input, target, comparable_field
                 )
                 state = compute_metrics(state=state, loss=loss)
 
@@ -321,8 +319,11 @@ if __name__ == "__main__":
             input = batch["input"]
             input = jax.device_put(input, x_sharding)
             target = batch["target"]
-            loss = jit_compute_loss(state, input, target, config.comparable_field)
+            loss = jit_compute_loss(state, input, target, comparable_field)
             state = compute_metrics(state=state, loss=loss)
+        to_mask += config.to_mask
+        comparable_field = config.to_mask // 2
+
         # checkpoint
         ckpt_model = state
         ckpt = {"model": ckpt_model, "config": config}
