@@ -245,6 +245,9 @@ if __name__ == "__main__":
     del init_rng  # Must not be used anymore.
     for epoch in range(config.epochs):
         # ugggh
+        init_rng = jax.random.PRNGKey(config.seed)
+        onez = jnp.ones([config.batch_size, config.window * 2, 1])
+
         module = ConvFauxLarsen(
             to_mask=config.to_mask,
             channels=config.channels,
@@ -284,6 +287,7 @@ if __name__ == "__main__":
             static_argnums=(3,),
             in_shardings=(state_sharding, x_sharding, x_sharding),
         )(compute_loss)
+        del init_rng
         # end uggggh
 
         config.to_mask += config.to_mask
