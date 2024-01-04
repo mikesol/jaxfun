@@ -6,10 +6,9 @@ if IS_CPU:
     print("in cpu land")
     os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
 
-from typing import Any
 from flax import struct
 import wandb
-from cnn_attn import ConvFauxLarsen
+from cnn_attn import ConvAttnFauxLarsen
 from clu import metrics
 from functools import partial
 import jax.numpy as jnp
@@ -60,14 +59,11 @@ class Metrics(metrics.Collection):
 
 class TrainState(train_state.TrainState):
     metrics: Metrics
-    batch_stats: Any
 
 
 def create_train_state(rng: PRNGKey, x, module, tx) -> TrainState:
     # window is 2x'd because input is interleaved
-    variables = module.init(rng, x)
-    params = variables["params"]
-    batch_stats = variables["batch_stats"]
+    params = module.init(rng, x)["params"]
     return TrainState.create(
         apply_fn=module.apply, params=params, tx=tx, metrics=Metrics.empty()
     )
@@ -77,19 +73,13 @@ def train_step(state, input, target, comparable_field):
     """Train for a single step."""
 
     def loss_fn(params):
-        pred, updates = state.apply_fn(
-            {"params": params, "batch_stats": state.batch_stats},
-            input,
-            train=True,
-            mutable=["batch_stats"],
-        )
+        pred = state.apply_fn({"params": params}, input)
         loss = ESRLoss(pred[:, -comparable_field:, :], target[:, -comparable_field:, :])
-        return loss, updates
+        return loss
 
-    grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
-    (loss, updates), grads = grad_fn(state.params)
+    grad_fn = jax.value_and_grad(loss_fn)
+    loss, grads = grad_fn(state.params)
     state = state.apply_gradients(grads=grads)
-    state = state.replace(batch_stats=updates['batch_stats'])
     return state, loss
 
 
@@ -99,7 +89,7 @@ def replace_metrics(state):
 
 
 def compute_loss(state, input, target, comparable_field):
-    pred = state.apply_fn({"params": state.params, "batch_stats": state.batch_stats}, input, train=False)
+    pred = state.apply_fn({"params": state.params}, input)
     loss = ESRLoss(pred[:, -comparable_field:, :], target[:, -comparable_field:, :])
     return loss
 
@@ -190,7 +180,7 @@ if __name__ == "__main__":
     init_rng = jax.random.PRNGKey(config.seed)
     onez = jnp.ones([config.batch_size, config.window * 2, 1])
 
-    module = ConvFauxLarsen(
+    module = ConvAttnFauxLarsen(
         to_mask=config.to_mask,
         channels=config.channels,
         depth=config.depth,
