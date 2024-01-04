@@ -270,7 +270,7 @@ if __name__ == "__main__":
         jit_update_train_state = jax.jit(
             update_train_state,
             static_argnums=(1,),
-            in_shardings=state_sharding,
+            in_shardings=(state_sharding,),
             out_shardings=state_sharding,
         )
         state = jit_update_train_state(state, module)
