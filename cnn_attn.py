@@ -9,26 +9,24 @@ class Convblock(nn.Module):
     kernel_size: int = 7
     norm_factor: float = 1.0
     skip: bool = True
-    layernorm: bool = True
     inner_skip: bool = True
     pad_to_input_size: bool = True
 
     @nn.compact
-    def __call__(self, x):
+    def __call__(self, x, train: bool = True):
         batch_size = x.shape[0]
         if x.shape[-1] != self.channels:
             x = nn.Conv(
                 features=self.channels,
                 kernel_size=(1,),
                 padding=((0,)),
-                use_bias=False,
                 dtype=jnp.float32,
                 param_dtype=jnp.float32,
                 kernel_init=nn.with_partitioning(
                     initializers.lecun_normal(), (None, "model")
                 ),
-                # bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
             )(x)
+            x = nn.BatchNorm(use_running_average=not train)(x)
             x = nn.gelu(x)
         weights = self.param(
             "weights",
@@ -67,17 +65,12 @@ class Convblock(nn.Module):
         x = jnp.sum(x, axis=1)
         x = jnp.transpose(x, (0, 2, 1))
         x = x_[:, (-x.shape[1]) :, :] + x if self.skip and self.inner_skip else x
-        if self.layernorm:
-            x = nn.LayerNorm(
-                # bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
-                # scale_init=nn.with_partitioning(initializers.ones_init(), (None, "model")),
-            )(x)
+        x = nn.BatchNorm(use_running_average=not train)(x)
         x_ = x
         x = nn.Conv(
             features=self.channels,
             kernel_size=(1,),
             padding=((0,)),
-            use_bias=True,
             dtype=jnp.float32,
             param_dtype=jnp.float32,
             kernel_init=nn.with_partitioning(
@@ -85,6 +78,7 @@ class Convblock(nn.Module):
             ),
             # bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
         )(x)
+        x = nn.BatchNorm(use_running_average=not train)(x)
         x = nn.gelu(x)
         return x_ + x if self.skip else x
 
@@ -370,7 +364,7 @@ class ConvFauxCell(nn.Module):
                     layernorm=self.layernorm,
                     inner_skip=self.inner_skip,
                     pad_to_input_size=False,
-                )(z)
+                )(z, train)
             else:
                 z = ConvWithSkip(
                     channels=self.channels, kernel_size=self.kernel_size, stride=1
