@@ -63,9 +63,11 @@ class TrainState(train_state.TrainState):
 
 def create_train_state(rng: PRNGKey, x, module, tx) -> TrainState:
     # window is 2x'd because input is interleaved
-    params = module.init(rng, x)["params"]
+    variables = module.init(rng, x)
+    params = variables["params"]
+    batch_stats = variables["batch_stats"]
     return TrainState.create(
-        apply_fn=module.apply, params=params, tx=tx, metrics=Metrics.empty()
+        apply_fn=module.apply, params=params, batch_stats=batch_stats, tx=tx, metrics=Metrics.empty()
     )
 
 
