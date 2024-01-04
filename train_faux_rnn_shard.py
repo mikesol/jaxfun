@@ -79,12 +79,8 @@ def train_step(state, input, target, comparable_field):
 
     grad_fn = jax.value_and_grad(loss_fn)
     loss, grads = grad_fn(state.params)
-    return loss, grads
-
-
-@jax.jit
-def update_model(state, grads):
-    return state.apply_gradients(grads=grads)
+    state = state.apply_gradients(grads=grads)
+    return state, loss
 
 
 @jax.jit
@@ -218,7 +214,7 @@ if __name__ == "__main__":
         jax.jit,
         static_argnums=(3,),
         in_shardings=(state_sharding, x_sharding, x_sharding),
-        out_shardings=state_sharding,
+        out_shardings=(state_sharding, x_sharding),
     )(train_step)
 
     jit_compute_loss = partial(
@@ -242,11 +238,10 @@ if __name__ == "__main__":
             input = jax.device_put(input, x_sharding)
             target = batch["target"]
             with mesh:
-                loss, grads = jit_train_step(
+                state, loss = jit_train_step(
                     state, input, target, config.comparable_field
                 )
-            state = update_model(state, grads)
-            state = compute_metrics(state=state, loss=loss)
+                state = compute_metrics(state=state, loss=loss)
 
             if batch_ix % config.step_freq == 0:
                 metrics = state.metrics.compute()
