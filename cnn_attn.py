@@ -328,9 +328,7 @@ class ConvAttnFauxLarsen(nn.Module):
         x_final = x[:, -(self.to_mask * 2) :: 2, :]
         foundry = x_masked
         z = x_masked
-        print("BEFORE CELL", foundry.shape, z.shape)
         foundry, z0 = self.cell(foundry, z, is_first=True)
-        print("PASSED CELL 1", foundry.shape, x_final.shape)
         foundry, z1 = self.scanned_cell(self.cell, foundry, x_final)
         return jnp.concatenate([z0, z1], axis=1)
 
