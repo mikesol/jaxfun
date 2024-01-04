@@ -155,7 +155,7 @@ if __name__ == "__main__":
     print(mesh)
     x_sharding = mesh_sharding(
         PartitionSpec("data", None)
-    )  # dimensions: (batch, length)
+    )
     ###
 
     len_files = len(FILES)
@@ -217,14 +217,14 @@ if __name__ == "__main__":
     jit_train_step = partial(
         jax.jit,
         static_argnums=(3,),
-        in_shardings=(state_sharding, x_sharding, None),
+        in_shardings=(state_sharding, x_sharding, x_sharding),
         out_shardings=state_sharding,
     )(train_step)
 
     jit_compute_loss = partial(
         jax.jit,
         static_argnums=(3,),
-        in_shardings=(state_sharding, x_sharding, None),
+        in_shardings=(state_sharding, x_sharding, x_sharding),
         out_shardings=x_sharding,
     )(compute_loss)
 
