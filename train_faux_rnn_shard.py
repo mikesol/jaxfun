@@ -152,7 +152,7 @@ if __name__ == "__main__":
     config.stride = 2**8
     config.step_freq = 100
     config.test_size = 0.1
-    config.channels = 2**5
+    config.channels = 2**6
     config.depth = 2**4
     config.to_mask = 2**5
     config.comparable_field = config.to_mask // 2
