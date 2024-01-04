@@ -300,7 +300,6 @@ class ConvAttnFauxLarsen(nn.Module):
     inner_skip: bool = True
 
     def setup(self):
-        print("CALLING SETUP")
         self.cell = ConvAttnFauxCell(
             to_mask=self.to_mask,
             depth=self.depth,
@@ -325,7 +324,6 @@ class ConvAttnFauxLarsen(nn.Module):
         )
 
     def __call__(self, x):
-        print("IN CALL")
         x_masked = x[:, : -(self.to_mask * 2), :]
         x_final = x[:, -(self.to_mask * 2) :: 2, :]
         foundry = x_masked
