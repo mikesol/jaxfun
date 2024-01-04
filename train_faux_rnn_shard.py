@@ -264,13 +264,13 @@ if __name__ == "__main__":
             init_rng,
             onez,
         )
-
+        old_state_sharding = state_sharding
         state_sharding = nn.get_sharding(abstract_variables, mesh)
 
         jit_update_train_state = jax.jit(
             update_train_state,
             static_argnums=(1,),
-            in_shardings=(state_sharding,),
+            in_shardings=(old_state_sharding,),
             out_shardings=state_sharding,
         )
         state = jit_update_train_state(state, module)
