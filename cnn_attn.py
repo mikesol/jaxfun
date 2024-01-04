@@ -461,6 +461,9 @@ class ConvFauxLarsen(nn.Module):
         )
 
     def __call__(self, x, train: bool = True):
+        if (self.to_mask >= x.shape[1]) or (type(self.to_mask) == type((1,2))):
+            # from a bug during training
+            raise ValueError(f"to_mask must be less than the input sequence length: {x.shape[1]} vs {self.to_mask}")
         x_masked = x[:, : -(self.to_mask * 2), :]
         x_final = x[:, -(self.to_mask * 2) :: 2, :]
         foundry = x_masked
