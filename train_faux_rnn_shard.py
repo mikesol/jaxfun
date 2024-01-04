@@ -123,7 +123,7 @@ if __name__ == "__main__":
     # cnn
     config.seed = 42
     config.inference_artifacts_per_batch_per_epoch = 2**2
-    config.batch_size = 2**3
+    config.batch_size = 2**4
     config.validation_split = 0.2
     config.learning_rate = 1e-4
     config.epochs = 2**7
@@ -134,7 +134,7 @@ if __name__ == "__main__":
     config.test_size = 0.1
     config.channels = 2**5
     config.depth = 2**3
-    config.to_mask = 2**11
+    config.to_mask = config.inference_window * 3 // 4
     config.comparable_field = 2**10
     config.kernel_size = 7
     config.skip_freq = 1
