@@ -123,7 +123,7 @@ if __name__ == "__main__":
     # cnn
     config.seed = 42
     config.inference_artifacts_per_batch_per_epoch = 2**2
-    config.batch_size = 2**7
+    config.batch_size = 2**3
     config.validation_split = 0.2
     config.learning_rate = 1e-4
     config.epochs = 2**7
@@ -143,8 +143,8 @@ if __name__ == "__main__":
     config.inner_skip = True
     config.shift = 2**4
     config.dilation = 2**0
-    config.mesh_x = 2
-    config.mesh_y = device_len // 2
+    config.mesh_x = 1
+    config.mesh_y = device_len
     # messshhh
     device_mesh = mesh_utils.create_device_mesh((config.mesh_x, config.mesh_y))
     mesh = Mesh(devices=device_mesh, axis_names=("data", "model"))
