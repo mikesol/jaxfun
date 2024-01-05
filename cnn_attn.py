@@ -323,15 +323,15 @@ class ConvFauxCell(nn.Module):
                 )(z, train)
                 z = nn.BatchNorm(use_running_average=not train)(z)
                 z = nn.gelu(z)
-            elif i == 7:
-                z = Convblock(
-                    channels=self.channels,
-                    kernel_size=self.kernel_size,
-                    norm_factor=self.norm_factor,
-                    skip=(i % self.skip_freq) == (self.skip_freq - 1),
-                    inner_skip=self.inner_skip,
-                    pad_to_input_size=False,
-                )(z, train)
+            # elif i == 7:
+            #     z = Convblock(
+            #         channels=self.channels,
+            #         kernel_size=self.kernel_size,
+            #         norm_factor=self.norm_factor,
+            #         skip=(i % self.skip_freq) == (self.skip_freq - 1),
+            #         inner_skip=self.inner_skip,
+            #         pad_to_input_size=False,
+            #     )(z, train)
             else:
                 z = ConvWithSkip(
                     channels=self.channels, kernel_size=self.kernel_size, stride=1
