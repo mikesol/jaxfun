@@ -402,16 +402,16 @@ if __name__ == "__main__":
                 audy = np.squeeze(np.array(o[i]))
                 audio = wandb.Audio(audy, sample_rate=44100)
                 artifact.add(audio, f"audio_with_short_mask_{batch_ix}_{i}")
-            full_length = input.shape[1]
-            o, _ = pred, updates = state.apply_fn(
-                {"params": ckpt_model.params, "batch_stats": state.batch_stats},
-                jnp.pad(input, ((0, 0), (module.get_zlen(), 0), (0, 0))),
-                train=False,
-                to_mask=full_length * 7 // 8,
-                mutable=["batch_stats"],
-            )
-            for i in range(len(o)):
-                audy = np.squeeze(np.array(o[i]))
-                audio = wandb.Audio(audy, sample_rate=44100)
-                artifact.add(audio, f"audio_with_long_mask_{batch_ix}_{i}")
+            # full_length = input.shape[1]
+            # o, _ = pred, updates = state.apply_fn(
+            #     {"params": ckpt_model.params, "batch_stats": state.batch_stats},
+            #     jnp.pad(input, ((0, 0), (module.get_zlen(), 0), (0, 0))),
+            #     train=False,
+            #     to_mask=full_length * 7 // 8,
+            #     mutable=["batch_stats"],
+            # )
+            # for i in range(len(o)):
+            #     audy = np.squeeze(np.array(o[i]))
+            #     audio = wandb.Audio(audy, sample_rate=44100)
+            #     artifact.add(audio, f"audio_with_long_mask_{batch_ix}_{i}")
         run.log_artifact(artifact)
