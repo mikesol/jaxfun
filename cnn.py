@@ -2,6 +2,7 @@ import flax.linen as nn
 import jax.numpy as jnp
 import jax
 from flax.linen import initializers
+from cnn_attn import Convblock
 
 BatchNorm = nn.BatchNorm
 
@@ -83,7 +84,16 @@ class ConvFauxCell(nn.Module):
                 )(z, train)
                 z = BatchNorm(use_running_average=not train)(z)
                 z = nn.gelu(z)
-
+            elif i == 5:
+                z = Convblock(
+                        channels=self.channels,
+                        kernel_size=self.kernel_size,
+                        norm_factor=self.norm_factor,
+                        skip=(i % self.skip_freq) == (self.skip_freq - 1),
+                        inner_skip=self.inner_skip,
+                        pad_to_input_size=False,
+                        squeeze=2**3
+                    )
             else:
                 z = ConvWithSkip(
                     channels=self.channels, kernel_size=self.kernel_size, stride=1
