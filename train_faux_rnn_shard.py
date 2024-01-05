@@ -350,7 +350,7 @@ if __name__ == "__main__":
                 jnp.pad(input, ((0, 0), (module.get_zlen(), 0), (0, 0))),
                 target,
                 full_length * 7 // 8,
-                full_length,
+                full_length * 3 // 4,
             )
             state = add_losses_to_metrics(state=state, loss=loss, long_loss=long_loss)
         metrics = state.metrics.compute()
