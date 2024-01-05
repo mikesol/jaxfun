@@ -290,7 +290,6 @@ class ConvFauxCell(nn.Module):
     depth: int = 2**4
     channels: int = 2**6
     kernel_size: int = 7
-    norm_factor: float = 1.0
     skip_freq: int = 1
     inner_skip: bool = True
 

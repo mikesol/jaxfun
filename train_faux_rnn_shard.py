@@ -159,7 +159,6 @@ if __name__ == "__main__":
     config.comparable_field = config.to_mask // 2
     config.kernel_size = 7
     config.skip_freq = 1
-    config.norm_factor = math.sqrt(config.channels)
     config.inner_skip = True
     config.shift = 2**4
     config.dilation = 2**0
@@ -206,7 +205,6 @@ if __name__ == "__main__":
         depth=config.depth,
         kernel_size=config.kernel_size,
         skip_freq=config.skip_freq,
-        norm_factor=config.norm_factor,
         inner_skip=config.inner_skip,
     )
     tx = optax.adam(config.learning_rate)
@@ -254,7 +252,6 @@ if __name__ == "__main__":
             depth=config.depth,
             kernel_size=config.kernel_size,
             skip_freq=config.skip_freq,
-            norm_factor=config.norm_factor,
             inner_skip=config.inner_skip,
         )
 
