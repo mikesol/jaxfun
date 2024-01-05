@@ -1,6 +1,74 @@
 def c1d(o, k, s):
     return (s * (o - 1)) + 1 + (k - 1)
 
+class ConvAttnFauxCell(nn.Module):
+    to_mask: int = 4
+    depth: int = 2**4
+    channels: int = 2**6
+    kernel_size: int = 7
+    norm_factor: float = 1.0
+    skip_freq: int = 1
+    inner_skip: bool = True
+
+    @nn.compact
+    def __call__(self, foundry, ipt, is_first: bool = True, train: bool = True):
+        foundry_len = foundry.shape[1]
+        zlen = 1
+        for _ in range(self.depth - 1):
+            zlen = c1d(zlen, self.kernel_size, 1)
+        zlen = c1d(zlen, self.kernel_size * 2, 2)
+        z = None
+        if not is_first:
+            # the input x needs to be interleaved into the foundry
+            foundry = jnp.concatenate(
+                [
+                    foundry[:, :-1, :],
+                    jnp.expand_dims(ipt, axis=1),
+                    foundry[:, -1:, :],
+                ],
+                axis=1,
+            )
+            z = foundry[:, -zlen:, :]
+        else:
+            z = ipt
+        z = nn.Conv(
+            features=self.channels,
+            kernel_size=(1,),
+            padding=((0,)),
+            use_bias=False,
+            dtype=jnp.float32,
+            param_dtype=jnp.float32,
+        )(z)
+        z = nn.BatchNorm(use_running_average=not train)(z)
+        z = nn.gelu(z)
+        z = self.layers(z)
+        if not is_first:
+            assert z.shape[1] == 1
+        z = nn.Conv(
+            features=1,
+            kernel_size=(1,),
+            padding=((0,)),
+            dtype=jnp.float32,
+            param_dtype=jnp.float32,
+            use_bias=False,
+            kernel_init=nn.with_partitioning(
+                initializers.lecun_normal(), (None, "model")
+            ),
+        )(z)
+        z = nn.BatchNorm(use_running_average=not train)(z)
+        # no activation at the end
+        foundry = jnp.concatenate(
+            [
+                foundry,
+                # we tack z onto the end of the foundry
+                z[:, -1:, :],
+            ],
+            axis=1,
+        )
+        if not is_first:
+            z = jnp.squeeze(z, axis=1)
+        return foundry[:, -foundry_len:, :], z
+
 
 
 class Convblock(nn.Module):
