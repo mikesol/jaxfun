@@ -29,10 +29,10 @@ class ConvFauxLarsen(nn.Module):
             raise ValueError(
                 f"to_mask must be less than the input sequence length: {x.shape[1]} vs {self.to_mask}"
             )
-        x_masked = x[:, : -(self.to_mask * 2), :]
-        x_final = x[:, -(self.to_mask * 2) :: 2, :]
-        foundry = x_masked
-        z = x_masked
+        x_known = x[:, : -(self.to_mask * 2), :]
+        x_unknown = x[:, -(self.to_mask * 2) :: 2, :]
+        foundry = x_known
+        z = x_known
         foundry, z0 = self.cell(foundry, z, is_first=True, train=train)
 
         def body_fn(cell, carry, x):
@@ -43,7 +43,7 @@ class ConvFauxLarsen(nn.Module):
 
         z1 = None
         if is_initializing:
-            foundry, z1 = body_fn(self.cell, foundry, x_final)
+            foundry, z1 = body_fn(self.cell, foundry, x_unknown)
         else:
             foundry, z1 = nn.scan(
                 body_fn,
@@ -52,7 +52,7 @@ class ConvFauxLarsen(nn.Module):
                 split_rngs={"params": False},
                 in_axes=1,
                 out_axes=1,
-            )(self.cell, foundry, x_final)
+            )(self.cell, foundry, x_unknown)
 
         return jnp.concatenate([z0, z1], axis=1)
 
