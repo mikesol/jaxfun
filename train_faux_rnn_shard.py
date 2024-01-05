@@ -307,14 +307,14 @@ if __name__ == "__main__":
 
         jit_train_step = partial(
             jax.jit,
-            static_argnums=(3,),
+            static_argnums=(3,4),
             in_shardings=(state_sharding, x_sharding, x_sharding),
             out_shardings=(state_sharding, None),
         )(train_step)
 
         jit_compute_loss = partial(
             jax.jit,
-            static_argnums=(3,),
+            static_argnums=(3,4),
             in_shardings=(state_sharding, x_sharding, x_sharding),
         )(compute_loss)
         del init_rng
