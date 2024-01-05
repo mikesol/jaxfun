@@ -273,7 +273,8 @@ class ConvFauxCell(nn.Module):
                 z = BatchNorm(use_running_average=not train)(z)
                 z = nn.gelu(z)
         if not is_first:
-            assert z.shape[1] == 1
+            if not (z.shape[1] == 1):
+                raise ValueError(f'Inconsistent shape: {foundry.shape} {ipt.shape} {z.shape}')
         z = nn.Conv(
             features=1,
             kernel_size=(1,),
