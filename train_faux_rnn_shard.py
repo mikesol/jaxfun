@@ -202,7 +202,7 @@ if __name__ == "__main__":
     module = ConvFauxLarsen(
         to_mask=config.to_mask,
         channels=config.channels,
-        depth=tuple(config.depth),
+        depth=config.depth#tuple(config.depth),
         kernel_size=config.kernel_size,
         skip_freq=config.skip_freq,
         inner_skip=config.inner_skip,
@@ -249,7 +249,7 @@ if __name__ == "__main__":
         module = ConvFauxLarsen(
             to_mask=to_mask,
             channels=config.channels,
-            depth=tuple(config.depth),
+            depth=config.depth#tuple(config.depth),
             kernel_size=config.kernel_size,
             skip_freq=config.skip_freq,
             inner_skip=config.inner_skip,
