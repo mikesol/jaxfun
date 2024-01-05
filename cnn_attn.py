@@ -269,7 +269,6 @@ class ConvWithSkip(nn.Module):
         )(x)
         x = nn.BatchNorm(use_running_average=not train)(x)
         x = nn.gelu(x)
-        print("INFO", x.shape, x_.shape, self.channels)
         return (
             x
             if not self.skip
