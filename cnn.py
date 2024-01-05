@@ -340,7 +340,7 @@ class ConvFauxLarsen(nn.Module):
         else:
             foundry, z1 = nn.scan(
                 body_fn,
-                variable_carry="batch_stats",
+                variable_carry="batch_stats" if train else False,
                 variable_broadcast="params",
                 split_rngs={"params": False},
                 in_axes=1,
