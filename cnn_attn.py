@@ -269,7 +269,18 @@ class ConvWithSkip(nn.Module):
         )(x)
         x = nn.BatchNorm(use_running_average=not train)(x)
         x = nn.gelu(x)
-        return x if not self.skip else x_[:, -x.shape[1] :, :] + x
+        return (
+            x
+            if not self.skip
+            else nn.Conv(
+                features=self.channels,
+                strides=(1,),
+                use_bias=False,
+                kernel_size=(1,),
+                padding=((0,)),
+            )(x_[:, -x.shape[1] :, :])
+            + x
+        )
 
 
 class ConvFauxCell(nn.Module):
@@ -285,7 +296,9 @@ class ConvFauxCell(nn.Module):
     def __call__(self, foundry, ipt, is_first=True, train: bool = True):
         foundry_len = foundry.shape[1]
         zlen = 1
-        for _ in range(self.depth - 1):
+        for _ in range(
+            (self.depth if type(self.depth) == int else len(self.depth)) - 1
+        ):
             zlen = c1d(zlen, self.kernel_size, 1)
         zlen = c1d(zlen, self.kernel_size * 2, 2)
         z = None
@@ -304,7 +317,7 @@ class ConvFauxCell(nn.Module):
             z = ipt
         ###
         z = nn.Conv(
-            features=self.channels,
+            features=self.channels if self.channels is not None else self.depth[-1],
             padding=((0,)),
             kernel_size=(1,),
             use_bias=False,
@@ -313,10 +326,12 @@ class ConvFauxCell(nn.Module):
         )(z)
         z = nn.BatchNorm(use_running_average=not train)(z)
         z = nn.gelu(z)
-        for i in range(self.depth):
+        for i in range(self.depth if type(self.depth) == int else len(self.depth)):
             if i == 0:
                 z = ConvWithSkip(
-                    channels=self.channels,
+                    channels=self.channels
+                    if self.channels is not None
+                    else self.depth[0],
                     kernel_size=self.kernel_size * 2,
                     stride=2,
                     skip=False,
@@ -334,7 +349,11 @@ class ConvFauxCell(nn.Module):
             #     )(z, train)
             else:
                 z = ConvWithSkip(
-                    channels=self.channels, kernel_size=self.kernel_size, stride=1
+                    channels=self.channels
+                    if self.channels is not None
+                    else self.depth[i],
+                    kernel_size=self.kernel_size,
+                    stride=1,
                 )(z, train)
                 z = nn.BatchNorm(use_running_average=not train)(z)
                 z = nn.gelu(z)
