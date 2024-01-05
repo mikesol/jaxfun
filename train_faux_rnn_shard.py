@@ -56,6 +56,7 @@ PRNGKey = jax.Array
 @struct.dataclass
 class Metrics(metrics.Collection):
     loss: metrics.Average.from_output("loss")
+    long_loss: metrics.Average.from_output("long_loss")
 
 
 class TrainState(train_state.TrainState):
@@ -81,7 +82,7 @@ def update_train_state(state: TrainState, model: nn.Module) -> TrainState:
     return state
 
 
-def train_step(state, input, target, comparable_field):
+def train_step(state, input, target, to_mask, comparable_field):
     """Train for a single step."""
 
     def loss_fn(params):
@@ -89,6 +90,7 @@ def train_step(state, input, target, comparable_field):
             {"params": params, "batch_stats": state.batch_stats},
             input,
             train=True,
+            to_mask=to_mask,
             mutable=["batch_stats"],
         )
         loss = ESRLoss(pred[:, -comparable_field:, :], target[:, -comparable_field:, :])
@@ -106,11 +108,12 @@ def replace_metrics(state):
     return state.replace(metrics=state.metrics.empty())
 
 
-def compute_loss(state, input, target, comparable_field):
+def compute_loss(state, input, target, to_mask, comparable_field):
     pred, _ = state.apply_fn(
         {"params": state.params, "batch_stats": state.batch_stats},
         input,
         train=False,
+        to_mask=to_mask,
         mutable=["batch_stats"],
     )
     loss = ESRLoss(pred[:, -comparable_field:, :], target[:, -comparable_field:, :])
@@ -118,8 +121,16 @@ def compute_loss(state, input, target, comparable_field):
 
 
 @jax.jit
-def compute_metrics(state, loss):
+def add_loss_to_metrics(state, loss):
     metric_updates = state.metrics.single_from_model_output(loss=loss)
+    metrics = state.metrics.merge(metric_updates)
+    state = state.replace(metrics=metrics)
+    return state
+
+
+@jax.jit
+def add_long_loss_to_metrics(state, long_loss):
+    metric_updates = state.metrics.single_from_model_output(long_loss=long_loss)
     metrics = state.metrics.merge(metric_updates)
     state = state.replace(metrics=metrics)
     return state
@@ -151,7 +162,7 @@ if __name__ == "__main__":
     config.learning_rate = 1e-4
     config.epochs = 2**7
     config.window = 2**11
-    config.inference_window = 2**11
+    config.inference_window = 2**17
     config.stride = 2**8
     config.step_freq = 100
     config.test_size = 0.1
@@ -195,8 +206,8 @@ if __name__ == "__main__":
         stride=config.stride,  # , shift=config.shift, dilation=config.dilation, channels=config.channels, feature_dim=-1, shuffle=True
     )
     proto_inference_dataset, inference_dataset_total = make_2d_data(
-        paths=test_files[:1],
-        window=config.window,
+        paths=test_files,
+        window=config.inference_window,
         stride=config.stride,  # , shift=config.shift, dilation=config.dilation, channels=config.channels, feature_dim=-1, shuffle=True
     )
     print("datasets generated")
@@ -204,7 +215,6 @@ if __name__ == "__main__":
     onez = jnp.ones([config.batch_size, config.window * 2, 1])
 
     module = ConvFauxLarsen(
-        to_mask=config.to_mask,
         channels=config.channels,
         depth=config.depth,
         kernel_size=config.kernel_size,
@@ -233,14 +243,14 @@ if __name__ == "__main__":
 
     jit_train_step = partial(
         jax.jit,
-        static_argnums=(3,),
+        static_argnums=(3, 4),
         in_shardings=(state_sharding, x_sharding, x_sharding),
         out_shardings=(state_sharding, None),
     )(train_step)
 
     jit_compute_loss = partial(
         jax.jit,
-        static_argnums=(3,),
+        static_argnums=(3, 4),
         in_shardings=(state_sharding, x_sharding, x_sharding),
     )(compute_loss)
 
@@ -270,7 +280,6 @@ if __name__ == "__main__":
         onez = jnp.ones([config.batch_size, config.window * 2, 1])
 
         module = ConvFauxLarsen(
-            to_mask=to_mask,
             channels=config.channels,
             depth=config.depth,
             kernel_size=config.kernel_size,
@@ -323,8 +332,10 @@ if __name__ == "__main__":
             input = jax.device_put(input, x_sharding)
             target = batch["target"]
             with mesh:
-                state, loss = jit_train_step(state, input, target, comparable_field)
-                state = compute_metrics(state=state, loss=loss)
+                state, loss = jit_train_step(
+                    state, input, target, to_mask, comparable_field
+                )
+                state = add_loss_to_metrics(state=state, loss=loss)
 
             if batch_ix % config.step_freq == 0:
                 metrics = state.metrics.compute()
@@ -338,8 +349,17 @@ if __name__ == "__main__":
             input = batch["input"]
             input = jax.device_put(input, x_sharding)
             target = batch["target"]
-            loss = jit_compute_loss(state, input, target, comparable_field)
-            state = compute_metrics(state=state, loss=loss)
+            loss = jit_compute_loss(state, input, target, to_mask, comparable_field)
+            state = add_loss_to_metrics(state=state, loss=loss)
+            full_length = input.shape[1]
+            long_loss = jit_compute_loss(
+                state,
+                jnp.pad(input, ((0, 0), (module.get_zlen(), 0), (0, 0))),
+                target,
+                full_length,
+                comparable_field,
+            )
+            state = add_long_loss_to_metrics(state=state, long_loss=long_loss)
         if not epoch_is_0:
             to_mask += config.to_mask
             comparable_field = config.to_mask // 2
@@ -370,13 +390,25 @@ if __name__ == "__main__":
                 {"params": ckpt_model.params, "batch_stats": state.batch_stats},
                 input,
                 train=False,
+                to_mask=config.to_mask,
                 mutable=["batch_stats"],
             )
-            # make it 1d
-            audy = np.squeeze(np.array(o))
-            print("AUDY", audy.shape, audy.dtype)
-            audio = wandb.Audio(audy, sample_rate=44100)
-            artifact.add(audio, f"audio_{batch_ix}")
+            for i in range(len(o)):
+                audy = np.squeeze(np.array(o[i]))
+                audio = wandb.Audio(audy, sample_rate=44100)
+                artifact.add(audio, f"audio_with_short_mask_{batch_ix}_{i}")
+            full_length = input.shape[1]
+            o, _ = pred, updates = state.apply_fn(
+                {"params": ckpt_model.params, "batch_stats": state.batch_stats},
+                jnp.pad(input, ((0, 0), (module.get_zlen(), 0), (0, 0))),
+                train=False,
+                to_mask=full_length,
+                mutable=["batch_stats"],
+            )
+            for i in range(len(o)):
+                audy = np.squeeze(np.array(o[i]))
+                audio = wandb.Audio(audy, sample_rate=44100)
+                artifact.add(audio, f"audio_with_long_mask_{batch_ix}_{i}")
         run.log_artifact(artifact)
 
         metrics = state.metrics.compute()

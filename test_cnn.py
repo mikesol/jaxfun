@@ -22,7 +22,6 @@ def test_cnn_faux_larsen():
     inner_skip = True
     to_mask = window // 2
     model = ConvFauxLarsen(
-        to_mask=to_mask,
         channels=channels,
         depth=depth,
         kernel_size=kernel_size,
@@ -40,6 +39,7 @@ def test_cnn_faux_larsen():
         {"params": params, "batch_stats": batch_stats},
         i,
         train=True,
+        to_mask=to_mask,
         mutable=["batch_stats"],
     )
     batch_stats = updates["batch_stats"]
@@ -51,6 +51,7 @@ def test_cnn_faux_larsen():
     o, updates = model.apply(
         {"params": params, "batch_stats": batch_stats},
         i,
+        to_mask=to_mask,
         train=False,
         mutable=["batch_stats"],
     )
