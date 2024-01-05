@@ -9,7 +9,6 @@ class Convblock(nn.Module):
     kernel_size: int = 7
     norm_factor: float = 1.0
     skip: bool = True
-    layernorm: bool = True
     inner_skip: bool = True
     squeeze: int = 1
     pad_to_input_size: bool = True
@@ -22,7 +21,7 @@ class Convblock(nn.Module):
                 features=self.channels,
                 kernel_size=(1,),
                 padding=((0,)),
-                use_bias=False,
+                use_bias=True,
                 dtype=jnp.float32,
                 param_dtype=jnp.float32,
                 kernel_init=nn.with_partitioning(
@@ -67,8 +66,7 @@ class Convblock(nn.Module):
         x = jnp.sum(x, axis=1)
         x = jnp.transpose(x, (0, 2, 1))
         x = x_[:, (-x.shape[1]) :, :] + x if self.skip and self.inner_skip else x
-        if self.layernorm:
-            x = nn.LayerNorm()(x)
+        x = nn.LayerNorm()(x)
         x_ = x
         x = nn.Conv(
             features=self.channels,
@@ -90,7 +88,6 @@ class ConvblockWithTarget(nn.Module):
     kernel_size: int = 7
     norm_factor: float = 1.0
     skip: bool = True
-    layernorm: bool = True
     inner_skip: bool = True
 
     @nn.compact
@@ -101,7 +98,7 @@ class ConvblockWithTarget(nn.Module):
                 features=self.channels,
                 padding=((0,)),
                 kernel_size=(1,),
-                use_bias=False,
+                use_bias=True,
                 dtype=jnp.float32,
                 param_dtype=jnp.float32,
                 kernel_init=nn.with_partitioning(
@@ -161,8 +158,7 @@ class ConvblockWithTarget(nn.Module):
             if self.skip and self.inner_skip
             else x
         )
-        if self.layernorm:
-            x = nn.LayerNorm()(x)
+        x = nn.LayerNorm()(x)
         x_ = x
         x = nn.Conv(
             features=self.channels,
@@ -191,7 +187,6 @@ class ConvAttnFauxCell(nn.Module):
     kernel_size: int = 7
     norm_factor: float = 1.0
     skip_freq: int = 1
-    layernorm: bool = True
     inner_skip: bool = True
 
     def setup(self):
@@ -215,7 +210,6 @@ class ConvAttnFauxCell(nn.Module):
                         kernel_size=self.kernel_size,
                         norm_factor=self.norm_factor,
                         skip=(i % self.skip_freq) == (self.skip_freq - 1),
-                        layernorm=self.layernorm,
                         inner_skip=self.inner_skip,
                     )
                 )
@@ -226,7 +220,6 @@ class ConvAttnFauxCell(nn.Module):
                         kernel_size=self.kernel_size,
                         norm_factor=self.norm_factor,
                         skip=(i % self.skip_freq) == (self.skip_freq - 1),
-                        layernorm=self.layernorm,
                         inner_skip=self.inner_skip,
                         pad_to_input_size=False,
                     )
@@ -292,7 +285,6 @@ class ConvAttnFauxLarsen(nn.Module):
     kernel_size: int = 7
     norm_factor: float = 1.0
     skip_freq: int = 1
-    layernorm: bool = True
     inner_skip: bool = True
 
     def setup(self):
@@ -303,7 +295,6 @@ class ConvAttnFauxLarsen(nn.Module):
             kernel_size=self.kernel_size,
             norm_factor=self.norm_factor,
             skip_freq=self.skip_freq,
-            layernorm=self.layernorm,
             inner_skip=self.inner_skip,
         )
 
@@ -334,7 +325,6 @@ class Convattn(nn.Module):
     kernel_size: int = 7
     skip_freq: int = 1
     norm_factor: float = 1.0
-    layernorm: bool = True
     inner_skip: bool = True
 
     @nn.compact
@@ -345,7 +335,6 @@ class Convattn(nn.Module):
                 kernel_size=self.kernel_size,
                 norm_factor=self.norm_factor,
                 skip=(i % self.skip_freq) == (self.skip_freq - 1),
-                layernorm=self.layernorm,
                 inner_skip=self.inner_skip,
             )(x)
         x = nn.Conv(

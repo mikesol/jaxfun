@@ -18,7 +18,6 @@ def test_cnn_faux_larsen():
     kernel_size = 7
     norm_factor = 1.0
     skip_freq = 1
-    layernorm = True
     inner_skip = True
     to_mask = window // 2
     model = ConvFauxLarsen(
@@ -27,7 +26,6 @@ def test_cnn_faux_larsen():
         kernel_size=kernel_size,
         skip_freq=skip_freq,
         norm_factor=norm_factor,
-        layernorm=layernorm,
         inner_skip=inner_skip,
     )
     i = jnp.ones((batch_size, window * 2, 1))
@@ -66,7 +64,6 @@ def test_cnn_attn_faux_larsen():
     kernel_size = 7
     norm_factor = 1.0
     skip_freq = 1
-    layernorm = True
     inner_skip = True
     to_mask = window // 2
     model = ConvAttnFauxLarsen(
@@ -76,7 +73,6 @@ def test_cnn_attn_faux_larsen():
         kernel_size=kernel_size,
         skip_freq=skip_freq,
         norm_factor=norm_factor,
-        layernorm=layernorm,
         inner_skip=inner_skip,
     )
     i = jnp.ones((batch_size, window * 2, 1))
