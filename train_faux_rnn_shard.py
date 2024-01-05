@@ -350,6 +350,10 @@ if __name__ == "__main__":
                 comparable_field,
             )
             state = add_losses_to_metrics(state=state, loss=loss, long_loss=long_loss)
+        metrics = state.metrics.compute()
+        wandb.log({"val_loss": metrics["loss"], "val_long_loss": metrics["long_loss"]})
+        state = replace_metrics(state)
+
         if not epoch_is_0:
             to_mask += config.to_mask
             comparable_field = config.to_mask // 2
@@ -400,7 +404,3 @@ if __name__ == "__main__":
                 audio = wandb.Audio(audy, sample_rate=44100)
                 artifact.add(audio, f"audio_with_long_mask_{batch_ix}_{i}")
         run.log_artifact(artifact)
-
-        metrics = state.metrics.compute()
-        wandb.log({"val_loss": metrics["loss"]})
-        state = replace_metrics(state)
