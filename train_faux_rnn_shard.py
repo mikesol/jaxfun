@@ -314,7 +314,7 @@ if __name__ == "__main__":
         # train
         for batch_ix, batch in tqdm(
             enumerate(train_dataset.iter(batch_size=config.batch_size)),
-            total=train_dataset_total // config.batch_size,
+            total=train_dataset_total // config.batch_size if not epoch_is_0 else 2,
         ):
             input = batch["input"]
             input = jax.device_put(input, x_sharding)
@@ -330,7 +330,7 @@ if __name__ == "__main__":
         test_dataset.set_epoch(epoch)
         for batch_ix, batch in tqdm(
             enumerate(test_dataset.iter(batch_size=config.batch_size)),
-            total=test_dataset_total // config.batch_size,
+            total=test_dataset_total // config.batch_size if not epoch_is_0 else 2,
         ):
             input = batch["input"]
             input = jax.device_put(input, x_sharding)
@@ -356,7 +356,7 @@ if __name__ == "__main__":
                     config.inference_artifacts_per_batch_per_epoch
                 ).iter(batch_size=config.batch_size)
             ),
-            total=config.inference_artifacts_per_batch_per_epoch,
+            total=config.inference_artifacts_per_batch_per_epoch if not epoch_is_0 else 2,
         ):
             input = batch["input"]
             input = jax.device_put(input, x_sharding)
