@@ -65,7 +65,7 @@ class TrainState(train_state.TrainState):
 
 
 def create_train_state(rng: PRNGKey, x, module, tx) -> TrainState:
-    variables = module.init(rng, x)
+    variables = module.init(rng, x, train=False, to_mask=x.shape[1] // 2)
     params = variables["params"]
     batch_stats = variables["batch_stats"]
     return TrainState.create(
@@ -122,10 +122,13 @@ def compute_loss(state, input, target, to_mask, comparable_field):
 
 @jax.jit
 def add_losses_to_metrics(state, loss, long_loss):
-    metric_updates = state.metrics.single_from_model_output(loss=loss, long_loss=long_loss)
+    metric_updates = state.metrics.single_from_model_output(
+        loss=loss, long_loss=long_loss
+    )
     metrics = state.metrics.merge(metric_updates)
     state = state.replace(metrics=metrics)
     return state
+
 
 def mesh_sharding(pspec: PartitionSpec) -> NamedSharding:
     return NamedSharding(mesh, pspec)
@@ -298,14 +301,14 @@ if __name__ == "__main__":
 
         jit_train_step = partial(
             jax.jit,
-            static_argnums=(3,4),
+            static_argnums=(3, 4),
             in_shardings=(state_sharding, x_sharding, x_sharding),
             out_shardings=(state_sharding, None),
         )(train_step)
 
         jit_compute_loss = partial(
             jax.jit,
-            static_argnums=(3,4),
+            static_argnums=(3, 4),
             in_shardings=(state_sharding, x_sharding, x_sharding),
         )(compute_loss)
         del init_rng
@@ -347,7 +350,7 @@ if __name__ == "__main__":
                 jnp.pad(input, ((0, 0), (module.get_zlen(), 0), (0, 0))),
                 target,
                 full_length,
-                comparable_field,
+                full_length,
             )
             state = add_losses_to_metrics(state=state, loss=loss, long_loss=long_loss)
         metrics = state.metrics.compute()

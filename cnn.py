@@ -329,7 +329,7 @@ class ConvFauxLarsen(nn.Module):
             inner_skip=self.inner_skip,
         )
 
-    def __call__(self, x, train: bool = True, to_mask: int = 2**8):
+    def __call__(self, x, train: bool = True, to_mask: int = None):
         if (to_mask >= x.shape[1]) or (type(to_mask) == type((1, 2))):
             # from a bug during training
             raise ValueError(

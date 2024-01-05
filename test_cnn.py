@@ -32,7 +32,7 @@ def test_cnn_faux_larsen():
     )
     i = jnp.ones((batch_size, window * 2, 1))
     rng = jax.random.PRNGKey(0)
-    variables = model.init(rng, i, train=False)
+    variables = model.init(rng, i, train=False, to_mask=to_mask)
     params = variables["params"]
     batch_stats = variables["batch_stats"]
     o, updates = model.apply(
