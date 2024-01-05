@@ -284,7 +284,6 @@ class ConvAttnFauxCell(nn.Module):
         return foundry[:, -foundry_len:, :], z
 
 
-
 class ConvAttnFauxLarsen(nn.Module):
     to_mask: int = 4
     depth: int = 2**4

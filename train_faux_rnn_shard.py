@@ -181,17 +181,17 @@ if __name__ == "__main__":
     )
     print("making datasets")
     # can't use make_2d_data_with_delays_and_dilations because the RNN becomes too dicey :-(
-    train_dataset, train_dataset_total = make_2d_data(
+    proto_train_dataset, train_dataset_total = make_2d_data(
         paths=train_files,
         window=config.window,
         stride=config.stride,  # , shift=config.shift, dilation=config.dilation, channels=config.channels, feature_dim=-1, shuffle=True
     )
-    test_dataset, test_dataset_total = make_2d_data(
+    proto_test_dataset, test_dataset_total = make_2d_data(
         paths=test_files,
         window=config.window,
         stride=config.stride,  # , shift=config.shift, dilation=config.dilation, channels=config.channels, feature_dim=-1, shuffle=True
     )
-    inference_dataset, inference_dataset_total = make_2d_data(
+    proto_inference_dataset, inference_dataset_total = make_2d_data(
         paths=test_files[:1],
         window=config.window,
         stride=config.stride,  # , shift=config.shift, dilation=config.dilation, channels=config.channels, feature_dim=-1, shuffle=True
@@ -246,6 +246,23 @@ if __name__ == "__main__":
     del init_rng  # Must not be used anymore.
     for epoch in range(config.epochs):
         # ugggh
+        epoch_is_0 = epoch == 0
+        train_dataset = (
+            proto_train_dataset
+            if not epoch_is_0
+            else proto_train_dataset.take(config.batch_size * 2)
+        )
+        test_dataset = (
+            proto_test_dataset
+            if not epoch_is_0
+            else proto_test_dataset.take(config.batch_size * 2)
+        )
+        inference_dataset = (
+            proto_inference_dataset
+            if not epoch_is_0
+            else proto_inference_dataset.take(config.batch_size * 2)
+        )
+
         init_rng = jax.random.PRNGKey(config.seed)
         onez = jnp.ones([config.batch_size, config.window * 2, 1])
 
@@ -303,15 +320,14 @@ if __name__ == "__main__":
             input = jax.device_put(input, x_sharding)
             target = batch["target"]
             with mesh:
-                state, loss = jit_train_step(
-                    state, input, target, comparable_field
-                )
+                state, loss = jit_train_step(state, input, target, comparable_field)
                 state = compute_metrics(state=state, loss=loss)
 
             if batch_ix % config.step_freq == 0:
                 metrics = state.metrics.compute()
                 wandb.log({"train_loss": metrics["loss"]})
                 state = replace_metrics(state)
+        test_dataset.set_epoch(epoch)
         for batch_ix, batch in tqdm(
             enumerate(test_dataset.iter(batch_size=config.batch_size)),
             total=test_dataset_total // config.batch_size,
@@ -333,6 +349,7 @@ if __name__ == "__main__":
         run.log_artifact(artifact)
         # inference
         artifact = wandb.Artifact("inference", type="audio")
+        inference_dataset.set_epoch(epoch)
         for batch_ix, batch in tqdm(
             enumerate(
                 inference_dataset.take(
