@@ -1,8 +1,6 @@
 import flax.linen as nn
 import jax.numpy as jnp
-import jax
 from flax.linen import initializers
-import math
 
 
 class ConvFauxLarsen(nn.Module):

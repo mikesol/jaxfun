@@ -1,3 +1,9 @@
+
+import flax.linen as nn
+import jax.numpy as jnp
+import jax
+from flax.linen import initializers
+import math
 def c1d(o, k, s):
     return (s * (o - 1)) + 1 + (k - 1)
 
