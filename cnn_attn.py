@@ -432,7 +432,6 @@ class ConvFauxLarsen(nn.Module):
     depth: int = 2**4
     channels: int = 2**6
     kernel_size: int = 7
-    norm_factor: float = 1.0
     skip_freq: int = 1
     inner_skip: bool = True
 
@@ -442,7 +441,6 @@ class ConvFauxLarsen(nn.Module):
             depth=self.depth,
             channels=self.channels,
             kernel_size=self.kernel_size,
-            norm_factor=self.norm_factor,
             skip_freq=self.skip_freq,
             inner_skip=self.inner_skip,
         )
