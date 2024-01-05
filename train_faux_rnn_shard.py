@@ -373,6 +373,7 @@ if __name__ == "__main__":
                 mutable=["batch_stats"],
             )
             # make it 1d
+            print("OSHAPE", o.shape)
             audio = wandb.Audio(np.squeeze(np.array(o)), sample_rate=44100)
             artifact.add(audio, f"audio_{batch_ix}")
         run.log_artifact(artifact)
