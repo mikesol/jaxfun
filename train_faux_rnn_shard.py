@@ -340,8 +340,9 @@ if __name__ == "__main__":
             target = batch["target"]
             loss = jit_compute_loss(state, input, target, comparable_field)
             state = compute_metrics(state=state, loss=loss)
-        to_mask += config.to_mask
-        comparable_field = config.to_mask // 2
+        if not epoch_is_0:
+            to_mask += config.to_mask
+            comparable_field = config.to_mask // 2
 
         # checkpoint
         ckpt_model = state
