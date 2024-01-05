@@ -1,4 +1,5 @@
-from cnn_attn import ConvAttnFauxLarsen, ConvFauxLarsen
+from cnn_attn import ConvAttnFauxLarsen
+from cnn import ConvFauxLarsen
 import jax
 import flax.linen as nn
 import jax.numpy as jnp
@@ -9,7 +10,6 @@ def c1d(i, p, d, k, s):
     return ((i + (2 * p) - d * (k - 1) - 1) / s) + 1
 
 
-@pytest.mark.only
 def test_cnn_faux_larsen():
     batch_size = 2**2
     window = 2**9
