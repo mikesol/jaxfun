@@ -335,6 +335,7 @@ class ConvFauxLarsen(nn.Module):
             raise ValueError(
                 f"to_mask must be less than the input sequence length: {x.shape[1]} vs {to_mask}"
             )
+        # print("to_mask", to_mask, "x.shape", x.shape)
         x_masked = x[:, : -(to_mask * 2), :]
         x_final = x[:, -(to_mask * 2) :: 2, :]
         foundry = x_masked

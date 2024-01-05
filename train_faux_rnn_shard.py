@@ -65,7 +65,7 @@ class TrainState(train_state.TrainState):
 
 
 def create_train_state(rng: PRNGKey, x, module, tx) -> TrainState:
-    variables = module.init(rng, x, train=False, to_mask=x.shape[1] // 2, to_mask=x.shape[1] // 2)
+    variables = module.init(rng, x, train=False, to_mask=x.shape[1] // 8)
     params = variables["params"]
     batch_stats = variables["batch_stats"]
     return TrainState.create(
