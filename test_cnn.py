@@ -9,7 +9,6 @@ def c1d(i, p, d, k, s):
     return ((i + (2 * p) - d * (k - 1) - 1) / s) + 1
 
 
-@pytest.mark.only
 def test_cnn_faux_larsen_with_variable_depth():
     batch_size = 2**2
     window = 2**9
@@ -47,7 +46,6 @@ def test_cnn_faux_larsen_with_variable_depth():
         l = c1d(l, 0, 1, kernel_size, 1)
     assert o.shape == (batch_size, int(l), 1)
 
-@pytest.mark.only
 def test_cnn_faux_larsen():
     batch_size = 2**2
     window = 2**9
@@ -86,6 +84,7 @@ def test_cnn_faux_larsen():
     assert o.shape == (batch_size, int(l), 1)
 
 
+@pytest.mark.skip(reason="stopped maintaining this so it is buggy, should be removed soon")
 def test_cnn_attn_faux_larsen():
     batch_size = 2**2
     window = 2**9

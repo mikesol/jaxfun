@@ -269,11 +269,13 @@ class ConvWithSkip(nn.Module):
         )(x)
         x = nn.BatchNorm(use_running_average=not train)(x)
         x = nn.gelu(x)
+        print("INFO", x.shape, x_.shape, self.channels)
         return (
             x
             if not self.skip
             else nn.Conv(
                 features=self.channels,
+                feature_group_count=min(x.shape[-1], x_.shape[-1]),
                 strides=(1,),
                 use_bias=False,
                 kernel_size=(1,),
@@ -405,15 +407,15 @@ class ConvAttnFauxLarsen(nn.Module):
             inner_skip=self.inner_skip,
         )
 
-    def __call__(self, x):
+    def __call__(self, x, train: bool = True):
         x_masked = x[:, : -(self.to_mask * 2), :]
         x_final = x[:, -(self.to_mask * 2) :: 2, :]
         foundry = x_masked
         z = x_masked
-        foundry, z0 = self.cell(foundry, z, is_first=True)
+        foundry, z0 = self.cell(foundry, z, is_first=True, train=train)
 
         def body_fn(cell, carry, x):
-            carry, y = cell(carry, x, is_first=False)
+            carry, y = cell(carry, x, is_first=False, train=train)
             return carry, y
 
         foundry, z1 = nn.scan(
