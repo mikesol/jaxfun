@@ -11,6 +11,7 @@ class Convblock(nn.Module):
     skip: bool = True
     layernorm: bool = True
     inner_skip: bool = True
+    squeeze: int = 1
     pad_to_input_size: bool = True
 
     @nn.compact
@@ -32,7 +33,7 @@ class Convblock(nn.Module):
         weights = self.param(
             "weights",
             nn.with_partitioning(initializers.lecun_normal(), (None, "model")),
-            (self.channels, self.channels, self.kernel_size),
+            (self.channels // self.squeeze, self.channels, self.kernel_size),
             jnp.float32,
         )
         # skip
@@ -57,12 +58,12 @@ class Convblock(nn.Module):
         x = do_unfold(x)
 
         # weights == (b, k, c, s)
-        # x = (b, s, c) weights = (c, c, k) w' = (b, c, s, k) w = (b, k, c, s)
+        # x = (b, s, c) weights = (x, c, k) w' = (b, x, s, k) w = (b, k, x, s)
         w = jnp.transpose(
             jnp.einsum("abc,dcg->adbg", x_[:, -x.shape[3] :, :], weights), (0, 3, 1, 2)
         )
         w = nn.tanh(w / self.norm_factor)
-        x = x * w
+        x = x * jnp.repeat(w, repeats=self.squeeze, axis=2)
         x = jnp.sum(x, axis=1)
         x = jnp.transpose(x, (0, 2, 1))
         x = x_[:, (-x.shape[1]) :, :] + x if self.skip and self.inner_skip else x
