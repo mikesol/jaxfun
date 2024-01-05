@@ -275,7 +275,7 @@ class ConvFauxCell(nn.Module):
                 z = nn.gelu(z)
         if not is_first:
             if not (z.shape[1] == 1):
-                raise ValueError(f'Inconsistent shape: {foundry.shape} {ipt.shape}  {z_.shape} {z.shape} {zlen} {is_first}')
+                raise ValueError(f'Inconsistent shape: {foundry.shape} {ipt.shape} {z_.shape} {z.shape} {zlen} {is_first}')
         z = nn.Conv(
             features=1,
             kernel_size=(1,),
