@@ -349,7 +349,7 @@ if __name__ == "__main__":
                 state,
                 jnp.pad(input, ((0, 0), (module.get_zlen(), 0), (0, 0))),
                 target,
-                full_length,
+                full_length * 7 // 8,
                 full_length,
             )
             state = add_losses_to_metrics(state=state, loss=loss, long_loss=long_loss)
@@ -399,7 +399,7 @@ if __name__ == "__main__":
                 {"params": ckpt_model.params, "batch_stats": state.batch_stats},
                 jnp.pad(input, ((0, 0), (module.get_zlen(), 0), (0, 0))),
                 train=False,
-                to_mask=full_length,
+                to_mask=full_length * 7 // 8,
                 mutable=["batch_stats"],
             )
             for i in range(len(o)):
