@@ -365,7 +365,12 @@ if __name__ == "__main__":
         ):
             input = batch["input"]
             input = jax.device_put(input, x_sharding)
-            o = ckpt_model.apply_fn({"params": ckpt_model.params}, input)
+            o = pred, updates = state.apply_fn(
+                {"params": ckpt_model.params, "batch_stats": state.batch_stats},
+                input,
+                train=False,
+                mutable=["batch_stats"],
+            )
             # make it 1d
             audio = wandb.Audio(np.squeeze(np.array(o)), sample_rate=44100)
             artifact.add(audio, f"audio_{batch_ix}")
