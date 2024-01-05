@@ -1,6 +1,6 @@
 from flax import struct
 import wandb
-from cnn import Convattn
+from cnn_attn import Convattn
 from clu import metrics
 from functools import partial
 import jax.numpy as jnp

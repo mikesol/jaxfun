@@ -9,7 +9,7 @@ if IS_CPU:
 from typing import Any
 from flax import struct
 import wandb
-from cnn import ConvFauxLarsen
+from cnn_attn import ConvFauxLarsen
 from clu import metrics
 from functools import partial
 import jax.numpy as jnp
@@ -152,13 +152,14 @@ if __name__ == "__main__":
     config.stride = 2**8
     config.step_freq = 100
     config.test_size = 0.1
-    config.channels = 2**6 #None
-    config.depth = 2**4 # #(2**1, 2**2, 2**3, 2**4, 2**5, 2**6, 2**7, 2**7, 2**7, 2**7, 2**6, 2**5, 2**4, 2**3, 2**2, 2**1)
-    # assert len(config.depth) == 16
+    config.channels = 2**6
+    config.depth = 2**4
     config.to_mask = 2**5
     config.comparable_field = config.to_mask // 2
     config.kernel_size = 7
     config.skip_freq = 1
+    config.norm_factor = math.sqrt(config.channels)
+    config.layernorm = True
     config.inner_skip = True
     config.shift = 2**4
     config.dilation = 2**0
@@ -202,9 +203,11 @@ if __name__ == "__main__":
     module = ConvFauxLarsen(
         to_mask=config.to_mask,
         channels=config.channels,
-        depth=config.depth,#tuple(config.depth),
+        depth=config.depth,
         kernel_size=config.kernel_size,
         skip_freq=config.skip_freq,
+        norm_factor=config.norm_factor,
+        layernorm=config.layernorm,
         inner_skip=config.inner_skip,
     )
     tx = optax.adam(config.learning_rate)
@@ -249,9 +252,11 @@ if __name__ == "__main__":
         module = ConvFauxLarsen(
             to_mask=to_mask,
             channels=config.channels,
-            depth=config.depth,#tuple(config.depth),
+            depth=config.depth,
             kernel_size=config.kernel_size,
             skip_freq=config.skip_freq,
+            norm_factor=config.norm_factor,
+            layernorm=config.layernorm,
             inner_skip=config.inner_skip,
         )
 
@@ -291,7 +296,7 @@ if __name__ == "__main__":
         train_dataset.set_epoch(epoch)
         # train
         for batch_ix, batch in tqdm(
-            enumerate(train_dataset.iter(batch_size=config.batch_size, drop_last_batch=True)),
+            enumerate(train_dataset.iter(batch_size=config.batch_size)),
             total=train_dataset_total // config.batch_size,
         ):
             input = batch["input"]
@@ -308,7 +313,7 @@ if __name__ == "__main__":
                 wandb.log({"train_loss": metrics["loss"]})
                 state = replace_metrics(state)
         for batch_ix, batch in tqdm(
-            enumerate(test_dataset.iter(batch_size=config.batch_size, drop_last_batch=True)),
+            enumerate(test_dataset.iter(batch_size=config.batch_size)),
             total=test_dataset_total // config.batch_size,
         ):
             input = batch["input"]
@@ -332,7 +337,7 @@ if __name__ == "__main__":
             enumerate(
                 inference_dataset.take(
                     config.inference_artifacts_per_batch_per_epoch
-                ).iter(batch_size=config.batch_size, drop_last_batch=True)
+                ).iter(batch_size=config.batch_size)
             ),
             total=config.inference_artifacts_per_batch_per_epoch,
         ):
