@@ -153,7 +153,7 @@ if __name__ == "__main__":
     config.step_freq = 100
     config.test_size = 0.1
     config.channels = 2**6 #None
-    config.depth = 16 #(2**1, 2**2, 2**3, 2**4, 2**5, 2**6, 2**7, 2**7, 2**7, 2**7, 2**6, 2**5, 2**4, 2**3, 2**2, 2**1)
+    config.depth = 2**4 # #(2**1, 2**2, 2**3, 2**4, 2**5, 2**6, 2**7, 2**7, 2**7, 2**7, 2**6, 2**5, 2**4, 2**3, 2**2, 2**1)
     # assert len(config.depth) == 16
     config.to_mask = 2**5
     config.comparable_field = config.to_mask // 2

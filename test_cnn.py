@@ -1,4 +1,5 @@
-from cnn import ConvAttnFauxLarsen, ConvFauxLarsen
+from cnn import ConvFauxLarsen
+from cnn_att import ConvAttnFauxLarsen
 import jax
 import flax.linen as nn
 import jax.numpy as jnp
@@ -15,7 +16,6 @@ def test_cnn_faux_larsen_with_variable_depth():
     depth = [2**1, 2**2, 2**3, 2**4, 2**5, 2**6, 2**7, 2**8, 2**8, 2**7, 2**6, 2**5, 2**4, 2**3, 2**2, 2**1]
     channels = None
     kernel_size = 7
-    norm_factor = 1.0
     skip_freq = 1
     inner_skip = True
     to_mask = window // 2
@@ -25,7 +25,6 @@ def test_cnn_faux_larsen_with_variable_depth():
         depth=depth,
         kernel_size=kernel_size,
         skip_freq=skip_freq,
-        norm_factor=norm_factor,
         inner_skip=inner_skip,
     )
     i = jnp.ones((batch_size, window * 2, 1))
@@ -62,7 +61,6 @@ def test_cnn_faux_larsen():
         depth=depth,
         kernel_size=kernel_size,
         skip_freq=skip_freq,
-        norm_factor=norm_factor,
         inner_skip=inner_skip,
     )
     i = jnp.ones((batch_size, window * 2, 1))
