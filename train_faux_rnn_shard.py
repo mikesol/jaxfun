@@ -108,7 +108,10 @@ def replace_metrics(state):
 
 def compute_loss(state, input, target, comparable_field):
     pred = state.apply_fn(
-        {"params": state.params, "batch_stats": state.batch_stats}, input, train=False
+        {"params": state.params, "batch_stats": state.batch_stats},
+        input,
+        train=False,
+        mutable=["batch_stats"],
     )
     loss = ESRLoss(pred[:, -comparable_field:, :], target[:, -comparable_field:, :])
     return loss

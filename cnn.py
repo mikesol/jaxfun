@@ -2,9 +2,7 @@ import flax.linen as nn
 import jax.numpy as jnp
 import jax
 from flax.linen import initializers
-from normy import BatchNorm as BatchNormReplacement
 
-# BatchNorm = BatchNormReplacement
 BatchNorm = nn.BatchNorm
 
 

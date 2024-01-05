@@ -48,6 +48,13 @@ def test_cnn_faux_larsen():
     for _ in range(depth - 1):
         l = c1d(l, 0, 1, kernel_size, 1)
     assert o.shape == (batch_size, int(l), 1)
+    o, updates = model.apply(
+        {"params": params, "batch_stats": batch_stats},
+        i,
+        train=False,
+        mutable=["batch_stats"],
+    )
+    assert o.shape == (batch_size, int(l), 1)
 
 
 def test_cnn_attn_faux_larsen():
