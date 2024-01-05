@@ -8,7 +8,7 @@ if IS_CPU:
 
 from flax import struct
 import wandb
-from cnn_attn import ConvAttnFauxLarsen
+from cnn import ConvAttnFauxLarsen
 from clu import metrics
 from functools import partial
 import jax.numpy as jnp

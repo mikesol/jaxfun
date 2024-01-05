@@ -1,4 +1,4 @@
-from cnn_attn import ConvAttnFauxLarsen, ConvFauxLarsen
+from cnn import ConvAttnFauxLarsen, ConvFauxLarsen
 import jax
 import flax.linen as nn
 import jax.numpy as jnp

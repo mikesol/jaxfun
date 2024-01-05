@@ -1,7 +1,7 @@
 from flax import struct
 import local_env
 import wandb
-from cnn_attn import ConvAttnFauxLarsen
+from cnn import ConvAttnFauxLarsen
 from clu import metrics
 from functools import partial
 import jax.numpy as jnp
