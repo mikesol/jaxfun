@@ -121,20 +121,11 @@ def compute_loss(state, input, target, to_mask, comparable_field):
 
 
 @jax.jit
-def add_loss_to_metrics(state, loss):
-    metric_updates = state.metrics.single_from_model_output(loss=loss)
+def add_losses_to_metrics(state, loss, long_loss):
+    metric_updates = state.metrics.single_from_model_output(loss=loss, long_loss=long_loss)
     metrics = state.metrics.merge(metric_updates)
     state = state.replace(metrics=metrics)
     return state
-
-
-@jax.jit
-def add_long_loss_to_metrics(state, long_loss):
-    metric_updates = state.metrics.single_from_model_output(long_loss=long_loss)
-    metrics = state.metrics.merge(metric_updates)
-    state = state.replace(metrics=metrics)
-    return state
-
 
 def mesh_sharding(pspec: PartitionSpec) -> NamedSharding:
     return NamedSharding(mesh, pspec)
@@ -335,7 +326,7 @@ if __name__ == "__main__":
                 state, loss = jit_train_step(
                     state, input, target, to_mask, comparable_field
                 )
-                state = add_loss_to_metrics(state=state, loss=loss)
+                state = add_losses_to_metrics(state=state, loss=loss, long_loss=0.0)
 
             if batch_ix % config.step_freq == 0:
                 metrics = state.metrics.compute()
@@ -350,7 +341,6 @@ if __name__ == "__main__":
             input = jax.device_put(input, x_sharding)
             target = batch["target"]
             loss = jit_compute_loss(state, input, target, to_mask, comparable_field)
-            state = add_loss_to_metrics(state=state, loss=loss)
             full_length = input.shape[1]
             long_loss = jit_compute_loss(
                 state,
@@ -359,7 +349,7 @@ if __name__ == "__main__":
                 full_length,
                 comparable_field,
             )
-            state = add_long_loss_to_metrics(state=state, long_loss=long_loss)
+            state = add_losses_to_metrics(state=state, loss=loss, long_loss=long_loss)
         if not epoch_is_0:
             to_mask += config.to_mask
             comparable_field = config.to_mask // 2
