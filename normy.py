@@ -349,7 +349,8 @@ class BatchNorm(Module):
                 )
                 ra_var.value = self.momentum * ra_var.value + (1 - self.momentum) * var
         elif self.is_initializing():
-            ra_mean, ra_var = _make_mean_and_var()
+            # we still need the side effect that creates the variable
+            _make_mean_and_var()
 
         else:
             mean, var = _compute_stats(
