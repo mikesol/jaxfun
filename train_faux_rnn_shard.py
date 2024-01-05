@@ -9,7 +9,7 @@ if IS_CPU:
 from typing import Any
 from flax import struct
 import wandb
-from cnn_attn import ConvFauxLarsen
+from cnn import ConvFauxLarsen
 from clu import metrics
 from functools import partial
 import jax.numpy as jnp
