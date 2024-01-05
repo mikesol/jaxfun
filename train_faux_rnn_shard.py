@@ -107,7 +107,7 @@ def replace_metrics(state):
 
 
 def compute_loss(state, input, target, comparable_field):
-    pred = state.apply_fn(
+    pred, _ = state.apply_fn(
         {"params": state.params, "batch_stats": state.batch_stats},
         input,
         train=False,
