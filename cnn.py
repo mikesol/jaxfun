@@ -93,7 +93,7 @@ class ConvFauxCell(nn.Module):
                         inner_skip=self.inner_skip,
                         pad_to_input_size=False,
                         squeeze=2**3
-                    )
+                    )(z)
             else:
                 z = ConvWithSkip(
                     channels=self.channels, kernel_size=self.kernel_size, stride=1
