@@ -318,7 +318,7 @@ if __name__ == "__main__":
         train_dataset.set_epoch(epoch)
         # train
         for batch_ix, batch in tqdm(
-            enumerate(train_dataset.iter(batch_size=config.batch_size)),
+            enumerate(train_dataset.iter(batch_size=config.batch_size, drop_last_batch=True)),
             total=train_dataset_total // config.batch_size if not epoch_is_0 else 2,
         ):
             input = batch["input"]
@@ -338,7 +338,7 @@ if __name__ == "__main__":
                 state = replace_metrics(state)
         test_dataset.set_epoch(epoch)
         for batch_ix, batch in tqdm(
-            enumerate(test_dataset.iter(batch_size=config.batch_size)),
+            enumerate(test_dataset.iter(batch_size=config.batch_size, drop_last_batch=True)),
             total=test_dataset_total // config.batch_size if not epoch_is_0 else 2,
         ):
             input = batch["input"]
@@ -380,7 +380,7 @@ if __name__ == "__main__":
             enumerate(
                 inference_dataset.take(
                     config.inference_artifacts_per_batch_per_epoch
-                ).iter(batch_size=config.batch_size)
+                ).iter(batch_size=config.batch_size, drop_last_batch=True)
             ),
             total=config.inference_artifacts_per_batch_per_epoch
             if not epoch_is_0
