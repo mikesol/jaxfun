@@ -84,7 +84,7 @@ class ConvFauxCell(nn.Module):
                 )(z, train)
                 z = BatchNorm(use_running_average=not train)(z)
                 z = nn.gelu(z)
-            elif i == 5:
+            elif i % 4 == 2:
                 z = Convblock(
                         channels=self.channels,
                         kernel_size=self.kernel_size,
