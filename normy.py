@@ -329,16 +329,18 @@ class BatchNorm(Module):
         ra_mean = None
         ra_var = None
 
-        if use_running_average:
-            ra_mean = self.variable(
+        def _make_mean_and_var():
+            return self.variable(
                 "batch_stats",
                 "mean",
                 lambda s: jnp.zeros(s, jnp.float32),
                 feature_shape,
-            )
-            ra_var = self.variable(
+            ), self.variable(
                 "batch_stats", "var", lambda s: jnp.ones(s, jnp.float32), feature_shape
             )
+
+        if use_running_average:
+            ra_mean, ra_var = _make_mean_and_var()
 
             mean, var = ra_mean.value, ra_var.value
             if not self.is_initializing():
@@ -346,6 +348,8 @@ class BatchNorm(Module):
                     self.momentum * ra_mean.value + (1 - self.momentum) * mean
                 )
                 ra_var.value = self.momentum * ra_var.value + (1 - self.momentum) * var
+        elif self.is_initializing():
+            ra_mean, ra_var = _make_mean_and_var()
 
         else:
             mean, var = _compute_stats(
