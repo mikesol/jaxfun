@@ -356,7 +356,9 @@ if __name__ == "__main__":
                     config.inference_artifacts_per_batch_per_epoch
                 ).iter(batch_size=config.batch_size)
             ),
-            total=config.inference_artifacts_per_batch_per_epoch if not epoch_is_0 else 2,
+            total=config.inference_artifacts_per_batch_per_epoch
+            if not epoch_is_0
+            else 2,
         ):
             input = batch["input"]
             input = jax.device_put(input, x_sharding)
