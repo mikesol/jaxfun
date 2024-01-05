@@ -56,7 +56,7 @@ PRNGKey = jax.Array
 @struct.dataclass
 class Metrics(metrics.Collection):
     loss: metrics.Average.from_output("loss")
-    long_loss: metrics.Average.from_output("long_loss")
+    # long_loss: metrics.Average.from_output("long_loss")
 
 
 class TrainState(train_state.TrainState):
@@ -121,9 +121,11 @@ def compute_loss(state, input, target, to_mask, comparable_field):
 
 
 @jax.jit
-def add_losses_to_metrics(state, loss, long_loss):
+def add_losses_to_metrics(state, loss
+                          #, long_loss
+                          ):
     metric_updates = state.metrics.single_from_model_output(
-        loss=loss, long_loss=long_loss
+        loss=loss #, long_loss=long_loss
     )
     metrics = state.metrics.merge(metric_updates)
     state = state.replace(metrics=metrics)
@@ -329,7 +331,9 @@ if __name__ == "__main__":
                 state, loss = jit_train_step(
                     state, input, target, to_mask, comparable_field
                 )
-                state = add_losses_to_metrics(state=state, loss=loss, long_loss=0.0)
+                state = add_losses_to_metrics(state=state, loss=loss
+                                         #     , long_loss=0.0
+                                              )
 
             if batch_ix % config.step_freq == 0:
                 metrics = state.metrics.compute()
@@ -344,17 +348,21 @@ if __name__ == "__main__":
             input = jax.device_put(input, x_sharding)
             target = batch["target"]
             loss = jit_compute_loss(state, input, target, to_mask, comparable_field)
-            full_length = input.shape[1]
-            long_loss = jit_compute_loss(
-                state,
-                jnp.pad(input, ((0, 0), (module.get_zlen(), 0), (0, 0))),
-                target,
-                full_length * 7 // 8,
-                full_length * 3 // 4,
-            )
-            state = add_losses_to_metrics(state=state, loss=loss, long_loss=long_loss)
+            # full_length = input.shape[1]
+            # long_loss = jit_compute_loss(
+            #     state,
+            #     jnp.pad(input, ((0, 0), (module.get_zlen(), 0), (0, 0))),
+            #     target,
+            #     full_length * 7 // 8,
+            #     full_length * 3 // 4,
+            # )
+            state = add_losses_to_metrics(state=state, loss=loss
+                                          #, long_loss=long_loss
+                                          )
         metrics = state.metrics.compute()
-        wandb.log({"val_loss": metrics["loss"], "val_long_loss": metrics["long_loss"]})
+        wandb.log({"val_loss": metrics["loss"]
+                   #, "val_long_loss": metrics["long_loss"]
+                   })
         state = replace_metrics(state)
 
         if not epoch_is_0:
