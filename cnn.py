@@ -2,7 +2,7 @@ import flax.linen as nn
 import jax.numpy as jnp
 import jax
 from flax.linen import initializers
-
+from normy import BatchNorm as BatchNormReplacement
 
 class Convblock(nn.Module):
     channels: int = 2**6
@@ -204,7 +204,7 @@ class ConvWithSkip(nn.Module):
             kernel_size=(self.kernel_size,),
             padding=((0,)),
         )(x)
-        x = nn.BatchNorm(use_running_average=not train)(x)
+        x = BatchNormReplacement(use_running_average=not train)(x)
         x = nn.gelu(x)
         return x if not self.skip else x_[:, -x.shape[1] :, :] + x
 
@@ -248,7 +248,7 @@ class ConvFauxCell(nn.Module):
             dtype=jnp.float32,
             param_dtype=jnp.float32,
         )(z)
-        z = nn.BatchNorm(use_running_average=not train)(z)
+        z = BatchNormReplacement(use_running_average=not train)(z)
         z = nn.gelu(z)
         for i in range(self.depth):
             if i == 0:
@@ -258,14 +258,14 @@ class ConvFauxCell(nn.Module):
                     stride=2,
                     skip=False,
                 )(z, train)
-                z = nn.BatchNorm(use_running_average=not train)(z)
+                z = BatchNormReplacement(use_running_average=not train)(z)
                 z = nn.gelu(z)
 
             else:
                 z = ConvWithSkip(
                     channels=self.channels, kernel_size=self.kernel_size, stride=1
                 )(z, train)
-                z = nn.BatchNorm(use_running_average=not train)(z)
+                z = BatchNormReplacement(use_running_average=not train)(z)
                 z = nn.gelu(z)
         if not is_first:
             assert z.shape[1] == 1
