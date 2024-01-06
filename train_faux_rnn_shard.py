@@ -6,9 +6,12 @@ if IS_CPU:
     print("in cpu land")
     os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
 
+import soundfile
+from types import SimpleNamespace
+import local_env
 from typing import Any
 from flax import struct
-import wandb
+from comet_ml import Experiment, Artifact
 from cnn import ConvFauxLarsen
 from clu import metrics
 from functools import partial
@@ -121,11 +124,13 @@ def compute_loss(state, input, target, to_mask, comparable_field):
 
 
 @jax.jit
-def add_losses_to_metrics(state, loss
-                          #, long_loss
-                          ):
+def add_losses_to_metrics(
+    state,
+    loss
+    # , long_loss
+):
     metric_updates = state.metrics.single_from_model_output(
-        loss=loss #, long_loss=long_loss
+        loss=loss  # , long_loss=long_loss
     )
     metrics = state.metrics.merge(metric_updates)
     state = state.replace(metrics=metrics)
@@ -146,34 +151,38 @@ if __name__ == "__main__":
     if (device_len != 1) and (device_len % 2 == 1):
         raise ValueError("not ")
 
-    run = wandb.init(
-        project="jax-cnn-faux-rnn",
+    run = Experiment(
+        api_key=local_env.comet_ml_api_key,
+        project_name="jax-faux-rnn",
     )
-    config = wandb.config
+    _config = {}
     # cnn
-    config.seed = 42
-    config.inference_artifacts_per_batch_per_epoch = 2**2
-    config.batch_size = 2**8
-    config.validation_split = 0.2
-    config.learning_rate = 1e-4
-    config.epochs = 2**7
-    config.window = 2**11
-    config.inference_window = 2**17
-    config.stride = 2**8
-    config.step_freq = 100
-    config.test_size = 0.1
-    config.channels = 2**6
-    config.depth = 2**4
-    config.to_mask = 2**5
-    config.comparable_field = config.to_mask // 2
-    config.kernel_size = 7
-    config.skip_freq = 1
-    config.norm_factor = math.sqrt(config.channels)
-    config.inner_skip = True
-    config.shift = 2**4
-    config.dilation = 2**0
-    config.mesh_x = 2
-    config.mesh_y = device_len // config.mesh_x
+    _config["seed"] = 42
+    _config["inference_artifacts_per_batch_per_epoch"] = 2**2
+    _config["batch_size"] = 2**8
+    _config["validation_split"] = 0.2
+    _config["learning_rate"] = 1e-4
+    _config["epochs"] = 2**7
+    _config["window"] = 2**11
+    _config["inference_window"] = 2**17
+    _config["stride"] = 2**8
+    _config["step_freq"] = 100
+    _config["test_size"] = 0.1
+    _config["channels"] = 2**6
+    _config["depth"] = 2**4
+    _config["to_mask"] = 2**5
+    _config["comparable_field"] = _config["to_mask"] // 2
+    _config["kernel_size"] = 7
+    _config["skip_freq"] = 1
+    _config["norm_factor"] = math.sqrt(_config["channels"])
+    _config["inner_skip"] = True
+    _config["shift"] = 2**4
+    _config["dilation"] = 2**0
+    _config["mesh_x"] = 2
+    _config["mesh_y"] = device_len // _config["mesh_x"]
+    run.log_parameters(_config)
+    config = SimpleNamespace(**_config)
+
     # messshhh
     device_mesh = mesh_utils.create_device_mesh((config.mesh_x, config.mesh_y))
     mesh = Mesh(devices=device_mesh, axis_names=("data", "model"))
@@ -314,11 +323,13 @@ if __name__ == "__main__":
         # end uggggh
 
         # log the epoch
-        wandb.log({"epoch": epoch})
+        run.log_metrics({"epoch": epoch})
         train_dataset.set_epoch(epoch)
         # train
         for batch_ix, batch in tqdm(
-            enumerate(train_dataset.iter(batch_size=config.batch_size, drop_last_batch=True)),
+            enumerate(
+                train_dataset.iter(batch_size=config.batch_size, drop_last_batch=True)
+            ),
             total=train_dataset_total // config.batch_size if not epoch_is_0 else 2,
         ):
             input = batch["input"]
@@ -328,17 +339,21 @@ if __name__ == "__main__":
                 state, loss = jit_train_step(
                     state, input, target, to_mask, comparable_field
                 )
-                state = add_losses_to_metrics(state=state, loss=loss
-                                         #     , long_loss=0.0
-                                              )
+                state = add_losses_to_metrics(
+                    state=state,
+                    loss=loss
+                    #     , long_loss=0.0
+                )
 
             if batch_ix % config.step_freq == 0:
                 metrics = state.metrics.compute()
-                wandb.log({"train_loss": metrics["loss"]})
+                run.log_metrics({"train_loss": metrics["loss"]}, step=batch_ix)
                 state = replace_metrics(state)
         test_dataset.set_epoch(epoch)
         for batch_ix, batch in tqdm(
-            enumerate(test_dataset.iter(batch_size=config.batch_size, drop_last_batch=True)),
+            enumerate(
+                test_dataset.iter(batch_size=config.batch_size, drop_last_batch=True)
+            ),
             total=test_dataset_total // config.batch_size if not epoch_is_0 else 2,
         ):
             input = batch["input"]
@@ -353,13 +368,19 @@ if __name__ == "__main__":
             #     full_length * 7 // 8,
             #     full_length * 3 // 4,
             # )
-            state = add_losses_to_metrics(state=state, loss=loss
-                                          #, long_loss=long_loss
-                                          )
+            state = add_losses_to_metrics(
+                state=state,
+                loss=loss
+                # , long_loss=long_loss
+            )
         metrics = state.metrics.compute()
-        wandb.log({"val_loss": metrics["loss"]
-                   #, "val_long_loss": metrics["long_loss"]
-                   })
+        run.log_metrics(
+            {
+                "val_loss": metrics["loss"]
+                # , "val_long_loss": metrics["long_loss"]
+            },
+            step=batch_ix,
+        )
         state = replace_metrics(state)
 
         if not epoch_is_0:
@@ -370,11 +391,11 @@ if __name__ == "__main__":
         ckpt_model = state
         ckpt = {"model": ckpt_model, "config": config}
         checkpoint_manager.save(epoch, ckpt)
-        artifact = wandb.Artifact("checkpoint", type="model")
-        artifact.add_dir(os.path.join(checkpoint_dir, f"{epoch}"))
+        artifact = Artifact("checkpoint", type="model")
+        artifact.add(os.path.join(checkpoint_dir, f"{epoch}"))
         run.log_artifact(artifact)
         # inference
-        artifact = wandb.Artifact("inference", type="audio")
+        artifact = Artifact("inference", type="audio")
         inference_dataset.set_epoch(epoch)
         for batch_ix, batch in tqdm(
             enumerate(
@@ -397,8 +418,9 @@ if __name__ == "__main__":
             )
             for i in range(len(o)):
                 audy = np.squeeze(np.array(o[i]))
-                audio = wandb.Audio(audy, sample_rate=44100)
-                artifact.add(audio, f"audio_with_short_mask_{batch_ix}_{i}")
+                apath = f"/tmp/audio_{batch_ix}_{i}.wav"
+                soundfile.write(apath, audy, 44100)
+                artifact.add(apath)
             # full_length = input.shape[1]
             # o, _ = pred, updates = state.apply_fn(
             #     {"params": ckpt_model.params, "batch_stats": state.batch_stats},
