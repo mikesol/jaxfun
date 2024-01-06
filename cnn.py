@@ -1,8 +1,9 @@
 import flax.linen as nn
 import jax.numpy as jnp
 import jax
+import math
 from flax.linen import initializers
-from cnn_attn import ConvAttnFauxLarsen
+from cnn_attn import ConvblockNofrills
 
 BatchNorm = nn.BatchNorm
 
@@ -63,6 +64,14 @@ class ConvFauxCell(nn.Module):
                 kernel_size=(self.kernel_size * 2 if i == 0 else 1,),
                 padding=((0,)),
             )(x)
+            if i % 4 == 2:
+                x += ConvblockNofrills(
+                    channels=self.channels,
+                    kernel_size=self.kernel_size,
+                    norm_factor=math.sqrt(self.channels),
+                    squeeze=1,
+                )(x)
+
             x = BatchNorm(use_running_average=not train)(x)
             x = nn.gelu(x)
             x = x if not self.skip else x_[:, -x.shape[1] :, :] + x
