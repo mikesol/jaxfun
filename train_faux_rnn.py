@@ -250,7 +250,7 @@ if __name__ == "__main__":
     onez = jnp.ones(
         [
             config.batch_size
-            if local_env.parallel == Parallelism.SHARD
+            if local_env.parallelism == Parallelism.SHARD
             else jax.device_count(),
             config.window * 2,
             1,
