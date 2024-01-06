@@ -412,9 +412,9 @@ if __name__ == "__main__":
             ),
             total=train_dataset_total // config.batch_size if not epoch_is_0 else 2,
         ):
-            input = maybe_replicate(batch["input"])
+            input = maybe_replicate(jnp.array(batch["input"]))
             input = maybe_device_put(input, x_sharding)
-            target = maybe_replicate(batch["target"])
+            target = maybe_replicate(jnp.array(batch["target"]))
             with fork_on_parallelism(mesh, nullcontext()):
                 state, loss = jit_train_step(
                     state, input, target, to_mask, comparable_field
@@ -436,9 +436,9 @@ if __name__ == "__main__":
             ),
             total=test_dataset_total // config.batch_size if not epoch_is_0 else 2,
         ):
-            input = maybe_replicate(batch["input"])
+            input = maybe_replicate(jnp.array(batch["input"]))
             input = maybe_device_put(input, x_sharding)
-            target = maybe_replicate(batch["target"])
+            target = maybe_replicate(jnp.array(batch["target"]))
             loss = jit_compute_loss(state, input, target, to_mask, comparable_field)
             # full_length = input.shape[1]
             # long_loss = jit_compute_loss(
@@ -487,7 +487,7 @@ if __name__ == "__main__":
             if not epoch_is_0
             else 2,
         ):
-            input = maybe_replicate(truncate_if_odd.truncate_if_odd(batch["input"]))
+            input = maybe_replicate(truncate_if_odd.truncate_if_odd(jnp.array(batch["input"])))
             input = maybe_device_put(input, x_sharding)
             o, _ = pred, updates = state.apply_fn(
                 {"params": ckpt_model.params, "batch_stats": state.batch_stats},
