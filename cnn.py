@@ -74,7 +74,7 @@ class ConvFauxCell(nn.Module):
 
             z = BatchNorm(use_running_average=not train)(z)
             z = nn.gelu(z)
-            z = z if not self.skip else z_[:, -z.shape[1] :, :] + z
+            z = z if not (i % self.skip_freq) == 0 else z_[:, -z.shape[1] :, :] + z
         if not is_first:
             if not (z.shape[1] == 1):
                 raise ValueError(
