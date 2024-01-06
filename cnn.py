@@ -61,7 +61,7 @@ class ConvFauxCell(nn.Module):
             z = nn.Conv(
                 features=self.channels,
                 strides=(2 if i == 0 else 1,),
-                kernel_size=(self.kernel_size * 2 if i == 0 else 1,),
+                kernel_size=(self.kernel_size * 2 if i == 0 else self.kernel_size,),
                 padding=((0,)),
             )(z)
             if i % 4 == 2:
@@ -70,7 +70,7 @@ class ConvFauxCell(nn.Module):
                     kernel_size=self.kernel_size,
                     norm_factor=math.sqrt(self.channels),
                     squeeze=1,
-                )(z)
+                )(z_)
 
             z = BatchNorm(use_running_average=not train)(z)
             z = nn.gelu(z)

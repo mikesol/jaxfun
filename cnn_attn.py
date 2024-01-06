@@ -23,7 +23,6 @@ class ConvblockNofrills(nn.Module):
         x_ = x
 
         def do_unfold(x):
-            half_kernel_size = self.kernel_size // 2
             x = jax.lax.conv_general_dilated_patches(
                 jnp.transpose(x, (0, 2, 1)),
                 filter_shape=(self.kernel_size,),
