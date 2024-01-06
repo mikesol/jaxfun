@@ -28,9 +28,7 @@ class ConvblockNofrills(nn.Module):
                 jnp.transpose(x, (0, 2, 1)),
                 filter_shape=(self.kernel_size,),
                 window_strides=(1,),
-                padding=((half_kernel_size, half_kernel_size),)
-                if self.pad_to_input_size
-                else ((0, 0),),
+                padding= ((0, 0),),
             )
             x = jnp.transpose(
                 jnp.reshape(x, (batch_size, self.channels, self.kernel_size, -1)),
