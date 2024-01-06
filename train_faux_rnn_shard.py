@@ -1,5 +1,6 @@
 import os
 import GPUtil
+import truncate_if_odd
 
 IS_CPU = len(GPUtil.getAvailable()) == 0
 if IS_CPU:
@@ -409,7 +410,7 @@ if __name__ == "__main__":
             if not epoch_is_0
             else 2,
         ):
-            input = batch["input"]
+            input = truncate_if_odd.truncate_if_odd(batch["input"])
             input = jax.device_put(input, x_sharding)
             o, _ = pred, updates = state.apply_fn(
                 {"params": ckpt_model.params, "batch_stats": state.batch_stats},
