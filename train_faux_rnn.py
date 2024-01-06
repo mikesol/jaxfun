@@ -293,7 +293,7 @@ if __name__ == "__main__":
         if local_env.parallelism == Parallelism.SHARD
         else jax.random.split(init_rng, jax.device_count())
     )
-    print("will call jit_create_train_state", rng_for_train_state.shape, onez.shape)
+    print("will call jit_create_train_state", rng_for_train_state.shape, par_onez.shape)
     state = jit_create_train_state(
         rng_for_train_state,
         fork_on_parallelism(onez, par_onez),
