@@ -257,7 +257,7 @@ if __name__ == "__main__":
             1,
         ]
     )
-    par_onez = jnp.ones([jax.device_count(), config.batch_size, config.window * 2, 1])
+    par_onez = maybe_replicate(jnp.ones([config.batch_size, config.window * 2, 1]))
 
     module = ConvFauxLarsen(
         channels=config.channels,
@@ -291,7 +291,7 @@ if __name__ == "__main__":
     rng_for_train_state = (
         init_rng
         if local_env.parallelism == Parallelism.SHARD
-        else jax.random.split(init_rng, jax.device_count())
+        else jax.random.split(init_rng, 8) ### #UGH we hardcode 8, not sure why this worked before :-/
     )
     print("will call jit_create_train_state", rng_for_train_state.shape, par_onez.shape)
     state = jit_create_train_state(
