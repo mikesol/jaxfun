@@ -249,11 +249,19 @@ if __name__ == "__main__":
     print("datasets generated")
     init_rng = jax.random.PRNGKey(config.seed)
     onez = jnp.ones(
-        [
-            config.batch_size,
-            config.window * 2,
-            1,
-        ]
+        fork_on_parallelism(
+            [
+                config.batch_size,
+                config.window * 2,
+                1,
+            ],
+            [
+                jax.device_count(),
+                config.batch_size,
+                config.window * 2,
+                1,
+            ],
+        )
     )
 
     module = ConvFauxLarsen(
@@ -285,7 +293,7 @@ if __name__ == "__main__":
         ),
         partial(jax.pmap, static_broadcasted_argnums=(2, 3)),
     )(create_train_state)
-    print("ONEZ", onez.shape, maybe_replicate(onez).shape)
+    print("ONEZ", onez.shape)
     state = jit_create_train_state(
         init_rng
         if local_env.parallelism == Parallelism.SHARD
