@@ -282,7 +282,7 @@ if __name__ == "__main__":
         init_rng
         if local_env.parallelism == Parallelism.SHARD
         else jax.random.split(init_rng, jax.device_count()),
-        onez,
+        maybe_replicate(onez),
         module,
         tx,
     )
