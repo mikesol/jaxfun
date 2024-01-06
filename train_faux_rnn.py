@@ -473,7 +473,7 @@ if __name__ == "__main__":
             comparable_field = config.to_mask // 2
 
         # checkpoint
-        ckpt_model = maybe_unreplicate(state)
+        ckpt_model = state
         ckpt = {"model": ckpt_model, "config": config}
         if local_env.parallelism == Parallelism.PMAP:
             ckpt = checkpoint_walker(ckpt)
