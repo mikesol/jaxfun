@@ -391,11 +391,11 @@ if __name__ == "__main__":
         ckpt_model = state
         ckpt = {"model": ckpt_model, "config": config}
         checkpoint_manager.save(epoch, ckpt)
-        artifact = Artifact("checkpoint", type="model")
+        artifact = Artifact("checkpoint", artifact_type="model")
         artifact.add(os.path.join(checkpoint_dir, f"{epoch}"))
         run.log_artifact(artifact)
         # inference
-        artifact = Artifact("inference", type="audio")
+        artifact = Artifact("inference", artifact_type="audio")
         inference_dataset.set_epoch(epoch)
         for batch_ix, batch in tqdm(
             enumerate(
