@@ -416,10 +416,12 @@ if __name__ == "__main__":
                 to_mask=config.to_mask,
                 mutable=["batch_stats"],
             )
-            for i in range(len(o)):
+            print('shape of batch is', input.shape)
+            for i in range(o.shape[0]):
                 audy = np.squeeze(np.array(o[i]))
                 apath = f"/tmp/audio_{batch_ix}_{i}.wav"
                 soundfile.write(apath, audy, 44100)
+                print('adding artifact', apath, os.path.exists(apath), os.stat(apath))
                 artifact.add(apath)
             # full_length = input.shape[1]
             # o, _ = pred, updates = state.apply_fn(
