@@ -250,9 +250,7 @@ if __name__ == "__main__":
     init_rng = jax.random.PRNGKey(config.seed)
     onez = jnp.ones(
         [
-            config.batch_size
-            if local_env.parallelism == Parallelism.SHARD
-            else jax.device_count(),
+            config.batch_size,
             config.window * 2,
             1,
         ]
