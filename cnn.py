@@ -57,24 +57,24 @@ class ConvFauxCell(nn.Module):
         z = BatchNorm(use_running_average=not train)(z)
         z = nn.gelu(z)
         for i in range(self.depth):
-            x_ = x
-            x = nn.Conv(
+            z_ = z
+            z = nn.Conv(
                 features=self.channels,
                 strides=(2 if i == 0 else 1,),
                 kernel_size=(self.kernel_size * 2 if i == 0 else 1,),
                 padding=((0,)),
-            )(x)
+            )(z)
             if i % 4 == 2:
-                x += ConvblockNofrills(
+                z += ConvblockNofrills(
                     channels=self.channels,
                     kernel_size=self.kernel_size,
                     norm_factor=math.sqrt(self.channels),
                     squeeze=1,
-                )(x)
+                )(z)
 
-            x = BatchNorm(use_running_average=not train)(x)
-            x = nn.gelu(x)
-            x = x if not self.skip else x_[:, -x.shape[1] :, :] + x
+            z = BatchNorm(use_running_average=not train)(z)
+            z = nn.gelu(z)
+            z = z if not self.skip else z_[:, -z.shape[1] :, :] + z
         if not is_first:
             if not (z.shape[1] == 1):
                 raise ValueError(
