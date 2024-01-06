@@ -83,6 +83,7 @@ class TrainState(train_state.TrainState):
 
 
 def create_train_state(rng: PRNGKey, x, module, tx) -> TrainState:
+    print("creating train state", rng.shape, x.shape)
     variables = module.init(rng, x, train=False, to_mask=x.shape[1] // 8)
     params = variables["params"]
     batch_stats = variables["batch_stats"]
@@ -291,7 +292,7 @@ if __name__ == "__main__":
         init_rng
         if local_env.parallelism == Parallelism.SHARD
         else jax.random.split(init_rng, jax.device_count()),
-        maybe_replicate(onez),
+        onez,
         module,
         tx,
     )
