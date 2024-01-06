@@ -6,9 +6,8 @@ if IS_CPU:
     print("in cpu land")
     os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
 
-import logging
-
-logging.basicConfig(level=logging.INFO)
+# import logging
+# logging.basicConfig(level=logging.INFO)
 import soundfile
 from types import SimpleNamespace
 import local_env
@@ -400,12 +399,11 @@ if __name__ == "__main__":
         # inference
         artifact = Artifact("inference", artifact_type="audio")
         inference_dataset.set_epoch(epoch)
-        logging.info(f"starting inference")
         for batch_ix, batch in tqdm(
             enumerate(
                 inference_dataset.take(
                     config.inference_artifacts_per_batch_per_epoch
-                ).iter(batch_size=config.batch_size, drop_last_batch=True)
+                ).iter(batch_size=config.batch_size)
             ),
             total=config.inference_artifacts_per_batch_per_epoch
             if not epoch_is_0
@@ -420,7 +418,7 @@ if __name__ == "__main__":
                 to_mask=config.to_mask,
                 mutable=["batch_stats"],
             )
-            logging.info(f"shape of batch is {input.shape}")
+            # logging.info(f"shape of batch is {input.shape}")
 
             for i in range(o.shape[0]):
                 audy = np.squeeze(np.array(o[i]))
