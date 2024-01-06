@@ -249,20 +249,13 @@ if __name__ == "__main__":
     print("datasets generated")
     init_rng = jax.random.PRNGKey(config.seed)
     onez = jnp.ones(
-        fork_on_parallelism(
-            [
-                config.batch_size,
-                config.window * 2,
-                1,
-            ],
-            [
-                jax.device_count(),
-                config.batch_size,
-                config.window * 2,
-                1,
-            ],
-        )
+        [
+            config.batch_size,
+            config.window * 2,
+            1,
+        ]
     )
+    par_onez = jnp.ones([jax.device_count(), config.batch_size, config.window * 2, 1])
 
     module = ConvFauxLarsen(
         channels=config.channels,
@@ -298,7 +291,7 @@ if __name__ == "__main__":
         init_rng
         if local_env.parallelism == Parallelism.SHARD
         else jax.random.split(init_rng, jax.device_count()),
-        onez,
+        fork_on_parallelism(onez, par_onez),
         module,
         tx,
     )
