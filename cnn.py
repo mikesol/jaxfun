@@ -19,6 +19,8 @@ class ConvFauxCell(nn.Module):
     norm_factor: float = 1.0
     skip_freq: int = 1
     inner_skip: bool = True
+    modulo_lhs: int = 4
+    modulo_rhs: int = 2
 
     def get_zlen(self):
         zlen = 1
@@ -64,7 +66,7 @@ class ConvFauxCell(nn.Module):
                 kernel_size=(self.kernel_size * 2 if i == 0 else self.kernel_size,),
                 padding=((0,)),
             )(z)
-            if i % 4 == 2:
+            if i % self.modulo_lhs == self.modulo_rhs:
                 z += ConvblockNofrills(
                     channels=self.channels,
                     kernel_size=self.kernel_size,
@@ -112,6 +114,8 @@ class ConvFauxLarsen(nn.Module):
     norm_factor: float = 1.0
     skip_freq: int = 1
     inner_skip: bool = True
+    modulo_lhs: int = 4
+    modulo_rhs: int = 2
 
     # ugh, code dup
     def get_zlen(self):
@@ -129,6 +133,8 @@ class ConvFauxLarsen(nn.Module):
             norm_factor=self.norm_factor,
             skip_freq=self.skip_freq,
             inner_skip=self.inner_skip,
+            modulo_lhs=self.modulo_lhs,
+            modulo_rhs=self.modulo_rhs,
         )
 
     def __call__(self, x, train: bool = True, to_mask: int = None):
