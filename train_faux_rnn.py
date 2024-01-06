@@ -238,19 +238,19 @@ if __name__ == "__main__":
         paths=train_files,
         window=config.window,
         stride=config.stride,  # , shift=config.shift, dilation=config.dilation, channels=config.channels, feature_dim=-1, shuffle=True
-        shuffle=fork_on_parallelism(True, False),
+        # shuffle=fork_on_parallelism(True, False),
     )
     proto_test_dataset, test_dataset_total = make_2d_data(
         paths=test_files,
         window=config.window,
         stride=config.stride,  # , shift=config.shift, dilation=config.dilation, channels=config.channels, feature_dim=-1, shuffle=True
-        shuffle=fork_on_parallelism(True, False),
+        # shuffle=fork_on_parallelism(True, False),
     )
     proto_inference_dataset, inference_dataset_total = make_2d_data(
         paths=test_files,
         window=config.inference_window,
         stride=config.stride,  # , shift=config.shift, dilation=config.dilation, channels=config.channels, feature_dim=-1, shuffle=True
-        shuffle=fork_on_parallelism(True, False),
+        # shuffle=fork_on_parallelism(True, False),
     )
     print("datasets generated")
     init_rng = jax.random.PRNGKey(config.seed)
