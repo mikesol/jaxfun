@@ -71,6 +71,11 @@ checkpoint_manager = orbax.checkpoint.CheckpointManager(
     checkpoint_dir, orbax_checkpointer, options
 )
 
+def checkpoint_walker(ckpt):
+    def _cmp(i):
+        return orbax.checkpoint.utils.host_local_array_to_global_array(i) if hasattr(i, "is_fully_replicated") and i.is_fully_replicated else i
+    return jax.tree_map(_cmp, ckpt)
+
 PRNGKey = jax.Array
 
 
@@ -470,6 +475,8 @@ if __name__ == "__main__":
         # checkpoint
         ckpt_model = maybe_unreplicate(state)
         ckpt = {"model": ckpt_model, "config": config}
+        if local_env.parallelism == Parallelism.PMAP:
+            ckpt = checkpoint_walker(ckpt)
         checkpoint_manager.save(epoch, ckpt)
         artifact = Artifact("checkpoint", artifact_type="model")
         artifact.add(os.path.join(checkpoint_dir, f"{epoch}"))
@@ -496,6 +503,7 @@ if __name__ == "__main__":
                 to_mask=config.to_mask,
                 mutable=["batch_stats"],
             )
+            o = maybe_unreplicate(o)
             # logging.info(f"shape of batch is {input.shape}")
 
             for i in range(o.shape[0]):
