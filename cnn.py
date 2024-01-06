@@ -2,31 +2,13 @@ import flax.linen as nn
 import jax.numpy as jnp
 import jax
 from flax.linen import initializers
+from cnn_attn import ConvAttnFauxLarsen
 
 BatchNorm = nn.BatchNorm
 
+
 def c1d(o, k, s):
     return (s * (o - 1)) + 1 + (k - 1)
-
-
-class ConvWithSkip(nn.Module):
-    channels: int = 2**6
-    stride: int = 2
-    kernel_size: int = 7
-    skip: bool = True
-
-    @nn.compact
-    def __call__(self, x, train: bool = True):
-        x_ = x
-        x = nn.Conv(
-            features=self.channels,
-            strides=(self.stride,),
-            kernel_size=(self.kernel_size,),
-            padding=((0,)),
-        )(x)
-        x = BatchNorm(use_running_average=not train)(x)
-        x = nn.gelu(x)
-        return x if not self.skip else x_[:, -x.shape[1] :, :] + x
 
 
 class ConvFauxCell(nn.Module):
@@ -74,25 +56,21 @@ class ConvFauxCell(nn.Module):
         z = BatchNorm(use_running_average=not train)(z)
         z = nn.gelu(z)
         for i in range(self.depth):
-            if i == 0:
-                z = ConvWithSkip(
-                    channels=self.channels,
-                    kernel_size=self.kernel_size * 2,
-                    stride=2,
-                    skip=False,
-                )(z, train)
-                z = BatchNorm(use_running_average=not train)(z)
-                z = nn.gelu(z)
-
-            else:
-                z = ConvWithSkip(
-                    channels=self.channels, kernel_size=self.kernel_size, stride=1
-                )(z, train)
-                z = BatchNorm(use_running_average=not train)(z)
-                z = nn.gelu(z)
+            x_ = x
+            x = nn.Conv(
+                features=self.channels,
+                strides=(2 if i == 0 else 1,),
+                kernel_size=(self.kernel_size * 2 if i == 0 else 1,),
+                padding=((0,)),
+            )(x)
+            x = BatchNorm(use_running_average=not train)(x)
+            x = nn.gelu(x)
+            x = x if not self.skip else x_[:, -x.shape[1] :, :] + x
         if not is_first:
             if not (z.shape[1] == 1):
-                raise ValueError(f'Inconsistent shape: in-foundry {foundry_len} out-foundry {foundry.shape} input {ipt.shape} z-in {z_.shape} z-out {z.shape} zlen {zlen} is_first {is_first}')
+                raise ValueError(
+                    f"Inconsistent shape: in-foundry {foundry_len} out-foundry {foundry.shape} input {ipt.shape} z-in {z_.shape} z-out {z.shape} zlen {zlen} is_first {is_first}"
+                )
         z = nn.Conv(
             features=1,
             kernel_size=(1,),
