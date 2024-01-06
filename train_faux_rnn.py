@@ -2,6 +2,7 @@ import os
 import GPUtil
 import truncate_if_odd
 from parallelism import Parallelism
+from contextlib import nullcontext
 
 
 # import logging
@@ -414,7 +415,7 @@ if __name__ == "__main__":
             input = maybe_replicate(batch["input"])
             input = maybe_device_put(input, x_sharding)
             target = maybe_replicate(batch["target"])
-            with mesh:
+            with fork_on_parallelism(mesh, nullcontext()):
                 state, loss = jit_train_step(
                     state, input, target, to_mask, comparable_field
                 )
