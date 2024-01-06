@@ -152,7 +152,7 @@ def make_data(paths, window, stride, feature_dim=-1, normalize=True):
             },
         )
         .shuffle(seed=42, buffer_size=2**10)
-        .with_format("jax")
+        #.with_format("jax")
     )
 
     return dataset, get_total_lens(paths, window, stride)
@@ -182,7 +182,7 @@ def make_2d_data(paths, window, stride, feature_dim=-1, shuffle=True, normalize=
     )
     if shuffle:
         dataset = dataset.shuffle(seed=42, buffer_size=2**10)
-    dataset = dataset.with_format("jax")
+    dataset = dataset#.with_format("jax")
 
     # * 2 because we do flip for data augmentation
     return dataset, get_total_lens(paths, window, stride, f=get_total_len_2d) * 2
@@ -233,7 +233,7 @@ def make_2d_data_with_delays_and_dilations(
     )
     if shuffle:
         dataset = dataset.shuffle(seed=42, buffer_size=2**10)
-    dataset = dataset.with_format("jax")
+    dataset = dataset#.with_format("jax")
 
     # * 2 because we do flip for data augmentation
     return dataset, get_total_lens(paths, window, stride, f=get_total_len_2d) * 2
