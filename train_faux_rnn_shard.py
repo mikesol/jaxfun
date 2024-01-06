@@ -1,6 +1,7 @@
 import os
 import GPUtil
 import truncate_if_odd
+from parallelism import Parallelism
 
 IS_CPU = len(GPUtil.getAvailable()) == 0
 if IS_CPU:
@@ -19,6 +20,7 @@ from cnn import ConvFauxLarsen
 from clu import metrics
 from functools import partial
 import jax.numpy as jnp
+import flax.jax_utils as jax_utils
 import numpy as np
 import flax.linen as nn
 import math
@@ -32,6 +34,16 @@ import sys
 from jax.sharding import Mesh, PartitionSpec, NamedSharding
 from jax.lax import with_sharding_constraint
 from jax.experimental import mesh_utils
+
+if local_env.parallelism == Parallelism.PMAP:
+    if local_env.do_manual_parallelism_setup:
+        jax.distributed.initialize(
+            coordinator_address=local_env.coordinator_address,
+            num_processes=local_env.num_processes,
+            process_id=local_env.process_id,
+        )
+    else:
+        jax.distributed.initialize()
 
 
 def ESRLoss(input, target):
@@ -109,9 +121,15 @@ def train_step(state, input, target, to_mask, comparable_field):
     return state, loss
 
 
-@jax.jit
-def replace_metrics(state):
+def fork_on_parallelism(a, b):
+    return a if local_env.parallelism == Parallelism.SHARD else b
+
+
+def _replace_metrics(state):
     return state.replace(metrics=state.metrics.empty())
+
+
+replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
 
 
 def compute_loss(state, input, target, to_mask, comparable_field):
@@ -126,8 +144,7 @@ def compute_loss(state, input, target, to_mask, comparable_field):
     return loss
 
 
-@jax.jit
-def add_losses_to_metrics(
+def _add_losses_to_metrics(
     state,
     loss
     # , long_loss
@@ -138,6 +155,13 @@ def add_losses_to_metrics(
     metrics = state.metrics.merge(metric_updates)
     state = state.replace(metrics=metrics)
     return state
+
+
+add_losses_to_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_add_losses_to_metrics)
+
+maybe_replicate = fork_on_parallelism(lambda x: x, jax_utils.replicate)
+maybe_unreplicate = fork_on_parallelism(lambda x: x, jax_utils.unreplicate)
+maybe_device_put = fork_on_parallelism(jax.device_put, lambda x, _: x)
 
 
 def mesh_sharding(pspec: PartitionSpec) -> NamedSharding:
@@ -239,25 +263,42 @@ if __name__ == "__main__":
 
     state_sharding = nn.get_sharding(abstract_variables, mesh)
 
-    jit_create_train_state = jax.jit(
-        create_train_state,
-        static_argnums=(2, 3),
-        in_shardings=(mesh_sharding(None), x_sharding),  # PRNG key and x
-        out_shardings=state_sharding,
+    jit_create_train_state = fork_on_parallelism(
+        partial(
+            jax.jit(
+                static_argnums=(2, 3),
+                in_shardings=(mesh_sharding(None), x_sharding),  # PRNG key and x
+                out_shardings=state_sharding,
+            )
+        ),
+        partial(jax.pmap, static_broadcasted_argnums=(2, 3)),
+    )(create_train_state)
+    state = jit_create_train_state(
+        init_rng
+        if local_env.parallelism == Parallelism.SHARD
+        else jax.random.split(init_rng, jax.device_count()),
+        onez,
+        module,
+        tx,
     )
-    state = jit_create_train_state(init_rng, onez, module, tx)
 
-    jit_train_step = partial(
-        jax.jit,
-        static_argnums=(3, 4),
-        in_shardings=(state_sharding, x_sharding, x_sharding),
-        out_shardings=(state_sharding, None),
+    jit_train_step = fork_on_parallelism(
+        partial(
+            jax.jit,
+            static_argnums=(3, 4),
+            in_shardings=(state_sharding, x_sharding, x_sharding),
+            out_shardings=(state_sharding, None),
+        ),
+        partial(jax.pmap, static_broadcasted_argnums=(3, 4)),
     )(train_step)
 
-    jit_compute_loss = partial(
-        jax.jit,
-        static_argnums=(3, 4),
-        in_shardings=(state_sharding, x_sharding, x_sharding),
+    jit_compute_loss = fork_on_parallelism(
+        partial(
+            jax.jit,
+            static_argnums=(3, 4),
+            in_shardings=(state_sharding, x_sharding, x_sharding),
+        ),
+        partial(jax.pmap, static_broadcasted_argnums=(3, 4)),
     )(compute_loss)
 
     to_mask = config.to_mask
@@ -302,25 +343,35 @@ if __name__ == "__main__":
         old_state_sharding = state_sharding
         state_sharding = nn.get_sharding(abstract_variables, mesh)
 
-        jit_update_train_state = jax.jit(
-            update_train_state,
-            static_argnums=(1,),
-            in_shardings=(old_state_sharding,),
-            out_shardings=state_sharding,
-        )
+        jit_update_train_state = fork_on_parallelism(
+            partial(
+                jax.jit(
+                    static_argnums=(1,),
+                    in_shardings=(old_state_sharding,),
+                    out_shardings=state_sharding,
+                )
+            ),
+            partial(jax.pmap, static_broadcasted_argnums=(1,)),
+        )(update_train_state)
         state = jit_update_train_state(state, module)
 
-        jit_train_step = partial(
-            jax.jit,
-            static_argnums=(3, 4),
-            in_shardings=(state_sharding, x_sharding, x_sharding),
-            out_shardings=(state_sharding, None),
+        jit_train_step = fork_on_parallelism(
+            partial(
+                jax.jit,
+                static_argnums=(3, 4),
+                in_shardings=(state_sharding, x_sharding, x_sharding),
+                out_shardings=(state_sharding, None),
+            ),
+            partial(jax.pmap, static_broadcasted_argnums=(3, 4)),
         )(train_step)
 
-        jit_compute_loss = partial(
-            jax.jit,
-            static_argnums=(3, 4),
-            in_shardings=(state_sharding, x_sharding, x_sharding),
+        jit_compute_loss = fork_on_parallelism(
+            partial(
+                jax.jit,
+                static_argnums=(3, 4),
+                in_shardings=(state_sharding, x_sharding, x_sharding),
+            ),
+            partial(jax.pmap, static_broadcasted_argnums=(3, 4)),
         )(compute_loss)
         del init_rng
         # end uggggh
@@ -335,9 +386,9 @@ if __name__ == "__main__":
             ),
             total=train_dataset_total // config.batch_size if not epoch_is_0 else 2,
         ):
-            input = batch["input"]
-            input = jax.device_put(input, x_sharding)
-            target = batch["target"]
+            input = maybe_replicate(batch["input"])
+            input = maybe_device_put(input, x_sharding)
+            target = maybe_replicate(batch["target"])
             with mesh:
                 state, loss = jit_train_step(
                     state, input, target, to_mask, comparable_field
@@ -349,7 +400,7 @@ if __name__ == "__main__":
                 )
 
             if batch_ix % config.step_freq == 0:
-                metrics = state.metrics.compute()
+                metrics = maybe_unreplicate(state.metrics).compute()
                 run.log_metrics({"train_loss": metrics["loss"]}, step=batch_ix)
                 state = replace_metrics(state)
         test_dataset.set_epoch(epoch)
@@ -359,9 +410,9 @@ if __name__ == "__main__":
             ),
             total=test_dataset_total // config.batch_size if not epoch_is_0 else 2,
         ):
-            input = batch["input"]
-            input = jax.device_put(input, x_sharding)
-            target = batch["target"]
+            input = maybe_replicate(batch["input"])
+            input = maybe_device_put(input, x_sharding)
+            target = maybe_replicate(batch["target"])
             loss = jit_compute_loss(state, input, target, to_mask, comparable_field)
             # full_length = input.shape[1]
             # long_loss = jit_compute_loss(
@@ -376,7 +427,7 @@ if __name__ == "__main__":
                 loss=loss
                 # , long_loss=long_loss
             )
-        metrics = state.metrics.compute()
+        metrics = maybe_unreplicate(state.metrics).compute()
         run.log_metrics(
             {
                 "val_loss": metrics["loss"]
@@ -391,7 +442,7 @@ if __name__ == "__main__":
             comparable_field = config.to_mask // 2
 
         # checkpoint
-        ckpt_model = state
+        ckpt_model = maybe_unreplicate(state)
         ckpt = {"model": ckpt_model, "config": config}
         checkpoint_manager.save(epoch, ckpt)
         artifact = Artifact("checkpoint", artifact_type="model")
@@ -410,8 +461,8 @@ if __name__ == "__main__":
             if not epoch_is_0
             else 2,
         ):
-            input = truncate_if_odd.truncate_if_odd(batch["input"])
-            input = jax.device_put(input, x_sharding)
+            input = maybe_replicate(truncate_if_odd.truncate_if_odd(batch["input"]))
+            input = maybe_device_put(input, x_sharding)
             o, _ = pred, updates = state.apply_fn(
                 {"params": ckpt_model.params, "batch_stats": state.batch_stats},
                 input,
