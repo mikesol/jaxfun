@@ -286,6 +286,7 @@ if __name__ == "__main__":
         ),
         partial(jax.pmap, static_broadcasted_argnums=(2, 3)),
     )(create_train_state)
+    print("ONEZ", onez.shape, maybe_replicate(onez).shape)
     state = jit_create_train_state(
         init_rng
         if local_env.parallelism == Parallelism.SHARD
