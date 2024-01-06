@@ -3,16 +3,18 @@ import GPUtil
 import truncate_if_odd
 from parallelism import Parallelism
 
-IS_CPU = len(GPUtil.getAvailable()) == 0
-if IS_CPU:
-    print("in cpu land")
-    os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
 
 # import logging
 # logging.basicConfig(level=logging.INFO)
 import soundfile
 from types import SimpleNamespace
 import local_env
+
+IS_CPU = local_env.parallelism == Parallelism.NONE
+if IS_CPU:
+    print("no gpus found")
+    os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
+
 from typing import Any
 from flax import struct
 from comet_ml import Experiment, Artifact
@@ -286,7 +288,6 @@ if __name__ == "__main__":
         ),
         partial(jax.pmap, static_broadcasted_argnums=(2, 3)),
     )(create_train_state)
-    print("ONEZ", onez.shape)
     state = jit_create_train_state(
         init_rng
         if local_env.parallelism == Parallelism.SHARD
