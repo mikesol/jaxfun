@@ -7,3 +7,5 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install jax[tpu] -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
 pip install -r requirements-tpu.txt
+screen -S train
+python train_faux_rnn.py mario-bros

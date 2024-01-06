@@ -1,7 +1,7 @@
 def truncate_if_odd(tensor):
     """
     Truncate the tensor along the batch dimension if the batch size is odd.
-    
+
     Args:
     tensor (jax.numpy.ndarray): A tensor of shape (batch, seq, features).
 

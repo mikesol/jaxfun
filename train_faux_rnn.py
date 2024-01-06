@@ -271,11 +271,10 @@ if __name__ == "__main__":
 
     jit_create_train_state = fork_on_parallelism(
         partial(
-            jax.jit(
-                static_argnums=(2, 3),
-                in_shardings=(mesh_sharding(None), x_sharding),  # PRNG key and x
-                out_shardings=state_sharding,
-            )
+            jax.jit,
+            static_argnums=(2, 3),
+            in_shardings=(mesh_sharding(None), x_sharding),  # PRNG key and x
+            out_shardings=state_sharding,
         ),
         partial(jax.pmap, static_broadcasted_argnums=(2, 3)),
     )(create_train_state)
@@ -353,11 +352,10 @@ if __name__ == "__main__":
 
         jit_update_train_state = fork_on_parallelism(
             partial(
-                jax.jit(
-                    static_argnums=(1,),
-                    in_shardings=(old_state_sharding,),
-                    out_shardings=state_sharding,
-                )
+                jax.jit,
+                static_argnums=(1,),
+                in_shardings=(old_state_sharding,),
+                out_shardings=state_sharding,
             ),
             partial(jax.pmap, static_broadcasted_argnums=(1,)),
         )(update_train_state)

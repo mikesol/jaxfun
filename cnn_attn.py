@@ -27,7 +27,7 @@ class ConvblockNofrills(nn.Module):
                 jnp.transpose(x, (0, 2, 1)),
                 filter_shape=(self.kernel_size,),
                 window_strides=(1,),
-                padding= ((0, 0),),
+                padding=((0, 0),),
             )
             x = jnp.transpose(
                 jnp.reshape(x, (batch_size, self.channels, self.kernel_size, -1)),
@@ -126,6 +126,7 @@ class Convblock(nn.Module):
         )(x)
         x = nn.gelu(x)
         return x_ + x if self.skip else x
+
 
 class ConvblockWithTarget(nn.Module):
     channels: int = 2**6
