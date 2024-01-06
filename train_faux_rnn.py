@@ -209,8 +209,8 @@ if __name__ == "__main__":
     _config["inner_skip"] = True
     _config["shift"] = 2**4
     _config["dilation"] = 2**0
-    _config["modulo_lhs"] = 4
-    _config["modulo_rhs"] = 2
+    _config["modulo_lhs"] = 2
+    _config["modulo_rhs"] = 1
     _config["mesh_x"] = 2
     _config["mesh_y"] = device_len // _config["mesh_x"]
     run.log_parameters(_config)
