@@ -77,21 +77,21 @@ checkpoint_manager = orbax.checkpoint.CheckpointManager(
 
 def checkpoint_walker(ckpt):
     def _cmp(i):
-        logging.warning(f"considering {type(i)}")
-        if type(i) == type(jnp.ones((1, 1))):
-            logging.warning(
-                f"info for type {i.is_fully_addressable} {i.is_fully_replicated} {i.shape} {i.sharding}"
-            )
+        # logging.warning(f"considering {type(i)}")
+        # if type(i) == type(jnp.ones((1, 1))):
+        #     logging.warning(
+        #         f"info for type {i.is_fully_addressable} {i.is_fully_replicated} {i.shape} {i.sharding}"
+        #     )
         try:
             # orbax.checkpoint.utils.fully_replicated_host_local_array_to_global_array
             o = jax.device_get(i)
-            logging.warning("found a fully replicated local array")
+            # logging.warning("found a fully replicated local array")
             return o
         except Exception as e:
-            logging.warning(f"could not make global {e}")
+            # logging.warning(f"could not make global {e}")
             return i
 
-    logging.warning("attempting treemap")
+    # logging.warning("attempting treemap")
     return jax.tree_map(_cmp, ckpt)
 
 
