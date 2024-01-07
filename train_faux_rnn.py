@@ -101,7 +101,6 @@ PRNGKey = jax.Array
 @struct.dataclass
 class Metrics(metrics.Collection):
     loss: metrics.Average.from_output("loss")
-    # long_loss: metrics.Average.from_output("long_loss")
 
 
 class TrainState(train_state.TrainState):
@@ -174,14 +173,8 @@ def compute_loss(state, input, target, to_mask, comparable_field):
     return loss
 
 
-def _add_losses_to_metrics(
-    state,
-    loss
-    # , long_loss
-):
-    metric_updates = state.metrics.single_from_model_output(
-        loss=loss  # , long_loss=long_loss
-    )
+def _add_losses_to_metrics(state, loss):
+    metric_updates = state.metrics.single_from_model_output(loss=loss)
     metrics = state.metrics.merge(metric_updates)
     state = state.replace(metrics=metrics)
     return state
@@ -424,11 +417,7 @@ if __name__ == "__main__":
                 state, loss = jit_train_step(
                     state, input, target, to_mask, comparable_field
                 )
-                state = add_losses_to_metrics(
-                    state=state,
-                    loss=loss
-                    #     , long_loss=0.0
-                )
+                state = add_losses_to_metrics(state=state, loss=loss)
 
             if batch_ix % config.step_freq == 0:
                 metrics = maybe_unreplicate(state.metrics).compute()
@@ -445,27 +434,9 @@ if __name__ == "__main__":
             input = maybe_device_put(input, x_sharding)
             target = maybe_replicate(jnp.array(batch["target"]))
             loss = jit_compute_loss(state, input, target, to_mask, comparable_field)
-            # full_length = input.shape[1]
-            # long_loss = jit_compute_loss(
-            #     state,
-            #     jnp.pad(input, ((0, 0), (module.get_zlen(), 0), (0, 0))),
-            #     target,
-            #     full_length * 7 // 8,
-            #     full_length * 3 // 4,
-            # )
-            state = add_losses_to_metrics(
-                state=state,
-                loss=loss
-                # , long_loss=long_loss
-            )
+            state = add_losses_to_metrics(state=state, loss=loss)
         metrics = maybe_unreplicate(state.metrics).compute()
-        run.log_metrics(
-            {
-                "val_loss": metrics["loss"]
-                # , "val_long_loss": metrics["long_loss"]
-            },
-            step=batch_ix,
-        )
+        run.log_metrics({"val_loss": metrics["loss"]}, step=batch_ix)
         state = replace_metrics(state)
 
         if not epoch_is_0:
@@ -519,24 +490,23 @@ if __name__ == "__main__":
 
             for i in range(o.shape[0]):
                 audy = np.squeeze(np.array(o[i]))
-                run.log_audio(audy, sample_rate=44100, step=batch_ix, file_name=f"audio_{batch_ix}_{i}_prediction.wav")
+                run.log_audio(
+                    audy,
+                    sample_rate=44100,
+                    step=batch_ix,
+                    file_name=f"audio_{batch_ix}_{i}_prediction.wav",
+                )
                 audy = np.squeeze(np.array(input_[i]))[::2]
-                run.log_audio(audy, sample_rate=44100, step=batch_ix, file_name=f"audio_{batch_ix}_{i}_input.wav")
+                run.log_audio(
+                    audy,
+                    sample_rate=44100,
+                    step=batch_ix,
+                    file_name=f"audio_{batch_ix}_{i}_input.wav",
+                )
                 audy = np.squeeze(np.array(target_[i]))
-                run.log_audio(audy, sample_rate=44100, step=batch_ix, file_name=f"audio_{batch_ix}_{i}_target.wav")
-            # full_length = input.shape[1]
-            # o, _ = pred, updates = state.apply_fn(
-            #     {"params": ckpt_model.params, "batch_stats": state.batch_stats},
-            #     jnp.pad(input, ((0, 0), (module.get_zlen(), 0), (0, 0))),
-            #     train=False,
-            #     to_mask=full_length * 7 // 8,
-            #     mutable=["batch_stats"],
-            # )
-            # for i in range(len(o)):
-            #     audy = np.squeeze(np.array(o[i]))
-            #     audio = wandb.Audio(audy, sample_rate=44100)
-            #     artifact.add(audio, f"audio_with_long_mask_{batch_ix}_{i}")
-        try:
-            run.log_artifact(artifact)
-        except ValueError as e:
-            logging.warning(f"audio artifact did not log {e}")
+                run.log_audio(
+                    audy,
+                    sample_rate=44100,
+                    step=batch_ix,
+                    file_name=f"audio_{batch_ix}_{i}_target.wav",
+                )
