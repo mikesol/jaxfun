@@ -500,9 +500,9 @@ if __name__ == "__main__":
             if not epoch_is_0
             else 2,
         ):
-            input = maybe_replicate(
-                truncate_if_odd.truncate_if_odd(jnp.array(batch["input"]))
-            )
+            input_ = truncate_if_odd.truncate_if_odd(jnp.array(batch["input"]))
+            target_ = truncate_if_odd.truncate_if_odd(jnp.array(batch["input"]))
+            input = maybe_replicate(input_)
             input = maybe_device_put(input, x_sharding)
             logging.warning(f"input shape for inference is is {input.shape}")
             jit_do_inference = fork_on_parallelism(
@@ -520,7 +520,13 @@ if __name__ == "__main__":
 
             for i in range(o.shape[0]):
                 audy = np.squeeze(np.array(o[i]))
-                apath = f"/tmp/audio_{batch_ix}_{i}.wav"
+                apath = f"/tmp/audio_{batch_ix}_{i}_pred.wav"
+                soundfile.write(apath, audy, 44100)
+                audy = np.squeeze(np.array(input_[i]))[::2]
+                apath = f"/tmp/audio_{batch_ix}_{i}_input.wav"
+                soundfile.write(apath, audy, 44100)
+                audy = np.squeeze(np.array(target_[i]))
+                apath = f"/tmp/audio_{batch_ix}_{i}_target.wav"
                 soundfile.write(apath, audy, 44100)
                 print(
                     f"adding artifact {apath } {os.path.exists(apath)} {os.stat(apath)}"
