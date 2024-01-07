@@ -123,11 +123,6 @@ def create_train_state(rng: PRNGKey, x, module, tx) -> TrainState:
     )
 
 
-def update_train_state(state: TrainState, model: nn.Module) -> TrainState:
-    state = state.replace(apply_fn=model.apply)
-    return state
-
-
 def train_step(state, input, target, to_mask, comparable_field):
     """Train for a single step."""
 
@@ -390,39 +385,6 @@ if __name__ == "__main__":
             if not epoch_is_0
             else proto_inference_dataset.take(config.batch_size * 2)
         )
-
-        init_rng = jax.random.PRNGKey(config.seed)
-        onez = jnp.ones([config.batch_size, config.window * 2, 1])
-
-        module = ConvFauxLarsen(
-            channels=config.channels,
-            depth=config.depth,
-            kernel_size=config.kernel_size,
-            skip_freq=config.skip_freq,
-            norm_factor=config.norm_factor,
-            inner_skip=config.inner_skip,
-            modulo_lhs=config.modulo_lhs,
-            modulo_rhs=config.modulo_rhs,
-        )
-        if local_env.parallelism == Parallelism.SHARD:
-            abstract_variables = jax.eval_shape(
-                partial(create_train_state, module=module, tx=tx),
-                init_rng,
-                onez,
-            )
-            old_state_sharding = state_sharding
-            state_sharding = nn.get_sharding(abstract_variables, mesh)
-
-        jit_update_train_state = fork_on_parallelism(
-            partial(
-                jax.jit,
-                static_argnums=(1,),
-                in_shardings=(old_state_sharding,),
-                out_shardings=state_sharding,
-            ),
-            partial(jax.pmap, static_broadcasted_argnums=(1,)),
-        )(update_train_state)
-        state = jit_update_train_state(state, module)
 
         jit_train_step = fork_on_parallelism(
             partial(
