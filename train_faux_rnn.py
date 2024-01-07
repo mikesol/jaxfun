@@ -190,7 +190,7 @@ maybe_device_put = fork_on_parallelism(jax.device_put, lambda x, _: x)
 
 
 def mesh_sharding(pspec: PartitionSpec) -> NamedSharding:
-    return fork_on_parallelism(NamedSharding(mesh, pspec), None)
+    return NamedSharding(mesh, pspec)
 
 
 if __name__ == "__main__":
@@ -315,7 +315,7 @@ if __name__ == "__main__":
         partial(
             jax.jit,
             static_argnums=(2, 3),
-            in_shardings=(mesh_sharding(None), x_sharding),  # PRNG key and x
+            in_shardings=(mesh_sharding(None) if local_env.parallelism == Parallelism.SHARD else None, x_sharding),  # PRNG key and x
             out_shardings=state_sharding,
         ),
         partial(jax.pmap, static_broadcasted_argnums=(2, 3)),
