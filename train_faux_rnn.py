@@ -552,7 +552,7 @@ if __name__ == "__main__":
                 ),
                 partial(jax.pmap, static_broadcasted_argnums=(2,)),
             )(do_inference)
-            o, _ = jit_do_inference(ckpt_model, input, config.to_mask)
+            o = jit_do_inference(ckpt_model, input, config.to_mask)
             o = maybe_unreplicate(o)
             # logging.info(f"shape of batch is {input.shape}")
 
