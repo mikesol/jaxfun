@@ -73,7 +73,10 @@ checkpoint_manager = orbax.checkpoint.CheckpointManager(
 
 def checkpoint_walker(ckpt):
     def _cmp(i):
-        return orbax.checkpoint.utils.fully_replicated_host_local_array_to_global_array(i) if hasattr(i, "is_fully_replicated") and i.is_fully_replicated else i
+        try:
+            return orbax.checkpoint.utils.fully_replicated_host_local_array_to_global_array(i)
+        except:
+            return i
     return jax.tree_map(_cmp, ckpt)
 
 PRNGKey = jax.Array
