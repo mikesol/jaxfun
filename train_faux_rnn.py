@@ -401,7 +401,7 @@ if __name__ == "__main__":
         # end uggggh
 
         # log the epoch
-        run.log_metrics({"epoch": epoch})
+        run.log_current_epoch(epoch)
         train_dataset.set_epoch(epoch)
         # train
         for batch_ix, batch in tqdm(
