@@ -84,7 +84,7 @@ def checkpoint_walker(ckpt):
             )
         try:
             # orbax.checkpoint.utils.fully_replicated_host_local_array_to_global_array
-            o = jax.device_get(                i)
+            o = jax.device_get(i)
             logging.warning("found a fully replicated local array")
             return o
         except Exception as e:
@@ -314,7 +314,12 @@ if __name__ == "__main__":
         partial(
             jax.jit,
             static_argnums=(2, 3),
-            in_shardings=(mesh_sharding(None) if local_env.parallelism == Parallelism.SHARD else None, x_sharding),  # PRNG key and x
+            in_shardings=(
+                mesh_sharding(None)
+                if local_env.parallelism == Parallelism.SHARD
+                else None,
+                x_sharding,
+            ),  # PRNG key and x
             out_shardings=state_sharding,
         ),
         partial(jax.pmap, static_broadcasted_argnums=(2, 3)),
@@ -500,10 +505,15 @@ if __name__ == "__main__":
         if local_env.parallelism == Parallelism.PMAP:
             ckpt = checkpoint_walker(ckpt)
         checkpoint_manager.save(epoch, ckpt)
-        logging.warning(f"saved checkpoint for epoch {epoch} in {os.listdir(checkpoint_dir)}")
-        artifact = Artifact("checkpoint", artifact_type="model")
-        artifact.add(os.path.join(checkpoint_dir, f"{epoch}"))
-        run.log_artifact(artifact)
+        logging.warning(
+            f"saved checkpoint for epoch {epoch} in {os.listdir(checkpoint_dir)}"
+        )
+        try:
+            artifact = Artifact("checkpoint", artifact_type="model")
+            artifact.add(os.path.join(checkpoint_dir, f"{epoch}"))
+            run.log_artifact(artifact)
+        except ValueError as e:
+            logging.warning(f"checkpoint artifact did not work {e}")
         # inference
         artifact = Artifact("inference", artifact_type="audio")
         inference_dataset.set_epoch(epoch)
@@ -538,7 +548,10 @@ if __name__ == "__main__":
                 print(
                     f"adding artifact {apath } {os.path.exists(apath)} {os.stat(apath)}"
                 )
-                artifact.add(apath)
+                try:
+                    artifact.add(apath)
+                except ValueError as e:
+                    logging.warning(f"audio artifact did not work {e}")
             # full_length = input.shape[1]
             # o, _ = pred, updates = state.apply_fn(
             #     {"params": ckpt_model.params, "batch_stats": state.batch_stats},
@@ -551,4 +564,7 @@ if __name__ == "__main__":
             #     audy = np.squeeze(np.array(o[i]))
             #     audio = wandb.Audio(audy, sample_rate=44100)
             #     artifact.add(audio, f"audio_with_long_mask_{batch_ix}_{i}")
-        run.log_artifact(artifact)
+        try:
+            run.log_artifact(artifact)
+        except ValueError as e:
+            logging.warning(f"audio artifact did not log {e}")
