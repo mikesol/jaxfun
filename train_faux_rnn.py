@@ -83,9 +83,8 @@ def checkpoint_walker(ckpt):
                 f"info for type {i.is_fully_addressable} {i.is_fully_replicated} {i.shape} {i.sharding}"
             )
         try:
-            o = orbax.checkpoint.utils.fully_replicated_host_local_array_to_global_array(
-                i
-            )
+            # orbax.checkpoint.utils.fully_replicated_host_local_array_to_global_array
+            o = maybe_unreplicate(                i)
             logging.warning("found a fully replicated local array")
             return o
         except Exception as e:
