@@ -76,7 +76,9 @@ checkpoint_manager = orbax.checkpoint.CheckpointManager(
 
 def checkpoint_walker(ckpt):
     def _cmp(i):
-        logging.warning(f"considering {type(i)} {i.is_fully_addressable} {i.is_fully_replicated}")
+        logging.warning(f"considering {type(i)}")
+        if type(i) == type(jnp.ones((1,1))):
+            logging.warning(f"info for type {i.is_fully_addressable} {i.is_fully_replicated}")
         try:
             o = orbax.checkpoint.utils.fully_replicated_host_local_array_to_global_array(i)
             logging.warning("found a fully replicated local array")
