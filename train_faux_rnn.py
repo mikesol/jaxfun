@@ -74,20 +74,27 @@ checkpoint_manager = orbax.checkpoint.CheckpointManager(
     checkpoint_dir, orbax_checkpointer, options
 )
 
+
 def checkpoint_walker(ckpt):
     def _cmp(i):
         logging.warning(f"considering {type(i)}")
-        if type(i) == type(jnp.ones((1,1))):
-            logging.warning(f"info for type {i.is_fully_addressable} {i.is_fully_replicated} {i.sharding}")
+        if type(i) == type(jnp.ones((1, 1))):
+            logging.warning(
+                f"info for type {i.is_fully_addressable} {i.is_fully_replicated} {i.sharding}"
+            )
         try:
-            o = orbax.checkpoint.utils.fully_replicated_host_local_array_to_global_array(i)
+            o = orbax.checkpoint.utils.fully_replicated_host_local_array_to_global_array(
+                i
+            )
             logging.warning("found a fully replicated local array")
             return o
         except Exception as e:
             logging.warning(f"could not make global {e}")
             return i
+
     logging.warning("attempting treemap")
     return jax.tree_map(_cmp, ckpt)
+
 
 PRNGKey = jax.Array
 
@@ -141,9 +148,6 @@ def train_step(state, input, target, to_mask, comparable_field):
     state = state.apply_gradients(grads=grads)
     state = state.replace(batch_stats=updates["batch_stats"])
     return state, loss
-
-
-
 
 
 def _replace_metrics(state):
@@ -238,7 +242,8 @@ if __name__ == "__main__":
     device_mesh = None
     mesh = None
     x_sharding = None
-
+    state_sharding = None
+    old_state_sharding = None
     # messshhh
     if local_env.parallelism == Parallelism.SHARD:
         device_mesh = mesh_utils.create_device_mesh((config.mesh_x, config.mesh_y))
@@ -297,13 +302,14 @@ if __name__ == "__main__":
     )
     tx = optax.adam(config.learning_rate)
 
-    abstract_variables = jax.eval_shape(
-        partial(create_train_state, module=module, tx=tx),
-        init_rng,
-        onez,
-    )
+    if local_env.parallelism == Parallelism.SHARD:
+        abstract_variables = jax.eval_shape(
+            partial(create_train_state, module=module, tx=tx),
+            init_rng,
+            onez,
+        )
 
-    state_sharding = nn.get_sharding(abstract_variables, mesh)
+        state_sharding = nn.get_sharding(abstract_variables, mesh)
 
     jit_create_train_state = fork_on_parallelism(
         partial(
@@ -383,14 +389,14 @@ if __name__ == "__main__":
             modulo_lhs=config.modulo_lhs,
             modulo_rhs=config.modulo_rhs,
         )
-
-        abstract_variables = jax.eval_shape(
-            partial(create_train_state, module=module, tx=tx),
-            init_rng,
-            onez,
-        )
-        old_state_sharding = state_sharding
-        state_sharding = nn.get_sharding(abstract_variables, mesh)
+        if local_env.parallelism == Parallelism.SHARD:
+            abstract_variables = jax.eval_shape(
+                partial(create_train_state, module=module, tx=tx),
+                init_rng,
+                onez,
+            )
+            old_state_sharding = state_sharding
+            state_sharding = nn.get_sharding(abstract_variables, mesh)
 
         jit_update_train_state = fork_on_parallelism(
             partial(
@@ -511,7 +517,9 @@ if __name__ == "__main__":
             if not epoch_is_0
             else 2,
         ):
-            input = maybe_replicate(truncate_if_odd.truncate_if_odd(jnp.array(batch["input"])))
+            input = maybe_replicate(
+                truncate_if_odd.truncate_if_odd(jnp.array(batch["input"]))
+            )
             input = maybe_device_put(input, x_sharding)
             o, _ = pred, updates = state.apply_fn(
                 {"params": ckpt_model.params, "batch_stats": state.batch_stats},

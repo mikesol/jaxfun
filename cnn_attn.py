@@ -3,6 +3,7 @@ import jax.numpy as jnp
 import jax
 from fork_on_parallelism import fork_on_parallelism
 from flax.linen import initializers
+
 maybe_partition = fork_on_parallelism(
     lambda x, y: nn.with_partitioning(x, y), lambda x, _: x
 )
@@ -124,9 +125,7 @@ class Convblock(nn.Module):
             use_bias=True,
             dtype=jnp.float32,
             param_dtype=jnp.float32,
-            kernel_init=maybe_partition(
-                initializers.lecun_normal(), (None, "model")
-            ),
+            kernel_init=maybe_partition(initializers.lecun_normal(), (None, "model")),
         )(x)
         x = nn.gelu(x)
         return x_ + x if self.skip else x
@@ -216,9 +215,7 @@ class ConvblockWithTarget(nn.Module):
             use_bias=True,
             dtype=jnp.float32,
             param_dtype=jnp.float32,
-            kernel_init=maybe_partition(
-                initializers.lecun_normal(), (None, "model")
-            ),
+            kernel_init=maybe_partition(initializers.lecun_normal(), (None, "model")),
             # bias_init=maybe_partition(initializers.zeros_init(), (None, "model")),
         )(x)
         x = nn.gelu(x)
@@ -281,9 +278,7 @@ class ConvAttnFauxCell(nn.Module):
             dtype=jnp.float32,
             param_dtype=jnp.float32,
             use_bias=True,
-            kernel_init=maybe_partition(
-                initializers.lecun_normal(), (None, "model")
-            ),
+            kernel_init=maybe_partition(initializers.lecun_normal(), (None, "model")),
             # bias_init=maybe_partition(initializers.zeros_init(), (None, "model")),
         )
 
@@ -393,9 +388,7 @@ class Convattn(nn.Module):
             dtype=jnp.float32,
             param_dtype=jnp.float32,
             use_bias=True,
-            kernel_init=maybe_partition(
-                initializers.lecun_normal(), (None, "model")
-            ),
+            kernel_init=maybe_partition(initializers.lecun_normal(), (None, "model")),
         )(x)
         return x
 
