@@ -3,7 +3,7 @@ import GPUtil
 import truncate_if_odd
 from parallelism import Parallelism
 from contextlib import nullcontext
-
+import logging
 
 # import logging
 # logging.basicConfig(level=logging.INFO)
@@ -74,7 +74,9 @@ checkpoint_manager = orbax.checkpoint.CheckpointManager(
 def checkpoint_walker(ckpt):
     def _cmp(i):
         try:
-            return orbax.checkpoint.utils.fully_replicated_host_local_array_to_global_array(i)
+            o = orbax.checkpoint.utils.fully_replicated_host_local_array_to_global_array(i)
+            logging.warning("found a fully replicated local array")
+            return o
         except:
             return i
     return jax.tree_map(_cmp, ckpt)
