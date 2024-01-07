@@ -488,7 +488,6 @@ if __name__ == "__main__":
         except ValueError as e:
             logging.warning(f"checkpoint artifact did not work {e}")
         # inference
-        artifact = Artifact("inference", artifact_type="audio")
         inference_dataset.set_epoch(epoch)
         for batch_ix, batch in tqdm(
             enumerate(
@@ -520,21 +519,11 @@ if __name__ == "__main__":
 
             for i in range(o.shape[0]):
                 audy = np.squeeze(np.array(o[i]))
-                apath = f"/tmp/audio_{batch_ix}_{i}_pred.wav"
-                soundfile.write(apath, audy, 44100)
+                run.log_audio(audy, sample_rate=44100, step=batch_ix, file_name=f"audio_{batch_ix}_{i}_prediction.wav")
                 audy = np.squeeze(np.array(input_[i]))[::2]
-                apath = f"/tmp/audio_{batch_ix}_{i}_input.wav"
-                soundfile.write(apath, audy, 44100)
+                run.log_audio(audy, sample_rate=44100, step=batch_ix, file_name=f"audio_{batch_ix}_{i}_input.wav")
                 audy = np.squeeze(np.array(target_[i]))
-                apath = f"/tmp/audio_{batch_ix}_{i}_target.wav"
-                soundfile.write(apath, audy, 44100)
-                print(
-                    f"adding artifact {apath } {os.path.exists(apath)} {os.stat(apath)}"
-                )
-                try:
-                    artifact.add(apath)
-                except ValueError as e:
-                    logging.warning(f"audio artifact did not work {e}")
+                run.log_audio(audy, sample_rate=44100, step=batch_ix, file_name=f"audio_{batch_ix}_{i}_target.wav")
             # full_length = input.shape[1]
             # o, _ = pred, updates = state.apply_fn(
             #     {"params": ckpt_model.params, "batch_stats": state.batch_stats},
