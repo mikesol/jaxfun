@@ -94,7 +94,7 @@ class ConvFauxCell(nn.Module):
             dtype=jnp.float32,
             param_dtype=jnp.float32,
             use_bias=True,
-            kernel_init=nn.with_partitioning(
+            kernel_init=maybe_partition(
                 initializers.lecun_normal(), (None, "model")
             ),
         )(z)

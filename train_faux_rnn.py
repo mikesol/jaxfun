@@ -76,15 +76,15 @@ checkpoint_manager = orbax.checkpoint.CheckpointManager(
 
 def checkpoint_walker(ckpt):
     def _cmp(i):
-        logging.warning(f"considering {type(i)} {i.is_fully_addressable} {i.is_fully_replicated}")
+        #logging.warning(f"considering {type(i)} {i.is_fully_addressable} {i.is_fully_replicated}")
         try:
             o = orbax.checkpoint.utils.fully_replicated_host_local_array_to_global_array(i)
-            logging.warning("found a fully replicated local array")
+            # logging.warning("found a fully replicated local array")
             return o
         except Exception as e:
-            logging.warning(f"could not make global {e}")
+            # logging.warning(f"could not make global {e}")
             return i
-    logging.warning("attempting treemap")
+    # logging.warning("attempting treemap")
     return jax.tree_map(_cmp, ckpt)
 
 PRNGKey = jax.Array
@@ -485,8 +485,8 @@ if __name__ == "__main__":
         # checkpoint
         ckpt_model = state
         ckpt = {"model": ckpt_model, "config": config}
-        if local_env.parallelism == Parallelism.PMAP:
-            ckpt = checkpoint_walker(ckpt)
+        # if local_env.parallelism == Parallelism.PMAP:
+        #     ckpt = checkpoint_walker(ckpt)
         checkpoint_manager.save(epoch, ckpt)
         artifact = Artifact("checkpoint", artifact_type="model")
         artifact.add(os.path.join(checkpoint_dir, f"{epoch}"))
