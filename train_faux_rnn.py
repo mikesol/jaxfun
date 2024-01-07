@@ -80,7 +80,8 @@ def checkpoint_walker(ckpt):
             o = orbax.checkpoint.utils.fully_replicated_host_local_array_to_global_array(i)
             logging.warning("found a fully replicated local array")
             return o
-        except:
+        except Exception as e:
+            logging.warning(f"could not make global {e}")
             return i
     logging.warning("attempting treemap")
     return jax.tree_map(_cmp, ckpt)
