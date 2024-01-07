@@ -500,6 +500,7 @@ if __name__ == "__main__":
         if local_env.parallelism == Parallelism.PMAP:
             ckpt = checkpoint_walker(ckpt)
         checkpoint_manager.save(epoch, ckpt)
+        logging.warning(f"saved checkpoint for epoch {epoch} in {os.listdir(checkpoint_dir)}")
         artifact = Artifact("checkpoint", artifact_type="model")
         artifact.add(os.path.join(checkpoint_dir, f"{epoch}"))
         run.log_artifact(artifact)
