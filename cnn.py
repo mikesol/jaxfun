@@ -4,8 +4,12 @@ import jax
 import math
 from flax.linen import initializers
 from cnn_attn import ConvblockNofrills
+from fork_on_parallelism import fork_on_parallelism
 
 BatchNorm = nn.BatchNorm
+maybe_partition = fork_on_parallelism(
+    lambda x, y: nn.with_partitioning(x, y), lambda x, _: x
+)
 
 
 def c1d(o, k, s):

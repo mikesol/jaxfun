@@ -1,7 +1,11 @@
 import flax.linen as nn
 import jax.numpy as jnp
 import jax
+from fork_on_parallelism import fork_on_parallelism
 from flax.linen import initializers
+maybe_partition = fork_on_parallelism(
+    lambda x, y: nn.with_partitioning(x, y), lambda x, _: x
+)
 
 
 class ConvblockNofrills(nn.Module):
@@ -15,7 +19,7 @@ class ConvblockNofrills(nn.Module):
         batch_size = x.shape[0]
         weights = self.param(
             "weights",
-            nn.with_partitioning(initializers.lecun_normal(), (None, "model")),
+            maybe_partition(initializers.lecun_normal(), (None, "model")),
             (self.channels // self.squeeze, self.channels, self.kernel_size),
             jnp.float32,
         )
@@ -69,14 +73,14 @@ class Convblock(nn.Module):
                 use_bias=True,
                 dtype=jnp.float32,
                 param_dtype=jnp.float32,
-                kernel_init=nn.with_partitioning(
+                kernel_init=maybe_partition(
                     initializers.lecun_normal(), (None, "model")
                 ),
             )(x)
             x = nn.gelu(x)
         weights = self.param(
             "weights",
-            nn.with_partitioning(initializers.lecun_normal(), (None, "model")),
+            maybe_partition(initializers.lecun_normal(), (None, "model")),
             (self.channels // self.squeeze, self.channels, self.kernel_size),
             jnp.float32,
         )
@@ -120,7 +124,7 @@ class Convblock(nn.Module):
             use_bias=True,
             dtype=jnp.float32,
             param_dtype=jnp.float32,
-            kernel_init=nn.with_partitioning(
+            kernel_init=maybe_partition(
                 initializers.lecun_normal(), (None, "model")
             ),
         )(x)
@@ -146,14 +150,14 @@ class ConvblockWithTarget(nn.Module):
                 use_bias=True,
                 dtype=jnp.float32,
                 param_dtype=jnp.float32,
-                kernel_init=nn.with_partitioning(
+                kernel_init=maybe_partition(
                     initializers.lecun_normal(), (None, "model")
                 ),
             )(x)
             x = nn.gelu(x)
         weights = self.param(
             "weights",
-            nn.with_partitioning(initializers.lecun_normal(), (None, "model")),
+            maybe_partition(initializers.lecun_normal(), (None, "model")),
             (self.channels, self.channels, self.kernel_size),
             jnp.float32,
         )
@@ -212,10 +216,10 @@ class ConvblockWithTarget(nn.Module):
             use_bias=True,
             dtype=jnp.float32,
             param_dtype=jnp.float32,
-            kernel_init=nn.with_partitioning(
+            kernel_init=maybe_partition(
                 initializers.lecun_normal(), (None, "model")
             ),
-            # bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
+            # bias_init=maybe_partition(initializers.zeros_init(), (None, "model")),
         )(x)
         x = nn.gelu(x)
         return x_ + x if self.skip else x
@@ -243,8 +247,8 @@ class ConvAttnFauxCell(nn.Module):
             dtype=jnp.float32,
             param_dtype=jnp.float32,
             # don't shard as it is going from 1 to 32
-            # kernel_init=nn.with_partitioning(initializers.lecun_normal(), (None, "model")),
-            # bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
+            # kernel_init=maybe_partition(initializers.lecun_normal(), (None, "model")),
+            # bias_init=maybe_partition(initializers.zeros_init(), (None, "model")),
         )
         layers = []
         for i in range(self.depth):
@@ -277,10 +281,10 @@ class ConvAttnFauxCell(nn.Module):
             dtype=jnp.float32,
             param_dtype=jnp.float32,
             use_bias=True,
-            kernel_init=nn.with_partitioning(
+            kernel_init=maybe_partition(
                 initializers.lecun_normal(), (None, "model")
             ),
-            # bias_init=nn.with_partitioning(initializers.zeros_init(), (None, "model")),
+            # bias_init=maybe_partition(initializers.zeros_init(), (None, "model")),
         )
 
     def __call__(self, foundry, ipt, is_first: bool = True):
@@ -389,7 +393,7 @@ class Convattn(nn.Module):
             dtype=jnp.float32,
             param_dtype=jnp.float32,
             use_bias=True,
-            kernel_init=nn.with_partitioning(
+            kernel_init=maybe_partition(
                 initializers.lecun_normal(), (None, "model")
             ),
         )(x)

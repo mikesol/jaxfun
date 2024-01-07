@@ -4,6 +4,7 @@ import truncate_if_odd
 from parallelism import Parallelism
 from contextlib import nullcontext
 import logging
+from fork_on_parallelism import fork_on_parallelism
 
 # import logging
 # logging.basicConfig(level=logging.INFO)
@@ -140,8 +141,7 @@ def train_step(state, input, target, to_mask, comparable_field):
     return state, loss
 
 
-def fork_on_parallelism(a, b):
-    return a if local_env.parallelism == Parallelism.SHARD else b
+
 
 
 def _replace_metrics(state):
