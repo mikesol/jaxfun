@@ -208,7 +208,7 @@ if __name__ == "__main__":
     _config["step_freq"] = 100
     _config["test_size"] = 0.1
     _config["channels"] = 2**5
-    _config["depth"] = 2**3
+    _config["depth"] = 2**4
     _config["to_mask"] = 2**5
     _config["comparable_field"] = _config["to_mask"] // 2
     _config["kernel_size"] = 7
