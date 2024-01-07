@@ -153,6 +153,17 @@ def _replace_metrics(state):
     return state.replace(metrics=state.metrics.empty())
 
 
+def do_inference(state, input, to_mask):
+    o, _ = state.apply_fn(
+        {"params": state.params, "batch_stats": state.batch_stats},
+        input,
+        train=False,
+        to_mask=to_mask,
+        mutable=["batch_stats"],
+    )
+    return o
+
+
 replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
 
 
@@ -532,13 +543,16 @@ if __name__ == "__main__":
             )
             input = maybe_device_put(input, x_sharding)
             logging.warning(f"input shape for inference is is {input.shape}")
-            o, _ = pred, updates = state.apply_fn(
-                {"params": ckpt_model.params, "batch_stats": state.batch_stats},
-                input,
-                train=False,
-                to_mask=config.to_mask,
-                mutable=["batch_stats"],
-            )
+            jit_do_inference = fork_on_parallelism(
+                partial(
+                    jax.jit,
+                    static_argnums=(2,),
+                    in_shardings=(state_sharding, x_sharding),
+                    out_shardings=x_sharding,
+                ),
+                partial(jax.pmap, static_broadcasted_argnums=(2,)),
+            )(do_inference)
+            o, _ = jit_do_inference(ckpt_model, input, config.to_mask)
             o = maybe_unreplicate(o)
             # logging.info(f"shape of batch is {input.shape}")
 
