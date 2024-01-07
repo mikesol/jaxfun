@@ -235,11 +235,16 @@ if __name__ == "__main__":
         run.log_parameter("run_id", sys.argv[1])
     config = SimpleNamespace(**_config)
 
+    device_mesh = None
+    mesh = None
+    x_sharding = None
+
     # messshhh
-    device_mesh = mesh_utils.create_device_mesh((config.mesh_x, config.mesh_y))
-    mesh = Mesh(devices=device_mesh, axis_names=("data", "model"))
-    print(mesh)
-    x_sharding = mesh_sharding(PartitionSpec("data", None))
+    if local_env.parallelism == Parallelism.SHARD:
+        device_mesh = mesh_utils.create_device_mesh((config.mesh_x, config.mesh_y))
+        mesh = Mesh(devices=device_mesh, axis_names=("data", "model"))
+        print(mesh)
+        x_sharding = mesh_sharding(PartitionSpec("data", None))
     ###
 
     len_files = len(FILES)
