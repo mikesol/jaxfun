@@ -66,7 +66,8 @@ class ConvFauxCell(nn.Module):
                 kernel_size=(self.kernel_size * 2 if i == 0 else self.kernel_size,),
                 padding=((0,)),
             )(z)
-            if i % self.modulo_lhs == self.modulo_rhs:
+            # relax the i0 constraint if we wind up coding the interleaved sidechain
+            if (i != 0) and (i % self.modulo_lhs == self.modulo_rhs):
                 z += ConvblockNofrills(
                     channels=self.channels,
                     kernel_size=self.kernel_size,
