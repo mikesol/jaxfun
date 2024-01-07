@@ -379,27 +379,6 @@ if __name__ == "__main__":
             else proto_inference_dataset.take(config.batch_size * 2)
         )
 
-        jit_train_step = fork_on_parallelism(
-            partial(
-                jax.jit,
-                static_argnums=(3, 4),
-                in_shardings=(state_sharding, x_sharding, x_sharding),
-                out_shardings=(state_sharding, None),
-            ),
-            partial(jax.pmap, static_broadcasted_argnums=(3, 4)),
-        )(train_step)
-
-        jit_compute_loss = fork_on_parallelism(
-            partial(
-                jax.jit,
-                static_argnums=(3, 4),
-                in_shardings=(state_sharding, x_sharding, x_sharding),
-            ),
-            partial(jax.pmap, static_broadcasted_argnums=(3, 4)),
-        )(compute_loss)
-        del init_rng
-        # end uggggh
-
         # log the epoch
         run.log_current_epoch(epoch)
         train_dataset.set_epoch(epoch)
