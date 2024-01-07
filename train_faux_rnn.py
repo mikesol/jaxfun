@@ -473,19 +473,19 @@ if __name__ == "__main__":
                     audy,
                     sample_rate=44100,
                     step=batch_ix,
-                    file_name=f"audio_{batch_ix}_{i}_prediction.wav",
+                    file_name=f"audio_{epoch}_{batch_ix}_{i}_prediction.wav",
                 )
                 audy = np.squeeze(np.array(input_[i]))[::2]
                 run.log_audio(
                     audy,
                     sample_rate=44100,
                     step=batch_ix,
-                    file_name=f"audio_{batch_ix}_{i}_input.wav",
+                    file_name=f"audio_{epoch}_{batch_ix}_{i}_input.wav",
                 )
                 audy = np.squeeze(np.array(target_[i]))
                 run.log_audio(
                     audy,
                     sample_rate=44100,
                     step=batch_ix,
-                    file_name=f"audio_{batch_ix}_{i}_target.wav",
+                    file_name=f"audio_{epoch}_{batch_ix}_{i}_target.wav",
                 )
