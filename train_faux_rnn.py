@@ -38,8 +38,8 @@ from jax.sharding import Mesh, PartitionSpec, NamedSharding
 from jax.lax import with_sharding_constraint
 from jax.experimental import mesh_utils
 
-logging.basicConfig(level=logging.DEBUG)
-logging.info("logging works")
+logging.basicConfig(level=logging.WARN)
+logging.warn("logging works")
 if local_env.parallelism == Parallelism.PMAP:
     if local_env.do_manual_parallelism_setup:
         jax.distributed.initialize(
@@ -75,13 +75,14 @@ checkpoint_manager = orbax.checkpoint.CheckpointManager(
 
 def checkpoint_walker(ckpt):
     def _cmp(i):
-        logging.info("considering", i)
+        logging.warning("considering", i)
         try:
             o = orbax.checkpoint.utils.fully_replicated_host_local_array_to_global_array(i)
             logging.warning("found a fully replicated local array")
             return o
         except:
             return i
+    logging.warning("attempting treemap")
     return jax.tree_map(_cmp, ckpt)
 
 PRNGKey = jax.Array
