@@ -218,7 +218,7 @@ if __name__ == "__main__":
     _config["stride"] = 2**8
     _config["step_freq"] = 100
     _config["test_size"] = 0.1
-    _config["channels"] = 2**3
+    _config["channels"] = 2**4
     _config["depth"] = 2**3
     _config["to_mask"] = 2**5
     _config["comparable_field"] = _config["to_mask"] // 2
@@ -228,8 +228,8 @@ if __name__ == "__main__":
     _config["inner_skip"] = True
     _config["shift"] = 2**4
     _config["dilation"] = 2**0
-    _config["modulo_lhs"] = 2
-    _config["modulo_rhs"] = 1
+    _config["modulo_lhs"] = 4
+    _config["modulo_rhs"] = 2
     _config["mesh_x"] = 2
     _config["mesh_y"] = device_len // _config["mesh_x"]
     run.log_parameters(_config)
