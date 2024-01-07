@@ -84,7 +84,7 @@ def checkpoint_walker(ckpt):
             )
         try:
             # orbax.checkpoint.utils.fully_replicated_host_local_array_to_global_array
-            o = maybe_unreplicate(                i)
+            o = jax.device_get(                i)
             logging.warning("found a fully replicated local array")
             return o
         except Exception as e:
