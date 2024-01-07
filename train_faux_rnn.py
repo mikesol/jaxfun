@@ -38,6 +38,7 @@ from jax.sharding import Mesh, PartitionSpec, NamedSharding
 from jax.lax import with_sharding_constraint
 from jax.experimental import mesh_utils
 
+logging.basicConfig(encoding='utf-8', level=logging.DEBUG)
 logging.info("logging works")
 if local_env.parallelism == Parallelism.PMAP:
     if local_env.do_manual_parallelism_setup:
