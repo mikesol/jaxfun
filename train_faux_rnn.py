@@ -190,7 +190,7 @@ maybe_device_put = fork_on_parallelism(jax.device_put, lambda x, _: x)
 
 
 def mesh_sharding(pspec: PartitionSpec) -> NamedSharding:
-    return NamedSharding(mesh, pspec)
+    return fork_on_parallelism(NamedSharding(mesh, pspec), None)
 
 
 if __name__ == "__main__":
