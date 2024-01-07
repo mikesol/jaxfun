@@ -531,6 +531,7 @@ if __name__ == "__main__":
                 truncate_if_odd.truncate_if_odd(jnp.array(batch["input"]))
             )
             input = maybe_device_put(input, x_sharding)
+            logging.warning(f"input shape for inference is is {input.shape}")
             o, _ = pred, updates = state.apply_fn(
                 {"params": ckpt_model.params, "batch_stats": state.batch_stats},
                 input,
