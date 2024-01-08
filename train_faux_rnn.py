@@ -391,20 +391,21 @@ if __name__ == "__main__":
     for epoch in range(config.epochs):
         # ugggh
         epoch_is_0 = epoch == 0
+        to_take_in_0_epoch = 204
         train_dataset = (
             proto_train_dataset
             if not epoch_is_0
-            else proto_train_dataset.take(config.batch_size * 2)
+            else proto_train_dataset.take(config.batch_size * to_take_in_0_epoch)
         )
         test_dataset = (
             proto_test_dataset
             if not epoch_is_0
-            else proto_test_dataset.take(config.batch_size * 2)
+            else proto_test_dataset.take(config.batch_size * to_take_in_0_epoch)
         )
         inference_dataset = (
             proto_inference_dataset
             if not epoch_is_0
-            else proto_inference_dataset.take(config.batch_size * 2)
+            else proto_inference_dataset.take(config.batch_size * to_take_in_0_epoch)
         )
 
         # log the epoch
@@ -415,7 +416,7 @@ if __name__ == "__main__":
             enumerate(
                 train_dataset.iter(batch_size=config.batch_size, drop_last_batch=True)
             ),
-            total=(train_dataset_total // config.batch_size) if not epoch_is_0 else 204,
+            total=(train_dataset_total // config.batch_size) if not epoch_is_0 else to_take_in_0_epoch,
             unit="batch",
         ) as loop:
             for batch_ix, batch in loop:
@@ -438,7 +439,7 @@ if __name__ == "__main__":
             enumerate(
                 test_dataset.iter(batch_size=config.batch_size, drop_last_batch=True)
             ),
-            total=(test_dataset_total // config.batch_size) if not epoch_is_0 else 104,
+            total=(test_dataset_total // config.batch_size) if not epoch_is_0 else to_take_in_0_epoch,
             unit="batch"
         ) as loop:
             for batch_ix, batch in loop:
