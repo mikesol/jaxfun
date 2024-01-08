@@ -13,7 +13,7 @@ maybe_partition = fork_on_parallelism(
 
 
 def c1d(o, k, s, d):
-    return (s * (o - 1)) + 1 + (d * (k - 1))
+    return (s * (o - 1)) + 1 + (d*(k - 1))
 
 
 class ConvFauxCell(nn.Module):
@@ -30,9 +30,7 @@ class ConvFauxCell(nn.Module):
         zlen = 1
         for l in range(self.depth - 1):
             lnum = self.depth - 1 - l
-            zlen = c1d(
-                zlen, self.kernel_size, 1, 2 if lnum in self.dilation_layers else 1
-            )
+            zlen = c1d(zlen, self.kernel_size, 1, 2 if lnum in self.dilation_layers else 1)
         # no dilation on the final bloc
         zlen = c1d(zlen, self.kernel_size * 2, 2, 1)
         return zlen
@@ -73,7 +71,6 @@ class ConvFauxCell(nn.Module):
                 strides=(2 if i == 0 else 1,),
                 kernel_size=(self.kernel_size * 2 if i == 0 else self.kernel_size,),
                 padding=((0,)),
-                kernel_dilation=(2 if i in self.dilation_layers else 1),
             )(z)
             if i in self.sidechain_layers:
                 z += ConvblockNofrills(
@@ -98,7 +95,7 @@ class ConvFauxCell(nn.Module):
             dtype=jnp.float32,
             param_dtype=jnp.float32,
             use_bias=True,
-            kernel_init=maybe_partition(initializers.he_normal(), (None, "model")),
+            kernel_init=maybe_partition(initializers.lecun_normal(), (None, "model")),
         )(z)
         # no activation at the end
         foundry = jnp.concatenate(

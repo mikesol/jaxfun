@@ -20,7 +20,7 @@ class ConvblockNofrills(nn.Module):
         batch_size = x.shape[0]
         weights = self.param(
             "weights",
-            maybe_partition(initializers.he_normal(), (None, "model")),
+            maybe_partition(initializers.lecun_normal(), (None, "model")),
             (self.channels // self.squeeze, self.channels, self.kernel_size),
             jnp.float32,
         )
@@ -60,6 +60,7 @@ class Convblock(nn.Module):
     norm_factor: float = 1.0
     skip: bool = True
     inner_skip: bool = True
+    squeeze: int = 1
     pad_to_input_size: bool = True
 
     @nn.compact
@@ -74,14 +75,14 @@ class Convblock(nn.Module):
                 dtype=jnp.float32,
                 param_dtype=jnp.float32,
                 kernel_init=maybe_partition(
-                    initializers.he_normal(), (None, "model")
+                    initializers.lecun_normal(), (None, "model")
                 ),
             )(x)
             x = nn.gelu(x)
         weights = self.param(
             "weights",
-            maybe_partition(initializers.he_normal(), (None, "model")),
-            (self.channels, self.channels, self.kernel_size),
+            maybe_partition(initializers.lecun_normal(), (None, "model")),
+            (self.channels // self.squeeze, self.channels, self.kernel_size),
             jnp.float32,
         )
         # skip
@@ -111,7 +112,7 @@ class Convblock(nn.Module):
             jnp.einsum("abc,dcg->adbg", x_[:, -x.shape[3] :, :], weights), (0, 3, 1, 2)
         )
         w = nn.tanh(w / self.norm_factor)
-        x = x * w
+        x = x * jnp.repeat(w, repeats=self.squeeze, axis=2)
         x = jnp.sum(x, axis=1)
         x = jnp.transpose(x, (0, 2, 1))
         x = x_[:, (-x.shape[1]) :, :] + x if self.skip and self.inner_skip else x
@@ -124,7 +125,7 @@ class Convblock(nn.Module):
             use_bias=True,
             dtype=jnp.float32,
             param_dtype=jnp.float32,
-            kernel_init=maybe_partition(initializers.he_normal(), (None, "model")),
+            kernel_init=maybe_partition(initializers.lecun_normal(), (None, "model")),
         )(x)
         x = nn.gelu(x)
         return x_ + x if self.skip else x
@@ -149,13 +150,13 @@ class ConvblockWithTarget(nn.Module):
                 dtype=jnp.float32,
                 param_dtype=jnp.float32,
                 kernel_init=maybe_partition(
-                    initializers.he_normal(), (None, "model")
+                    initializers.lecun_normal(), (None, "model")
                 ),
             )(x)
             x = nn.gelu(x)
         weights = self.param(
             "weights",
-            maybe_partition(initializers.he_normal(), (None, "model")),
+            maybe_partition(initializers.lecun_normal(), (None, "model")),
             (self.channels, self.channels, self.kernel_size),
             jnp.float32,
         )
@@ -214,7 +215,7 @@ class ConvblockWithTarget(nn.Module):
             use_bias=True,
             dtype=jnp.float32,
             param_dtype=jnp.float32,
-            kernel_init=maybe_partition(initializers.he_normal(), (None, "model")),
+            kernel_init=maybe_partition(initializers.lecun_normal(), (None, "model")),
             # bias_init=maybe_partition(initializers.zeros_init(), (None, "model")),
         )(x)
         x = nn.gelu(x)
@@ -243,7 +244,7 @@ class ConvAttnFauxCell(nn.Module):
             dtype=jnp.float32,
             param_dtype=jnp.float32,
             # don't shard as it is going from 1 to 32
-            # kernel_init=maybe_partition(initializers.he_normal(), (None, "model")),
+            # kernel_init=maybe_partition(initializers.lecun_normal(), (None, "model")),
             # bias_init=maybe_partition(initializers.zeros_init(), (None, "model")),
         )
         layers = []
@@ -277,7 +278,7 @@ class ConvAttnFauxCell(nn.Module):
             dtype=jnp.float32,
             param_dtype=jnp.float32,
             use_bias=True,
-            kernel_init=maybe_partition(initializers.he_normal(), (None, "model")),
+            kernel_init=maybe_partition(initializers.lecun_normal(), (None, "model")),
             # bias_init=maybe_partition(initializers.zeros_init(), (None, "model")),
         )
 
@@ -387,7 +388,7 @@ class Convattn(nn.Module):
             dtype=jnp.float32,
             param_dtype=jnp.float32,
             use_bias=True,
-            kernel_init=maybe_partition(initializers.he_normal(), (None, "model")),
+            kernel_init=maybe_partition(initializers.lecun_normal(), (None, "model")),
         )(x)
         return x
 
