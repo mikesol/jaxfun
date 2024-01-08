@@ -238,7 +238,7 @@ if __name__ == "__main__":
     _config["validation_split"] = 0.2
     _config["learning_rate"] = 1e-4
     _config["epochs"] = 2**7
-    _config["channels"] = 2**8
+    _config["channels"] = 2**7
     _config["depth"] = 2**4
     _config["sidechain_layers"] = tuple([x for x in range(2, _config["depth"], 2)])
     _config["dilation_layers"] = tuple([x for x in range(1, _config["depth"], 2)])
