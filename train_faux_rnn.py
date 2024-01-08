@@ -174,7 +174,7 @@ def do_inference(state, input, to_mask):
 replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
 
 
-def compute_loss(state, input, target, to_mask, comparable_field):
+def compute_loss(state, input, target, to_mask, comparable_field, loss_fn):
     pred, _ = state.apply_fn(
         {"params": state.params, "batch_stats": state.batch_stats},
         input,
@@ -182,7 +182,7 @@ def compute_loss(state, input, target, to_mask, comparable_field):
         to_mask=to_mask,
         mutable=["batch_stats"],
     )
-    loss = ESRLoss(pred[:, -comparable_field:, :], target[:, -comparable_field:, :])
+    loss = (ESRLoss if loss_fn == LossFn.ESR else LogCoshLoss)(pred[:, -comparable_field:, :], target[:, -comparable_field:, :])
     return loss
 
 
@@ -246,6 +246,7 @@ if __name__ == "__main__":
     _config["mesh_x"] = 2
     _config["mesh_y"] = device_len // _config["mesh_x"]
     _config["loss_fn"] = LossFn.LOGCOSH
+    _config["do_progressive_masking"] = True
     run.log_parameters(_config)
     if local_env.parallelism == Parallelism.PMAP:
         run.log_parameter("run_id", sys.argv[1])
@@ -365,10 +366,10 @@ if __name__ == "__main__":
     jit_compute_loss = fork_on_parallelism(
         partial(
             jax.jit,
-            static_argnums=(3, 4),
+            static_argnums=(3, 4, 5),
             in_shardings=(state_sharding, x_sharding, x_sharding),
         ),
-        partial(jax.pmap, static_broadcasted_argnums=(3, 4)),
+        partial(jax.pmap, static_broadcasted_argnums=(3, 4, 5)),
     )(compute_loss)
 
     to_mask = config.to_mask
@@ -426,13 +427,13 @@ if __name__ == "__main__":
             input = maybe_replicate(jnp.array(batch["input"]))
             input = maybe_device_put(input, x_sharding)
             target = maybe_replicate(jnp.array(batch["target"]))
-            loss = jit_compute_loss(state, input, target, to_mask, comparable_field)
+            loss = jit_compute_loss(state, input, target, to_mask, comparable_field, config.loss_fn)
             state = add_losses_to_metrics(state=state, loss=loss)
         metrics = maybe_unreplicate(state.metrics).compute()
         run.log_metrics({"val_loss": metrics["loss"]}, step=batch_ix)
         state = replace_metrics(state)
 
-        if not epoch_is_0:
+        if not epoch_is_0 and config.do_progressive_masking:
             to_mask += config.to_mask
             comparable_field = config.to_mask // 2
 
