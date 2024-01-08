@@ -54,11 +54,9 @@ if local_env.parallelism == Parallelism.PMAP:
 
 
 def LogCoshLoss(input, target, a=1.0, eps=1e-8):
-        losses = jnp.mean(
-            (1 / a) * jnp.log(jnp.cosh(a * (input - target)) + eps), axis=-2
-        )
-        losses = jnp.mean(losses)
-        return losses
+    losses = jnp.mean((1 / a) * jnp.log(jnp.cosh(a * (input - target)) + eps), axis=-2)
+    losses = jnp.mean(losses)
+    return losses
 
 
 def ESRLoss(input, target):
@@ -135,6 +133,7 @@ class LossFn(Enum):
     LOGCOSH = 1
     ESR = 2
 
+
 def train_step(state, input, target, to_mask, comparable_field, loss_fn):
     """Train for a single step."""
 
@@ -146,7 +145,9 @@ def train_step(state, input, target, to_mask, comparable_field, loss_fn):
             to_mask=to_mask,
             mutable=["batch_stats"],
         )
-        loss = (ESRLoss if loss_fn == LossFn.ESR else LogCoshLoss)(pred[:, -comparable_field:, :], target[:, -comparable_field:, :])
+        loss = (ESRLoss if loss_fn == LossFn.ESR else LogCoshLoss)(
+            pred[:, -comparable_field:, :], target[:, -comparable_field:, :]
+        )
         return loss, updates
 
     grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
@@ -182,7 +183,9 @@ def compute_loss(state, input, target, to_mask, comparable_field, loss_fn):
         to_mask=to_mask,
         mutable=["batch_stats"],
     )
-    loss = (ESRLoss if loss_fn == LossFn.ESR else LogCoshLoss)(pred[:, -comparable_field:, :], target[:, -comparable_field:, :])
+    loss = (ESRLoss if loss_fn == LossFn.ESR else LogCoshLoss)(
+        pred[:, -comparable_field:, :], target[:, -comparable_field:, :]
+    )
     return loss
 
 
@@ -402,7 +405,7 @@ if __name__ == "__main__":
             enumerate(
                 train_dataset.iter(batch_size=config.batch_size, drop_last_batch=True)
             ),
-            total=train_dataset_total // config.batch_size if not epoch_is_0 else 2,
+            total=(train_dataset_total // config.batch_size) if not epoch_is_0 else 2,
         ):
             input = maybe_replicate(jnp.array(batch["input"]))
             input = maybe_device_put(input, x_sharding)
@@ -422,12 +425,14 @@ if __name__ == "__main__":
             enumerate(
                 test_dataset.iter(batch_size=config.batch_size, drop_last_batch=True)
             ),
-            total=test_dataset_total // config.batch_size if not epoch_is_0 else 2,
+            total=(test_dataset_total // config.batch_size) if not epoch_is_0 else 2,
         ):
             input = maybe_replicate(jnp.array(batch["input"]))
             input = maybe_device_put(input, x_sharding)
             target = maybe_replicate(jnp.array(batch["target"]))
-            loss = jit_compute_loss(state, input, target, to_mask, comparable_field, config.loss_fn)
+            loss = jit_compute_loss(
+                state, input, target, to_mask, comparable_field, config.loss_fn
+            )
             state = add_losses_to_metrics(state=state, loss=loss)
         metrics = maybe_unreplicate(state.metrics).compute()
         run.log_metrics({"val_loss": metrics["loss"]}, step=batch_ix)
