@@ -4,6 +4,7 @@ import truncate_if_odd
 from parallelism import Parallelism
 from contextlib import nullcontext
 import logging
+from enum import Enum
 from fork_on_parallelism import fork_on_parallelism
 
 # import logging
@@ -50,6 +51,14 @@ if local_env.parallelism == Parallelism.PMAP:
         )
     else:
         jax.distributed.initialize()
+
+
+def LogCoshLoss(input, target, a=1.0, eps=1e-8):
+        losses = jnp.mean(
+            (1 / a) * jnp.log(jnp.cosh(a * (input - target)) + eps), axis=-2
+        )
+        losses = jnp.mean(losses)
+        return losses
 
 
 def ESRLoss(input, target):
@@ -122,7 +131,11 @@ def create_train_state(rng: PRNGKey, x, module, tx) -> TrainState:
     )
 
 
-def train_step(state, input, target, to_mask, comparable_field):
+class LossFn(Enum):
+    LOGCOSH = 1
+    ESR = 2
+
+def train_step(state, input, target, to_mask, comparable_field, loss_fn):
     """Train for a single step."""
 
     def loss_fn(params):
@@ -133,7 +146,7 @@ def train_step(state, input, target, to_mask, comparable_field):
             to_mask=to_mask,
             mutable=["batch_stats"],
         )
-        loss = ESRLoss(pred[:, -comparable_field:, :], target[:, -comparable_field:, :])
+        loss = (ESRLoss if loss_fn == LossFn.ESR else LogCoshLoss)(pred[:, -comparable_field:, :], target[:, -comparable_field:, :])
         return loss, updates
 
     grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
@@ -209,7 +222,7 @@ if __name__ == "__main__":
     # cnn
     _config["seed"] = 42
     _config["inference_artifacts_per_batch_per_epoch"] = 2**2
-    _config["batch_size"] = 2**8
+    _config["batch_size"] = 2**6
     _config["validation_split"] = 0.2
     _config["learning_rate"] = 1e-4
     _config["epochs"] = 2**7
@@ -232,6 +245,7 @@ if __name__ == "__main__":
     _config["modulo_rhs"] = 2
     _config["mesh_x"] = 2
     _config["mesh_y"] = device_len // _config["mesh_x"]
+    _config["loss_fn"] = LossFn.LOGCOSH
     run.log_parameters(_config)
     if local_env.parallelism == Parallelism.PMAP:
         run.log_parameter("run_id", sys.argv[1])
@@ -341,11 +355,11 @@ if __name__ == "__main__":
     jit_train_step = fork_on_parallelism(
         partial(
             jax.jit,
-            static_argnums=(3, 4),
+            static_argnums=(3, 4, 5),
             in_shardings=(state_sharding, x_sharding, x_sharding),
             out_shardings=(state_sharding, None),
         ),
-        partial(jax.pmap, static_broadcasted_argnums=(3, 4)),
+        partial(jax.pmap, static_broadcasted_argnums=(3, 4, 5)),
     )(train_step)
 
     jit_compute_loss = fork_on_parallelism(
@@ -394,7 +408,7 @@ if __name__ == "__main__":
             target = maybe_replicate(jnp.array(batch["target"]))
             with fork_on_parallelism(mesh, nullcontext()):
                 state, loss = jit_train_step(
-                    state, input, target, to_mask, comparable_field
+                    state, input, target, to_mask, comparable_field, config.loss_fn
                 )
                 state = add_losses_to_metrics(state=state, loss=loss)
 
