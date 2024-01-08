@@ -250,8 +250,8 @@ if __name__ == "__main__":
     _config["skip_freq"] = 1
     _config["norm_factor"] = math.sqrt(_config["channels"])
     _config["inner_skip"] = True
-    _config["shift"] = 2**4
-    _config["dilation"] = 2**0
+    # _config["shift"] = 2**4
+    # _config["dilation"] = 2**0
     _config["mesh_x"] = 2
     _config["mesh_y"] = device_len // _config["mesh_x"]
     _config["loss_fn"] = LossFn.LOGCOSH
