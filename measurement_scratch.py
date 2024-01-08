@@ -13,15 +13,15 @@ if __name__ == "__main__":
     _config["validation_split"] = 0.2
     _config["learning_rate"] = 1e-4
     _config["epochs"] = 2**7
-    _config["window"] = 2**11
-    _config["inference_window"] = 2**17
     _config["stride"] = 2**8
     _config["step_freq"] = 100
     _config["test_size"] = 0.1
-    _config["channels"] = 2**8 # 2**6
+    _config["channels"] = 2**7 # 2**6
     _config["depth"] = 2**5 # 2**4
     _config["sidechain_layers"] = tuple([x for x in range(2, _config["depth"], 2)])
-    _config["dilation_layers"] = tuple([x for x in range(1, _config["depth"], 2)])
+    _config["dilation_layers"] = tuple([x for x in range(1, _config["depth"], _config["depth"] // 4)])
+    _config["window"] = 2**14
+    _config["inference_window"] = 2**17
     _config["do_progressive_masking"] = False
     _config["to_mask"] = 0
     _config["comparable_field"] = None  # _config["to_mask"] // 2
@@ -41,4 +41,5 @@ if __name__ == "__main__":
         sidechain_layers=config.sidechain_layers,
         dilation_layers=config.dilation_layers,
     )
-    print(module.tabulate(jax.random.key(0), jnp.ones((2**2, 2**14, 1)), to_mask=0))
+    # print(module.tabulate(jax.random.key(0), jnp.ones((2**2, config.window, 1)), to_mask=0 ,console_kwargs={'soft_wrap':True}))
+    # print(jax.eval_shape(module, jnp.ones((2**2, config.window, 1) ), to_mask=0 ))

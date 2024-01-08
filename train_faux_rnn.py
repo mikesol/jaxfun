@@ -241,8 +241,8 @@ if __name__ == "__main__":
     _config["channels"] = 2**7
     _config["depth"] = 2**5
     _config["sidechain_layers"] = tuple([x for x in range(2, _config["depth"], 2)])
-    _config["dilation_layers"] = tuple([x for x in range(1, _config["depth"], _config["depth"] // 4)])
-    _config["window"] = 2**14
+    _config["dilation_layers"] = tuple([x for x in range(1, _config["depth"], 2)])
+    _config["window"] = 2**11
     _config["inference_window"] = 2**17
     _config["stride"] = 2**8
     _config["step_freq"] = 100
