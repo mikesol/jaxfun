@@ -60,7 +60,6 @@ class Convblock(nn.Module):
     norm_factor: float = 1.0
     skip: bool = True
     inner_skip: bool = True
-    squeeze: int = 1
     pad_to_input_size: bool = True
 
     @nn.compact
@@ -82,7 +81,7 @@ class Convblock(nn.Module):
         weights = self.param(
             "weights",
             maybe_partition(initializers.lecun_normal(), (None, "model")),
-            (self.channels // self.squeeze, self.channels, self.kernel_size),
+            (self.channels, self.channels, self.kernel_size),
             jnp.float32,
         )
         # skip
@@ -112,7 +111,7 @@ class Convblock(nn.Module):
             jnp.einsum("abc,dcg->adbg", x_[:, -x.shape[3] :, :], weights), (0, 3, 1, 2)
         )
         w = nn.tanh(w / self.norm_factor)
-        x = x * jnp.repeat(w, repeats=self.squeeze, axis=2)
+        x = x * w
         x = jnp.sum(x, axis=1)
         x = jnp.transpose(x, (0, 2, 1))
         x = x_[:, (-x.shape[1]) :, :] + x if self.skip and self.inner_skip else x
