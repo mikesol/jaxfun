@@ -246,7 +246,7 @@ if __name__ == "__main__":
     _config["mesh_x"] = 2
     _config["mesh_y"] = device_len // _config["mesh_x"]
     _config["loss_fn"] = LossFn.LOGCOSH
-    _config["do_progressive_masking"] = True
+    _config["do_progressive_masking"] = False
     run.log_parameters(_config)
     if local_env.parallelism == Parallelism.PMAP:
         run.log_parameter("run_id", sys.argv[1])
