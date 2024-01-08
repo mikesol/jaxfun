@@ -257,8 +257,9 @@ if __name__ == "__main__":
     # _config["shift"] = 2**4
     # _config["dilation"] = 2**0
     _config["mesh_x"] = device_len
-    _config["mesh_y"] = 1 # device_len // _config["mesh_x"]
+    _config["mesh_y"] = 1  # device_len // _config["mesh_x"]
     _config["loss_fn"] = LossFn.LOGCOSH
+    _config["gradient_clip"] = 1.0
     run.log_parameters(_config)
     if local_env.parallelism == Parallelism.PMAP:
         run.log_parameter("run_id", sys.argv[1])
@@ -325,7 +326,7 @@ if __name__ == "__main__":
         sidechain_layers=config.sidechain_layers,
         dilation_layers=config.dilation_layers,
     )
-    tx = optax.fromage(config.learning_rate)
+    tx = optax.chain(optax.clip(config.gradient_clip), optax.fromage(config.learning_rate))
 
     if local_env.parallelism == Parallelism.SHARD:
         abstract_variables = jax.eval_shape(
