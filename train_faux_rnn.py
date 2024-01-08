@@ -115,9 +115,9 @@ class TrainState(train_state.TrainState):
     batch_stats: Any
 
 
-def create_train_state(rng: PRNGKey, x, module, tx) -> TrainState:
+def create_train_state(rng: PRNGKey, x, module, tx, to_mask) -> TrainState:
     print("creating train state", rng.shape, x.shape)
-    variables = module.init(rng, x, train=False, to_mask=x.shape[1] // 8)
+    variables = module.init(rng, x, train=False, to_mask=to_mask)
     params = variables["params"]
     batch_stats = variables["batch_stats"]
     return TrainState.create(
@@ -335,7 +335,7 @@ if __name__ == "__main__":
     jit_create_train_state = fork_on_parallelism(
         partial(
             jax.jit,
-            static_argnums=(2, 3),
+            static_argnums=(2, 3, 4),
             in_shardings=(
                 mesh_sharding(None)
                 if local_env.parallelism == Parallelism.SHARD
@@ -344,7 +344,7 @@ if __name__ == "__main__":
             ),  # PRNG key and x
             out_shardings=state_sharding,
         ),
-        partial(jax.pmap, static_broadcasted_argnums=(2, 3)),
+        partial(jax.pmap, static_broadcasted_argnums=(2, 3, 4)),
     )(create_train_state)
     rng_for_train_state = (
         init_rng
@@ -359,6 +359,7 @@ if __name__ == "__main__":
         fork_on_parallelism(onez, par_onez),
         module,
         tx,
+        config.to_mask
     )
 
     jit_train_step = fork_on_parallelism(
