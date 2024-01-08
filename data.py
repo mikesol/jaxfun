@@ -73,8 +73,8 @@ def mix_input_and_output(batch):
 
 def audio_gen(pair, window, stride, normalize=True):
     def _audio_gen():
-        i, _ = librosa.load(pair[0])
-        o, _ = librosa.load(pair[1])
+        i, _ = librosa.load(pair[0], sr=44100)
+        o, _ = librosa.load(pair[1], sr=44100)
         start = 0
         normy = librosa.util.normalize if normalize else lambda x: x
         while start + window <= len(i):
@@ -102,8 +102,8 @@ def Paul(a, b):
 
 def audio_gen_2d(pair, window, stride, normalize=True):
     def _audio_gen():
-        i, _ = librosa.load(pair[0])
-        o, _ = librosa.load(pair[1])
+        i, _ = librosa.load(pair[0], sr=44100)
+        o, _ = librosa.load(pair[1], sr=44100)
         start = 0
         normy = librosa.util.normalize if normalize else lambda x: x
         while start + window + 1 <= len(i):
@@ -254,5 +254,5 @@ if __name__ == "__main__":
     )
     batch = next(dataset.iter(8, drop_last_batch=True))
     i = np.array(batch["input"])
-    o = np.array(batch["target"])    
+    o = np.array(batch["target"])
     assert i.shape[1] == o.shape[1] * 2

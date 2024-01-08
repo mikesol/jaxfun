@@ -24,8 +24,8 @@ def test_data():
     i = np.array(batch["input"])
     o = np.array(batch["target"])
     assert i.shape[1] == o.shape[1] * 2
-    i_, _ = librosa.load(FILES[0][0])
-    o_, _ = librosa.load(FILES[0][1])
+    i_, _ = librosa.load(FILES[0][0], sr=44100)
+    o_, _ = librosa.load(FILES[0][1], sr=44100)
     assert i.shape[0] == 1
     assert i.shape[1] == window * 2
     assert i.shape[2] == 1
@@ -64,8 +64,8 @@ def test_data_with_dilations():
     i = np.array(batch["input"])
     o = np.array(batch["target"])
     assert i.shape[1] == o.shape[1] * 2
-    i_, _ = librosa.load(FILES[0][0])
-    o_, _ = librosa.load(FILES[0][1])
+    i_, _ = librosa.load(FILES[0][0], sr=44100)
+    o_, _ = librosa.load(FILES[0][1], sr=44100)
     assert i.shape[0] == 1
     assert i.shape[1] == window * 2
     assert i.shape[2] == channels
