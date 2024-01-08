@@ -71,8 +71,8 @@ class ConvFauxCell(nn.Module):
             z = nn.Conv(
                 features=self.channels,
                 strides=(2 if i == 0 else 1,),
-                kernel_dilation=(self.kernel_size * 2 if i == 0 else self.kernel_size,),
-                dilation_rate=(2 if i + 1 in self.dilation_layers else 1,),
+                kernel_size=(self.kernel_size * 2 if i == 0 else self.kernel_size,),
+                kernel_dilation=(2 if i + 1 in self.dilation_layers else 1,),
                 padding=((0,)),
             )(z)
             if i in self.sidechain_layers:
