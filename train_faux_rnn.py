@@ -134,10 +134,10 @@ class LossFn(Enum):
     ESR = 2
 
 
-def truncate_on_comparable_field(i, c):
+def truncate_on_comparable_field(i, o, c):
     if c is None or c <= 0:
-        return i
-    return i[:, -c:, :]
+        c = math.min(i.shape[-2], o.shape[-2])
+    return i[:, -c:, :], o[:, -c:, :], 
 
 def train_step(state, input, target, to_mask, comparable_field, loss_fn):
     """Train for a single step."""
@@ -151,7 +151,7 @@ def train_step(state, input, target, to_mask, comparable_field, loss_fn):
             mutable=["batch_stats"],
         )
         loss = (ESRLoss if loss_fn == LossFn.ESR else LogCoshLoss)(
-            truncate_on_comparable_field(pred, comparable_field), truncate_on_comparable_field(target, comparable_field)
+            *truncate_on_comparable_field(pred, target, comparable_field)
         )
         return loss, updates
 
@@ -189,7 +189,7 @@ def compute_loss(state, input, target, to_mask, comparable_field, loss_fn):
         mutable=["batch_stats"],
     )
     loss = (ESRLoss if loss_fn == LossFn.ESR else LogCoshLoss)(
-        truncate_on_comparable_field(pred, comparable_field), truncate_on_comparable_field(target, comparable_field)
+            *truncate_on_comparable_field(pred, target, comparable_field)
     )
     return loss
 
