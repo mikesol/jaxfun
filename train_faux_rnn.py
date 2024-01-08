@@ -234,7 +234,7 @@ if __name__ == "__main__":
     # cnn
     _config["seed"] = 42
     _config["inference_artifacts_per_batch_per_epoch"] = 2**2
-    _config["batch_size"] = 2**5
+    _config["batch_size"] = 2**7
     _config["validation_split"] = 0.2
     _config["learning_rate"] = 1e-4
     _config["epochs"] = 2**7
@@ -243,8 +243,8 @@ if __name__ == "__main__":
     _config["stride"] = 2**8
     _config["step_freq"] = 100
     _config["test_size"] = 0.1
-    _config["channels"] = 2**6
-    _config["depth"] = 2**4
+    _config["channels"] = 2**7
+    _config["depth"] = 2**5
     _config["sidechain_layers"] = tuple([x for x in range(2, _config["depth"], 2)])
     _config["dilation_layers"] = tuple([x for x in range(1, _config["depth"], 2)])
     _config["do_progressive_masking"] = False
@@ -256,8 +256,8 @@ if __name__ == "__main__":
     _config["inner_skip"] = True
     # _config["shift"] = 2**4
     # _config["dilation"] = 2**0
-    _config["mesh_x"] = 2
-    _config["mesh_y"] = device_len // _config["mesh_x"]
+    _config["mesh_x"] = device_len
+    _config["mesh_y"] = 1 # device_len // _config["mesh_x"]
     _config["loss_fn"] = LossFn.LOGCOSH
     run.log_parameters(_config)
     if local_env.parallelism == Parallelism.PMAP:
