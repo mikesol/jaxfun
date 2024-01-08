@@ -236,6 +236,8 @@ if __name__ == "__main__":
     _config["test_size"] = 0.1
     _config["channels"] = 2**4
     _config["depth"] = 2**3
+    _config["sidechain_layers"] = (2,4,6)
+    _config["dilation_layers"] = (1,3,5,7)
     _config["to_mask"] = 2**8
     _config["comparable_field"] = _config["to_mask"] // 2
     _config["kernel_size"] = 7
@@ -244,8 +246,6 @@ if __name__ == "__main__":
     _config["inner_skip"] = True
     _config["shift"] = 2**4
     _config["dilation"] = 2**0
-    _config["modulo_lhs"] = 4
-    _config["modulo_rhs"] = 2
     _config["mesh_x"] = 2
     _config["mesh_y"] = device_len // _config["mesh_x"]
     _config["loss_fn"] = LossFn.LOGCOSH
@@ -494,6 +494,13 @@ if __name__ == "__main__":
                     sample_rate=44100,
                     step=batch_ix,
                     file_name=f"audio_{epoch}_{batch_ix}_{i}_prediction.wav",
+                )
+                audy = np.squeeze(np.array(input_[i]))
+                run.log_audio(
+                    audy,
+                    sample_rate=44100,
+                    step=batch_ix,
+                    file_name=f"audio_{epoch}_{batch_ix}_{i}_interleaved_input.wav",
                 )
                 audy = np.squeeze(np.array(input_[i]))[::2]
                 run.log_audio(

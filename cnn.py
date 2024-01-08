@@ -12,8 +12,8 @@ maybe_partition = fork_on_parallelism(
 )
 
 
-def c1d(o, k, s):
-    return (s * (o - 1)) + 1 + (k - 1)
+def c1d(o, k, s, d):
+    return (s * (o - 1)) + 1 + (d*(k - 1))
 
 
 class ConvFauxCell(nn.Module):
@@ -23,14 +23,16 @@ class ConvFauxCell(nn.Module):
     norm_factor: float = 1.0
     skip_freq: int = 1
     inner_skip: bool = True
-    modulo_lhs: int = 4
-    modulo_rhs: int = 2
+    sidechain_layers = ()
+    dilation_layers = ()
 
     def get_zlen(self):
         zlen = 1
-        for _ in range(self.depth - 1):
-            zlen = c1d(zlen, self.kernel_size, 1)
-        zlen = c1d(zlen, self.kernel_size * 2, 2)
+        for l in range(self.depth - 1):
+            lnum = self.depth - 1 - l
+            zlen = c1d(zlen, self.kernel_size, 1, 2 if lnum in self.dilation_layers else 1)
+        # no dilation on the final bloc
+        zlen = c1d(zlen, self.kernel_size * 2, 2, 1)
         return zlen
 
     @nn.compact
@@ -70,8 +72,7 @@ class ConvFauxCell(nn.Module):
                 kernel_size=(self.kernel_size * 2 if i == 0 else self.kernel_size,),
                 padding=((0,)),
             )(z)
-            # relax the i0 constraint if we wind up coding the interleaved sidechain
-            if (i != 0) and (i % self.modulo_lhs == self.modulo_rhs):
+            if i in self.sidechain_layers:
                 z += ConvblockNofrills(
                     channels=self.channels,
                     kernel_size=self.kernel_size,
@@ -117,8 +118,8 @@ class ConvFauxLarsen(nn.Module):
     norm_factor: float = 1.0
     skip_freq: int = 1
     inner_skip: bool = True
-    modulo_lhs: int = 4
-    modulo_rhs: int = 2
+    sidechain_layers = ()
+    dilation_layers = ()
 
     # ugh, code dup
     def get_zlen(self):
@@ -136,8 +137,8 @@ class ConvFauxLarsen(nn.Module):
             norm_factor=self.norm_factor,
             skip_freq=self.skip_freq,
             inner_skip=self.inner_skip,
-            modulo_lhs=self.modulo_lhs,
-            modulo_rhs=self.modulo_rhs,
+            sidechain_layers=self.sidechain_layers,
+            dilation_layers=self.dilation_layers,
         )
 
     def __call__(self, x, train: bool = True, to_mask: int = None):
