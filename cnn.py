@@ -154,6 +154,9 @@ class ConvFauxLarsen(nn.Module):
         z = x_masked
         foundry, z0 = self.cell(foundry, z, is_first=True, train=train)
 
+        if to_mask <= 0:
+            return z0
+
         def body_fn(cell, carry, x):
             carry, y = cell(carry, x, is_first=False, train=train)
             return carry, y

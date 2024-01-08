@@ -134,6 +134,11 @@ class LossFn(Enum):
     ESR = 2
 
 
+def truncate_on_comparable_field(i, c):
+    if c is None or c <= 0:
+        return i
+    return i[:, -c:, :]
+
 def train_step(state, input, target, to_mask, comparable_field, loss_fn):
     """Train for a single step."""
 
@@ -146,7 +151,7 @@ def train_step(state, input, target, to_mask, comparable_field, loss_fn):
             mutable=["batch_stats"],
         )
         loss = (ESRLoss if loss_fn == LossFn.ESR else LogCoshLoss)(
-            pred[:, -comparable_field:, :], target[:, -comparable_field:, :]
+            truncate_on_comparable_field(pred, comparable_field), truncate_on_comparable_field(target, comparable_field)
         )
         return loss, updates
 
@@ -184,7 +189,7 @@ def compute_loss(state, input, target, to_mask, comparable_field, loss_fn):
         mutable=["batch_stats"],
     )
     loss = (ESRLoss if loss_fn == LossFn.ESR else LogCoshLoss)(
-        pred[:, -comparable_field:, :], target[:, -comparable_field:, :]
+        truncate_on_comparable_field(pred, comparable_field), truncate_on_comparable_field(target, comparable_field)
     )
     return loss
 
@@ -225,7 +230,7 @@ if __name__ == "__main__":
     # cnn
     _config["seed"] = 42
     _config["inference_artifacts_per_batch_per_epoch"] = 2**2
-    _config["batch_size"] = 2**6
+    _config["batch_size"] = 2**5
     _config["validation_split"] = 0.2
     _config["learning_rate"] = 1e-4
     _config["epochs"] = 2**7
@@ -234,12 +239,13 @@ if __name__ == "__main__":
     _config["stride"] = 2**8
     _config["step_freq"] = 100
     _config["test_size"] = 0.1
-    _config["channels"] = 2**4
-    _config["depth"] = 2**3
-    _config["sidechain_layers"] = (2,4,6)
-    _config["dilation_layers"] = (1,3,5,7)
-    _config["to_mask"] = 2**8
-    _config["comparable_field"] = _config["to_mask"] // 2
+    _config["channels"] = 2**6
+    _config["depth"] = 2**4
+    _config["sidechain_layers"] = tuple([x for x in range(2, _config["depth"], 2)])
+    _config["dilation_layers"] = tuple([x for x in range(1, _config["depth"], 2)])
+    _config["do_progressive_masking"] = False
+    _config["to_mask"] = 0
+    _config["comparable_field"] = None # _config["to_mask"] // 2
     _config["kernel_size"] = 7
     _config["skip_freq"] = 1
     _config["norm_factor"] = math.sqrt(_config["channels"])
@@ -249,7 +255,6 @@ if __name__ == "__main__":
     _config["mesh_x"] = 2
     _config["mesh_y"] = device_len // _config["mesh_x"]
     _config["loss_fn"] = LossFn.LOGCOSH
-    _config["do_progressive_masking"] = False
     run.log_parameters(_config)
     if local_env.parallelism == Parallelism.PMAP:
         run.log_parameter("run_id", sys.argv[1])
@@ -313,8 +318,8 @@ if __name__ == "__main__":
         skip_freq=config.skip_freq,
         norm_factor=config.norm_factor,
         inner_skip=config.inner_skip,
-        modulo_lhs=config.modulo_lhs,
-        modulo_rhs=config.modulo_rhs,
+        sidechain_layers=config.sidechain_layers,
+        dilation_layers=config.dilation_layers,
     )
     tx = optax.adam(config.learning_rate)
 
