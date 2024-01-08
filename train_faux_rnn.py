@@ -136,7 +136,7 @@ class LossFn(Enum):
 
 def truncate_on_comparable_field(i, o, c):
     if c is None or c <= 0:
-        c = math.min(i.shape[-2], o.shape[-2])
+        c = min(i.shape[-2], o.shape[-2])
     return i[:, -c:, :], o[:, -c:, :], 
 
 def train_step(state, input, target, to_mask, comparable_field, loss_fn):
