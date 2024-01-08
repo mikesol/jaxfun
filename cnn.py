@@ -23,8 +23,8 @@ class ConvFauxCell(nn.Module):
     norm_factor: float = 1.0
     skip_freq: int = 1
     inner_skip: bool = True
-    sidechain_layers = ()
-    dilation_layers = ()
+    sidechain_layers: tuple[int] = ()
+    dilation_layers: tuple[int] = ()
 
     def get_zlen(self):
         zlen = 1
@@ -118,8 +118,8 @@ class ConvFauxLarsen(nn.Module):
     norm_factor: float = 1.0
     skip_freq: int = 1
     inner_skip: bool = True
-    sidechain_layers = ()
-    dilation_layers = ()
+    sidechain_layers: tuple[int] = ()
+    dilation_layers: tuple[int] = ()
 
     # ugh, code dup
     def get_zlen(self):

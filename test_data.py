@@ -61,8 +61,8 @@ def test_data_with_dilations():
     sample_width = (window + (zone_size * shift)) * (4 * dilation)
 
     batch = next(dataset.iter(1, drop_last_batch=True))
-    i = batch["input"]
-    o = batch["target"]
+    i = np.array(batch["input"])
+    o = np.array(batch["target"])
     assert i.shape[1] == o.shape[1] * 2
     i_, _ = librosa.load(FILES[0][0])
     o_, _ = librosa.load(FILES[0][1])

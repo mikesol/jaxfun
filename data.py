@@ -253,7 +253,6 @@ if __name__ == "__main__":
         feature_dim=-1,
     )
     batch = next(dataset.iter(8, drop_last_batch=True))
-    i = batch["input"]
-    o = batch["target"]
-    print(i.shape, o.shape)
+    i = np.array(batch["input"])
+    o = np.array(batch["target"])    
     assert i.shape[1] == o.shape[1] * 2
