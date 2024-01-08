@@ -98,7 +98,7 @@ class ConvFauxCell(nn.Module):
             dtype=jnp.float32,
             param_dtype=jnp.float32,
             use_bias=True,
-            kernel_init=maybe_partition(initializers.lecun_normal(), (None, "model")),
+            kernel_init=maybe_partition(initializers.he_normal(), (None, "model")),
         )(z)
         # no activation at the end
         foundry = jnp.concatenate(

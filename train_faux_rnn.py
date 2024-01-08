@@ -325,7 +325,7 @@ if __name__ == "__main__":
         sidechain_layers=config.sidechain_layers,
         dilation_layers=config.dilation_layers,
     )
-    tx = optax.adam(config.learning_rate)
+    tx = optax.lamb(config.learning_rate)
 
     if local_env.parallelism == Parallelism.SHARD:
         abstract_variables = jax.eval_shape(
@@ -415,7 +415,7 @@ if __name__ == "__main__":
             enumerate(
                 train_dataset.iter(batch_size=config.batch_size, drop_last_batch=True)
             ),
-            total=(train_dataset_total // config.batch_size) if not epoch_is_0 else 2,
+            total=(train_dataset_total // config.batch_size) if not epoch_is_0 else 204,
             unit="batch",
         ) as loop:
             for batch_ix, batch in loop:
@@ -438,7 +438,7 @@ if __name__ == "__main__":
             enumerate(
                 test_dataset.iter(batch_size=config.batch_size, drop_last_batch=True)
             ),
-            total=(test_dataset_total // config.batch_size) if not epoch_is_0 else 2,
+            total=(test_dataset_total // config.batch_size) if not epoch_is_0 else 104,
             unit="batch"
         ) as loop:
             for batch_ix, batch in loop:
