@@ -148,8 +148,8 @@ class ConvFauxLarsen(nn.Module):
                 f"to_mask must be less than the input sequence length: {x.shape[1]} vs {to_mask}"
             )
         # print("to_mask", to_mask, "x.shape", x.shape)
-        x_masked = x[:, : -(to_mask * 2), :]
-        x_final = x[:, -(to_mask * 2) :: 2, :]
+        x_masked = x[:, : -(to_mask * 2), :] if to_mask > 0 else x
+        x_final = x[:, -(to_mask * 2) :: 2, :] if to_mask > 0 else []
         foundry = x_masked
         z = x_masked
         foundry, z0 = self.cell(foundry, z, is_first=True, train=train)
