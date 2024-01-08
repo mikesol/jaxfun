@@ -325,7 +325,7 @@ if __name__ == "__main__":
 
     if local_env.parallelism == Parallelism.SHARD:
         abstract_variables = jax.eval_shape(
-            partial(create_train_state, module=module, tx=tx),
+            partial(create_train_state, module=module, tx=tx, to_mask=config.to_mask),
             init_rng,
             onez,
         )
