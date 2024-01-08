@@ -73,6 +73,7 @@ class ConvFauxCell(nn.Module):
                 strides=(2 if i == 0 else 1,),
                 kernel_size=(self.kernel_size * 2 if i == 0 else self.kernel_size,),
                 padding=((0,)),
+                kernel_dilation=(2 if i in self.dilation_layers else 1),
             )(z)
             if i in self.sidechain_layers:
                 z += ConvblockNofrills(
