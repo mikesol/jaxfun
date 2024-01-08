@@ -137,7 +137,11 @@ class LossFn(Enum):
 def truncate_on_comparable_field(i, o, c):
     if c is None or c <= 0:
         c = min(i.shape[-2], o.shape[-2])
-    return i[:, -c:, :], o[:, -c:, :], 
+    return (
+        i[:, -c:, :],
+        o[:, -c:, :],
+    )
+
 
 def train_step(state, input, target, to_mask, comparable_field, loss_fn):
     """Train for a single step."""
@@ -189,7 +193,7 @@ def compute_loss(state, input, target, to_mask, comparable_field, loss_fn):
         mutable=["batch_stats"],
     )
     loss = (ESRLoss if loss_fn == LossFn.ESR else LogCoshLoss)(
-            *truncate_on_comparable_field(pred, target, comparable_field)
+        *truncate_on_comparable_field(pred, target, comparable_field)
     )
     return loss
 
@@ -245,7 +249,7 @@ if __name__ == "__main__":
     _config["dilation_layers"] = tuple([x for x in range(1, _config["depth"], 2)])
     _config["do_progressive_masking"] = False
     _config["to_mask"] = 0
-    _config["comparable_field"] = None # _config["to_mask"] // 2
+    _config["comparable_field"] = None  # _config["to_mask"] // 2
     _config["kernel_size"] = 7
     _config["skip_freq"] = 1
     _config["norm_factor"] = math.sqrt(_config["channels"])
@@ -359,7 +363,7 @@ if __name__ == "__main__":
         fork_on_parallelism(onez, par_onez),
         module,
         tx,
-        config.to_mask
+        config.to_mask,
     )
 
     jit_train_step = fork_on_parallelism(

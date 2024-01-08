@@ -254,5 +254,5 @@ if __name__ == "__main__":
     )
     batch = next(dataset.iter(8, drop_last_batch=True))
     i = np.array(batch["input"])
-    o = np.array(batch["target"])    
+    o = np.array(batch["target"])
     assert i.shape[1] == o.shape[1] * 2
