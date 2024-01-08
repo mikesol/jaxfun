@@ -222,7 +222,7 @@ if __name__ == "__main__":
     # cnn
     _config["seed"] = 42
     _config["inference_artifacts_per_batch_per_epoch"] = 2**2
-    _config["batch_size"] = 2**4
+    _config["batch_size"] = 2**6
     _config["validation_split"] = 0.2
     _config["learning_rate"] = 1e-4
     _config["epochs"] = 2**7
@@ -233,7 +233,7 @@ if __name__ == "__main__":
     _config["test_size"] = 0.1
     _config["channels"] = 2**4
     _config["depth"] = 2**3
-    _config["to_mask"] = 2**10
+    _config["to_mask"] = 2**9
     _config["comparable_field"] = _config["to_mask"] // 2
     _config["kernel_size"] = 7
     _config["skip_freq"] = 1
