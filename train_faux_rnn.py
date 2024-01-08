@@ -325,7 +325,7 @@ if __name__ == "__main__":
         sidechain_layers=config.sidechain_layers,
         dilation_layers=config.dilation_layers,
     )
-    tx = optax.adam(config.learning_rate)
+    tx = optax.fromage(config.learning_rate)
 
     if local_env.parallelism == Parallelism.SHARD:
         abstract_variables = jax.eval_shape(
