@@ -3,6 +3,7 @@ import librosa
 import numpy as np
 from functools import partial
 import wave
+import soundfile
 
 
 ### copied from feeeeedback
@@ -73,8 +74,8 @@ def mix_input_and_output(batch):
 
 def audio_gen(pair, window, stride, normalize=True):
     def _audio_gen():
-        i, _ = librosa.load(pair[0])
-        o, _ = librosa.load(pair[1])
+        i, _ = librosa.load(pair[0], sr=44100)
+        o, _ = librosa.load(pair[1], sr=44100)
         start = 0
         normy = librosa.util.normalize if normalize else lambda x: x
         while start + window <= len(i):
@@ -102,8 +103,8 @@ def Paul(a, b):
 
 def audio_gen_2d(pair, window, stride, normalize=True):
     def _audio_gen():
-        i, _ = librosa.load(pair[0])
-        o, _ = librosa.load(pair[1])
+        i, _ = librosa.load(pair[0], sr=44100)
+        o, _ = librosa.load(pair[1], sr=44100)
         start = 0
         normy = librosa.util.normalize if normalize else lambda x: x
         while start + window + 1 <= len(i):
@@ -242,17 +243,20 @@ def make_2d_data_with_delays_and_dilations(
 if __name__ == "__main__":
     from get_files import FILES
 
-    # dataset, _ = make_2d_data(FILES[:1], 2**16, 2**8)paths, window, stride, shift, dilation, channels
-    dataset, _ = make_2d_data_with_delays_and_dilations(
-        paths=FILES[:1],
-        window=2**12,
-        stride=2**8,
-        shift=16,
-        dilation=1,
-        channels=2**3,
-        feature_dim=-1,
-    )
+    dataset, _ = make_2d_data(FILES[:1], 2**16, 2**8,shuffle=True, normalize=True)
+    # dataset, _ = make_2d_data_with_delays_and_dilations(
+    #     paths=FILES[:1],
+    #     window=2**12,
+    #     stride=2**8,
+    #     shift=16,
+    #     dilation=1,
+    #     channels=2**3,
+    #     feature_dim=-1,
+    # )
     batch = next(dataset.iter(8, drop_last_batch=True))
     i = np.array(batch["input"])
     o = np.array(batch["target"])
     assert i.shape[1] == o.shape[1] * 2
+    soundfile.write("/tmp/input_raw.wav", np.squeeze(i[0]), 44100)
+    soundfile.write("/tmp/input.wav", np.squeeze(i[0])[::2], 44100)
+    soundfile.write("/tmp/output.wav", np.squeeze(o[0]), 44100)
