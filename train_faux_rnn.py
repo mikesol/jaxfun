@@ -144,7 +144,7 @@ def interleave_jax(input_array, trained_output):
 
 
 def faux_step(fn, zlen):
-    def _o(state, input, target, *args):
+    def _o(state, input, *args):
         seq_len = input.shape[1]
         input = jnp.pad(input, ((0, 0), (zlen, 0), (0, 0)))
 
@@ -159,7 +159,7 @@ def faux_step(fn, zlen):
             input[:, ::2, :][:, -(trained_output.shape[1] - 1) :, :],
             trained_output[:, :-1, :],
         )
-        return fn(state, jax.lax.stop_gradient(new_input), target, *args)
+        return fn(state, jax.lax.stop_gradient(new_input), *args)
 
     return _o
 
