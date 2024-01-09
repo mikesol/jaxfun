@@ -441,8 +441,6 @@ if __name__ == "__main__":
             else proto_inference_dataset.take(config.batch_size * to_take_in_0_epoch)
         )
 
-        hit_loss_threshold = False
-
         # log the epoch
         run.log_current_epoch(epoch)
         train_dataset.set_epoch(epoch)
@@ -471,7 +469,7 @@ if __name__ == "__main__":
                             comparable_field,
                             config.loss_fn,
                         )
-                        if (batch_ix % 2 == 1) and hit_loss_threshold
+                        if batch_ix % 2 == 1
                         else jit_train_step(
                             state,
                             input,
@@ -489,8 +487,6 @@ if __name__ == "__main__":
                     metrics = maybe_unreplicate(state.metrics).compute()
                     run.log_metrics({"train_loss": metrics["loss"]}, step=batch_ix)
                     loop.set_postfix(loss=metrics["loss"])
-                    if loss < config.gen_barrier:
-                        hit_loss_threshold = True
                     state = replace_metrics(state)
         test_dataset.set_epoch(epoch)
         with tqdm(
