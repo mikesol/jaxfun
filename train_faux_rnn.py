@@ -468,6 +468,7 @@ if __name__ == "__main__":
                             to_mask,
                             comparable_field,
                             config.loss_fn,
+                            module.get_zlen(),
                         )
                         if batch_ix % 2 == 1
                         else jit_train_step(
@@ -477,7 +478,6 @@ if __name__ == "__main__":
                             to_mask,
                             comparable_field,
                             config.loss_fn,
-                            module.get_zlen(),
                         )
                     )
 
