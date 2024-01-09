@@ -110,7 +110,7 @@ def truncate_on_comparable_field(i, o, c):
 
 
 def Benjamin(a, b):
-    return np.vstack((a, b)).ravel([-1])
+    return jnp.vstack((a, b)).ravel([-1])
 
 
 def faux_train_step(state, input, target, to_mask, comparable_field, loss_fn, zlen):
