@@ -233,10 +233,6 @@ maybe_unreplicate = fork_on_parallelism(lambda x: x, jax_utils.unreplicate)
 maybe_device_put = fork_on_parallelism(jax.device_put, lambda x, _: x)
 
 
-def mesh_sharding(pspec: PartitionSpec) -> NamedSharding:
-    return NamedSharding(mesh, pspec)
-
-
 if __name__ == "__main__":
     from get_files import FILES
 
@@ -304,6 +300,8 @@ if __name__ == "__main__":
     # _config["dilation"] = 2**0
     _config["mesh_x"] = device_len // 4
     _config["mesh_y"] = 4
+    _config["mesh_rnn_x"] = device_len
+    _config["mesh_rnn_y"] = 1
     _config["loss_fn"] = LossFn.LOGCOSH
     ###
     _config["gen_barrier"] = 0.001
@@ -316,14 +314,23 @@ if __name__ == "__main__":
     device_mesh = None
     mesh = None
     x_sharding = None
+    device_mesh_rnn = None
+    mesh_rnn = None
+    x_sharding_rnn = None
     state_sharding = None
-    old_state_sharding = None
+    state_sharding_rnn = None
     # messshhh
     if local_env.parallelism == Parallelism.SHARD:
         device_mesh = mesh_utils.create_device_mesh((config.mesh_x, config.mesh_y))
         mesh = Mesh(devices=device_mesh, axis_names=("data", "model"))
         print(mesh)
-        x_sharding = mesh_sharding(PartitionSpec("data", None))
+        x_sharding = NamedSharding(mesh, PartitionSpec("data", None))
+        device_mesh_rnn = mesh_utils.create_device_mesh(
+            (config.mesh_rnn_x, config.mesh_rnn_y)
+        )
+        mesh_rnn = Mesh(devices=device_mesh_rnn, axis_names=("data", "model"))
+        print(mesh_rnn)
+        x_sharding_rnn = NamedSharding(mesh_rnn, PartitionSpec("data", None))
     ###
 
     len_files = len(FILES)
@@ -384,13 +391,14 @@ if __name__ == "__main__":
         )
 
         state_sharding = nn.get_sharding(abstract_variables, mesh)
+        state_sharding_rnn = nn.get_sharding(abstract_variables, mesh_rnn)
 
     jit_create_train_state = fork_on_parallelism(
         partial(
             jax.jit,
             static_argnums=(2, 3, 4),
             in_shardings=(
-                mesh_sharding(None)
+                NamedSharding(mesh, None)
                 if local_env.parallelism == Parallelism.SHARD
                 else None,
                 x_sharding,
@@ -425,15 +433,15 @@ if __name__ == "__main__":
         ),
         partial(jax.pmap, static_broadcasted_argnums=(3, 4, 5)),
     )(train_step)
-    jit_faux_train_step = fork_on_parallelism(
+    jit_faux_train_gen_step = fork_on_parallelism(
         partial(
             jax.jit,
             static_argnums=(3, 4, 5),
-            in_shardings=(state_sharding, x_sharding, x_sharding),
-            out_shardings=(state_sharding, None),
+            in_shardings=(state_sharding_rnn, x_sharding_rnn, x_sharding_rnn),
+            out_shardings=(state_sharding_rnn, None),
         ),
         partial(jax.pmap, static_broadcasted_argnums=(3, 4, 5)),
-    )(faux_step(train_step, zlen))
+    )(faux_step(lambda _, x, *args: x, zlen))
 
     jit_compute_loss = fork_on_parallelism(
         partial(
@@ -487,13 +495,13 @@ if __name__ == "__main__":
                 )
                 if input.shape[0] == 0:
                     continue
-                input = maybe_device_put(input, x_sharding)
                 target = maybe_replicate(
                     trim_batch(jnp.array(batch["target"]), config.batch_size)
                 )
                 with fork_on_parallelism(mesh, nullcontext()):
-                    state, loss = (
-                        (jit_faux_train_step if batch_ix % 2 == 1 else jit_train_step)(
+                    if batch_ix % 2 == 1:
+                        input = maybe_device_put(input, x_sharding)
+                        state, loss = jit_train_step(
                             state,
                             input,
                             target,
@@ -501,10 +509,25 @@ if __name__ == "__main__":
                             comparable_field,
                             config.loss_fn,
                         )
-                    )
 
-                    state = add_losses_to_metrics(state=state, loss=loss)
+                        state = add_losses_to_metrics(state=state, loss=loss)
+                    else:
+                        # first, we use the faux rnn to generate a new input
+                        # this is done with a sharding that optimized for batches
+                        input = maybe_device_put(input, x_sharding_rnn)
+                        input = jit_faux_train_gen_step(state, input, target)
+                        # move to a different sharding and continue
+                        input = maybe_device_put(input, x_sharding)
+                        state, loss = jit_train_step(
+                            state,
+                            input,
+                            target,
+                            to_mask,
+                            comparable_field,
+                            config.loss_fn,
+                        )
 
+                        state = add_losses_to_metrics(state=state, loss=loss)
                 if batch_ix % config.step_freq == 0:
                     metrics = maybe_unreplicate(state.metrics).compute()
                     run.log_metrics({"train_loss": metrics["loss"]}, step=batch_ix)
