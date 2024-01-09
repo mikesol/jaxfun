@@ -12,20 +12,15 @@ maybe_partition = fork_on_parallelism(
     lambda x, y: nn.with_partitioning(x, y), lambda x, _: x
 )
 
-
 def c1d(o, k, s, d):
     return (s * (o - 1)) + 1 + (d * (k - 1))
 
 
-class ConvFauxCell(nn.Module):
+
+class ConvBase(nn.Module):
     depth: int = 2**4
-    channels: int = 2**6
     kernel_size: int = 7
-    norm_factor: float = 1.0
-    skip_freq: int = 1
-    inner_skip: bool = True
     sidechain_layers: Tuple[int] = ()
-    dilation_layers: Tuple[int] = ()
 
     def get_zlen(self):
         zlen = 1
@@ -37,6 +32,17 @@ class ConvFauxCell(nn.Module):
         # no dilation on the final bloc
         zlen = c1d(zlen, self.kernel_size * 2, 2, 1)
         return zlen
+
+
+class ConvFauxCell(ConvBase):
+    depth: int = 2**4
+    channels: int = 2**6
+    kernel_size: int = 7
+    norm_factor: float = 1.0
+    skip_freq: int = 1
+    inner_skip: bool = True
+    sidechain_layers: Tuple[int] = ()
+    dilation_layers: Tuple[int] = ()
 
     @nn.compact
     def __call__(self, foundry, ipt, is_first=True, train: bool = True):
@@ -115,7 +121,7 @@ class ConvFauxCell(nn.Module):
         return foundry[:, -foundry_len:, :], z
 
 
-class ConvFauxLarsen(nn.Module):
+class ConvFauxLarsen(ConvBase):
     depth: int = 2**4
     channels: int = 2**6
     kernel_size: int = 7
@@ -125,8 +131,6 @@ class ConvFauxLarsen(nn.Module):
     sidechain_layers: Tuple[int] = ()
     dilation_layers: Tuple[int] = ()
 
-    def get_zlen(self):
-        return self.cell.get_zlen()
 
     def setup(self):
         self.cell = ConvFauxCell(
