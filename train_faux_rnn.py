@@ -285,6 +285,7 @@ if __name__ == "__main__":
     _config["learning_rate"] = 1e-4
     _config["epochs"] = 2**7
     _config["window"] = 2**12
+    _config["gen_window"] = 2**10
     _config["inference_window"] = 2**17
     _config["stride"] = 2**8
     _config["step_freq"] = 50
@@ -482,25 +483,30 @@ if __name__ == "__main__":
             unit="batch",
         ) as loop:
             for batch_ix, batch in loop:
-                input = maybe_replicate(
-                    trim_batch(jnp.array(batch["input"]), config.batch_size)
-                )
+                should_use_gen = batch_ix % 2 == 1
+                input = trim_batch(jnp.array(batch["input"]), config.batch_size)
                 if input.shape[0] == 0:
                     continue
+                assert input.shape[1] == config.window * 2
+                assert target.shape[1] == config.window
+                if should_use_gen:
+                    input = input[:,-config.gen_window*2,:]
+                input = maybe_replicate(input)
                 input = maybe_device_put(input, x_sharding)
-                target = maybe_replicate(
-                    trim_batch(jnp.array(batch["target"]), config.batch_size)
-                )
+                target = trim_batch(jnp.array(batch["target"]), config.batch_size)
+                if should_use_gen:
+                    target = target[:,-config.gen_window,:]
+                target = maybe_replicate(target)
                 with fork_on_parallelism(mesh, nullcontext()):
                     state, loss = (
-                        (jit_faux_train_step if batch_ix % 2 == 1 else jit_train_step)(
-                            state,
-                            input,
-                            target,
-                            to_mask,
-                            comparable_field,
-                            config.loss_fn,
-                        )
+                        jit_faux_train_step if should_use_gen else jit_train_step
+                    )(
+                        state,
+                        input,
+                        target,
+                        to_mask,
+                        comparable_field,
+                        config.loss_fn,
                     )
 
                     state = add_losses_to_metrics(state=state, loss=loss)
