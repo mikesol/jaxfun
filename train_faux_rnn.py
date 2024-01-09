@@ -438,7 +438,7 @@ if __name__ == "__main__":
             jax.jit,
             static_argnums=(3, 4, 5),
             in_shardings=(state_sharding_rnn, x_sharding_rnn, x_sharding_rnn),
-            out_shardings=state_sharding_rnn,
+            out_shardings=(state_sharding_rnn, None),
         ),
         partial(jax.pmap, static_broadcasted_argnums=(3, 4, 5)),
     )(faux_step(lambda _, x, *args: x, zlen))
