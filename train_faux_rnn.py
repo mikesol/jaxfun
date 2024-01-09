@@ -279,8 +279,8 @@ if __name__ == "__main__":
     _config = {}
     # cnn
     _config["seed"] = 42
-    _config["inference_artifacts_per_batch_per_epoch"] = 2**2
     _config["batch_size"] = 2**5
+    _config["inference_artifacts_per_batch_per_epoch"] = _config["batch_size"] * 2
     _config["validation_split"] = 0.2
     _config["learning_rate"] = 1e-4
     _config["epochs"] = 2**7
@@ -489,13 +489,13 @@ if __name__ == "__main__":
                     continue
                 assert input.shape[1] == config.window * 2
                 if should_use_gen:
-                    input = input[:,-config.gen_window*2:,:]
+                    input = input[:, -config.gen_window * 2 :, :]
                 input = maybe_replicate(input)
                 input = maybe_device_put(input, x_sharding)
                 target = trim_batch(jnp.array(batch["target"]), config.batch_size)
                 assert target.shape[1] == config.window
                 if should_use_gen:
-                    target = target[:,-config.gen_window:,:]
+                    target = target[:, -config.gen_window :, :]
                 target = maybe_replicate(target)
                 with fork_on_parallelism(mesh, nullcontext()):
                     state, loss = (
@@ -572,9 +572,7 @@ if __name__ == "__main__":
                     config.inference_artifacts_per_batch_per_epoch
                 ).iter(batch_size=config.batch_size)
             ),
-            total=config.inference_artifacts_per_batch_per_epoch
-            if not epoch_is_0
-            else 2,
+            total=config.inference_artifacts_per_batch_per_epoch,
         ):
             input_ = trim_batch(jnp.array(batch["input"]), config.batch_size)
             if input_.shape[0] == 0:
