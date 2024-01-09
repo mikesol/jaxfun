@@ -1,6 +1,5 @@
 import os
 import GPUtil
-import truncate_if_odd
 from parallelism import Parallelism
 from contextlib import nullcontext
 import logging
@@ -579,7 +578,7 @@ if __name__ == "__main__":
             else 2,
         ):
             input_ = trim_batch(jnp.array(batch["input"]), config.batch_size)
-            if input.shape[0] == 0:
+            if input_.shape[0] == 0:
                 continue
             target_ = trim_batch(jnp.array(batch["input"]), config.batch_size)
             input = maybe_replicate(input_)
