@@ -244,7 +244,9 @@ def make_2d_data_with_delays_and_dilations(
 if __name__ == "__main__":
     from get_files import FILES
 
-    dataset, _ = make_2d_data(FILES[:1], 2**16, 2**8)# paths, window, stride, shift, dilation, channels
+    dataset, _ = make_2d_data(
+        FILES[:1], 2**16, 2**8
+    )  # paths, window, stride, shift, dilation, channels
     # dataset, _ = make_2d_data_with_delays_and_dilations(
     #     paths=FILES[:1],
     #     window=2**15,

@@ -5,7 +5,6 @@ from contextlib import nullcontext
 import logging
 from enum import Enum
 from fork_on_parallelism import fork_on_parallelism
-from data import Paul
 from fade_in import apply_fade_in
 
 # import logging
@@ -121,13 +120,18 @@ def create_train_state(rng: PRNGKey, x, module, tx, to_mask) -> TrainState:
 class LossFn(Enum):
     LOGCOSH = 1
     ESR = 2
-    LOGCOSH_RANGE= 3
+    LOGCOSH_RANGE = 3
+
 
 def Loss_fn_to_loss(loss_fn):
-    if loss_fn == LossFn.ESR: return ESRLoss
-    if loss_fn == LossFn.LOGCOSH: return LogCoshLoss
-    if loss_fn == LossFn.LOGCOSH_RANGE: return lambda x, y: LogCoshLoss(apply_fade_in(x),apply_fade_in(y))
+    if loss_fn == LossFn.ESR:
+        return ESRLoss
+    if loss_fn == LossFn.LOGCOSH:
+        return LogCoshLoss
+    if loss_fn == LossFn.LOGCOSH_RANGE:
+        return lambda x, y: LogCoshLoss(apply_fade_in(x), apply_fade_in(y))
     raise ValueError("What function?")
+
 
 def truncate_on_comparable_field(i, o, c):
     if c is None or c <= 0:
@@ -299,8 +303,8 @@ if __name__ == "__main__":
     _config["test_size"] = 0.1
     _config["channels"] = 2**6
     _config["depth"] = 2**4
-    _config["sidechain_layers"] = () # tuple([x for x in range(2, _config["depth"], 2)])
-    _config["dilation_layers"] = tuple([x for x in range(1, _config["depth"], 1)]) # tuple([x for x in range(1, _config["depth"], 2)])
+    _config["sidechain_layers"] = tuple([x for x in range(2, _config["depth"], 2)])
+    _config["dilation_layers"] = tuple([x for x in range(1, _config["depth"], 2)])
     _config["do_progressive_masking"] = False
     _config["to_mask"] = 0
     _config["comparable_field"] = None  # _config["to_mask"] // 2
@@ -312,7 +316,8 @@ if __name__ == "__main__":
     # _config["dilation"] = 2**0
     _config["mesh_x"] = device_len // 2
     _config["mesh_y"] = 2
-    _config["loss_fn"] = LossFn.LOGCOSH
+    _config["loss_fn_ideal"] = LossFn.LOGCOSH
+    _config["loss_fn_actual"] = LossFn.LOGCOSH_RANGE
     ###
     _config["gen_barrier"] = 0.001
     ###
@@ -513,7 +518,9 @@ if __name__ == "__main__":
                         target,
                         to_mask,
                         comparable_field,
-                        config.loss_fn,
+                        config.loss_fn_actual
+                        if should_use_gen
+                        else config.loss_fn_ideal,
                     )
 
                     state = add_losses_to_metrics(state=state, loss=loss)
@@ -544,7 +551,7 @@ if __name__ == "__main__":
                     trim_batch(jnp.array(batch["target"]), config.batch_size)
                 )
                 loss = jit_compute_loss(
-                    state, input, target, to_mask, comparable_field, config.loss_fn
+                    state, input, target, to_mask, comparable_field, config.loss_fn_ideal
                 )
                 loop.set_postfix(loss=loss)
                 state = add_losses_to_metrics(state=state, loss=loss)
