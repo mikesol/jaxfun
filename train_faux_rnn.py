@@ -414,7 +414,7 @@ if __name__ == "__main__":
         tx,
         config.to_mask,
     )
-    zlen = module.get_zlen(),
+    zlen = module.get_zlen()
 
     jit_train_step = fork_on_parallelism(
         partial(
