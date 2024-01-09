@@ -292,8 +292,8 @@ if __name__ == "__main__":
     _config["test_size"] = 0.1
     _config["channels"] = 2**6
     _config["depth"] = 2**4
-    _config["sidechain_layers"] = tuple([x for x in range(2, _config["depth"], 2)])
-    _config["dilation_layers"] = tuple([x for x in range(1, _config["depth"], 2)])
+    _config["sidechain_layers"] = () # tuple([x for x in range(2, _config["depth"], 2)])
+    _config["dilation_layers"] = tuple([x for x in range(1, _config["depth"], 1)]) # tuple([x for x in range(1, _config["depth"], 2)])
     _config["do_progressive_masking"] = False
     _config["to_mask"] = 0
     _config["comparable_field"] = None  # _config["to_mask"] // 2
