@@ -3,6 +3,7 @@ import librosa
 import numpy as np
 from functools import partial
 import wave
+import soundfile
 
 
 ### copied from feeeeedback
@@ -243,17 +244,19 @@ def make_2d_data_with_delays_and_dilations(
 if __name__ == "__main__":
     from get_files import FILES
 
-    # dataset, _ = make_2d_data(FILES[:1], 2**16, 2**8)paths, window, stride, shift, dilation, channels
-    dataset, _ = make_2d_data_with_delays_and_dilations(
-        paths=FILES[:1],
-        window=2**12,
-        stride=2**8,
-        shift=16,
-        dilation=1,
-        channels=2**3,
-        feature_dim=-1,
-    )
+    dataset, _ = make_2d_data(FILES[:1], 2**16, 2**8)# paths, window, stride, shift, dilation, channels
+    # dataset, _ = make_2d_data_with_delays_and_dilations(
+    #     paths=FILES[:1],
+    #     window=2**15,
+    #     stride=2**8,
+    #     shift=16,
+    #     dilation=1,
+    #     channels=2**3,
+    #     feature_dim=-1,
+    # )
     batch = next(dataset.iter(8, drop_last_batch=True))
     i = np.array(batch["input"])
     o = np.array(batch["target"])
     assert i.shape[1] == o.shape[1] * 2
+    soundfile.write("/tmp/ipt.wav", i[0], 44100)
+    soundfile.write("/tmp/opt.wav", o[0], 44100)

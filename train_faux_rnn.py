@@ -577,7 +577,7 @@ if __name__ == "__main__":
             input_ = trim_batch(jnp.array(batch["input"]), config.batch_size)
             if input_.shape[0] == 0:
                 continue
-            target_ = trim_batch(jnp.array(batch["input"]), config.batch_size)
+            target_ = trim_batch(jnp.array(batch["target"]), config.batch_size)
             input = maybe_replicate(input_)
             input = maybe_device_put(input, x_sharding)
             logging.warning(f"input shape for inference is is {input.shape}")
