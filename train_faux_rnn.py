@@ -120,14 +120,14 @@ def faux_train_step(state, input, target, to_mask, comparable_field, loss_fn, zl
         to_mask=seq_len,
         mutable=["batch_stats"],
     )
-    new_input = jnp.transpose(
+    new_input = jnp.expand_dims(
         Paul(
-            jnp.transpose(
-                input[:, ::2, :][:, -(trained_output.shape[1] - 1) :, :], (0, 2, 1)
+            jnp.squeeze(
+                input[:, ::2, :][:, -(trained_output.shape[1] - 1) :, :], axis=-1
             ),
-            jnp.transpose(trained_output[:, :-1, :], (0, 2, 1)),
+            jnp.squeeze(trained_output[:, :-1, :], axis=-1),
         ),
-        (0, 2, 1),
+        axis=-1,
     )
     return train_step(
         state,
