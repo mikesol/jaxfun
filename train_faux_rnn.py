@@ -6,6 +6,7 @@ import logging
 from enum import Enum
 from fork_on_parallelism import fork_on_parallelism
 from data import Paul
+from fade_in import apply_fade_in
 
 # import logging
 # logging.basicConfig(level=logging.INFO)
@@ -120,7 +121,13 @@ def create_train_state(rng: PRNGKey, x, module, tx, to_mask) -> TrainState:
 class LossFn(Enum):
     LOGCOSH = 1
     ESR = 2
+    LOGCOSH_RANGE= 3
 
+def Loss_fn_to_loss(loss_fn):
+    if loss_fn == LossFn.ESR: return ESRLoss
+    if loss_fn == LossFn.LOGCOSH: return LogCoshLoss
+    if loss_fn == LossFn.LOGCOSH_RANGE: return lambda x, y: LogCoshLoss(apply_fade_in(x),apply_fade_in(y))
+    raise ValueError("What function?")
 
 def truncate_on_comparable_field(i, o, c):
     if c is None or c <= 0:
@@ -175,7 +182,7 @@ def train_step(state, input, target, to_mask, comparable_field, loss_fn):
             to_mask=to_mask,
             mutable=["batch_stats"],
         )
-        loss = (ESRLoss if loss_fn == LossFn.ESR else LogCoshLoss)(
+        loss = (Loss_fn_to_loss(loss_fn))(
             *truncate_on_comparable_field(pred, target, comparable_field)
         )
         return loss, updates
@@ -213,7 +220,7 @@ def compute_loss(state, input, target, to_mask, comparable_field, loss_fn):
         to_mask=to_mask,
         mutable=["batch_stats"],
     )
-    loss = (ESRLoss if loss_fn == LossFn.ESR else LogCoshLoss)(
+    loss = (Loss_fn_to_loss(loss_fn))(
         *truncate_on_comparable_field(pred, target, comparable_field)
     )
     return loss
