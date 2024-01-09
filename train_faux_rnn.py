@@ -109,9 +109,12 @@ def truncate_on_comparable_field(i, o, c):
     )
 
 
-def bhanukiran(a, b):
-    return jnp.dstack((a, b)).flatten()
-
+def interleave_jax(input_array, trained_output):
+    input_expanded = jnp.expand_dims(input_array, axis=3)
+    trained_output_expanded = jnp.expand_dims(trained_output, axis=3) 
+    concatenated = jnp.concatenate([input_expanded, trained_output_expanded], axis=3) 
+    interleaved = concatenated.reshape(trained_output.shape[0], input_array.shape[1] + trained_output.shape[1], trained_output.shape[2]) 
+    return interleaved
 
 def faux_train_step(state, input, target, to_mask, comparable_field, loss_fn, zlen):
     seq_len = input.shape[1]
@@ -125,7 +128,7 @@ def faux_train_step(state, input, target, to_mask, comparable_field, loss_fn, zl
         mutable=["batch_stats"],
     )
     new_input = jnp.expand_dims(
-        bhanukiran(
+        interleave_jax(
             jnp.squeeze(
                 input[:, ::2, :][:, -(trained_output.shape[1] - 1) :, :], axis=-1
             ),
