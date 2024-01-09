@@ -514,7 +514,7 @@ if __name__ == "__main__":
                         # first, we use the faux rnn to generate a new input
                         # this is done with a sharding that optimized for batches
                         input = maybe_device_put(input, x_sharding_rnn)
-                        print("SHARDING", jax.debug.inspect_array_sharding(input, callback=print))
+                        print("SHARDING", jax.debug.inspect_array_sharding(input))
                         input = jit_faux_train_gen_step(state, input)
                         # move to a different sharding and continue
                         input = maybe_device_put(input, x_sharding)
