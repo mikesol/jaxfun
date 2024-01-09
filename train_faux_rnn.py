@@ -453,7 +453,7 @@ if __name__ == "__main__":
     for epoch in range(config.epochs):
         # ugggh
         epoch_is_0 = epoch == 0
-        to_take_in_0_epoch = 204
+        to_take_in_0_epoch = 104
         train_dataset = (
             proto_train_dataset
             if not epoch_is_0
