@@ -156,7 +156,7 @@ class ConvFauxLarsen(ConvBase):
         foundry = x_masked
         if foundry.shape[1] < self.get_zlen():
             raise ValueError(
-                f"Input sequence length {foundry.shape[1]} is too short for the model: {self.get_zlen()}"
+                f"Input sequence length {foundry.shape[1]} is too short for the model: {self.get_zlen()} {to_mask} {x.shape[1]}"
             )
         z = x_masked
         z0 = None
