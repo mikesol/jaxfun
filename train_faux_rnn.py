@@ -489,13 +489,13 @@ if __name__ == "__main__":
                     continue
                 assert input.shape[1] == config.window * 2
                 if should_use_gen:
-                    input = input[:,-config.gen_window*2,:]
+                    input = input[:,-config.gen_window*2:,:]
                 input = maybe_replicate(input)
                 input = maybe_device_put(input, x_sharding)
                 target = trim_batch(jnp.array(batch["target"]), config.batch_size)
                 assert target.shape[1] == config.window
                 if should_use_gen:
-                    target = target[:,-config.gen_window,:]
+                    target = target[:,-config.gen_window:,:]
                 target = maybe_replicate(target)
                 with fork_on_parallelism(mesh, nullcontext()):
                     state, loss = (
