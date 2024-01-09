@@ -133,6 +133,9 @@ def faux_train_step(state, input, target, to_mask, comparable_field, loss_fn, zl
         ),
         axis=-1,
     )
+    logging.warning(
+        f"new_input shape is {new_input.shape}, input shape is {input.shape}, trained_output shape is {trained_output.shape}, to_mask {to_mask}"
+    )
     return train_step(
         state,
         jax.lax.stop_gradient(new_input),
