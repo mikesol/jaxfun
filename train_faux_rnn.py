@@ -186,7 +186,7 @@ def train_step(state, input, target, to_mask, comparable_field, loss_fn):
             to_mask=to_mask,
             mutable=["batch_stats"],
         )
-        print("TO MASK" ,to_mask, "LOSS", loss_fn)
+        logging.warn(f"TO MASK {to_mask} LOSS {loss_fn}")
         loss = (Loss_fn_to_loss(loss_fn))(
             *truncate_on_comparable_field(pred, target, comparable_field)
         )
