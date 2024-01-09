@@ -175,7 +175,7 @@ def faux_step(fn, zlen):
     return _o
 
 
-def train_step(state, input, target, to_mask, comparable_field, loss_fn):
+def train_step(state, input, target, to_mask, comparable_field, lossy_loss_loss):
     """Train for a single step."""
 
     def loss_fn(params):
@@ -186,8 +186,7 @@ def train_step(state, input, target, to_mask, comparable_field, loss_fn):
             to_mask=to_mask,
             mutable=["batch_stats"],
         )
-        logging.warn(f"TO MASK {to_mask} LOSS {loss_fn}")
-        loss = (Loss_fn_to_loss(loss_fn))(
+        loss = (Loss_fn_to_loss(lossy_loss_loss))(
             *truncate_on_comparable_field(pred, target, comparable_field)
         )
         return loss, updates
@@ -217,7 +216,7 @@ def do_inference(state, input, to_mask):
 replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
 
 
-def compute_loss(state, input, target, to_mask, comparable_field, loss_fn):
+def compute_loss(state, input, target, to_mask, comparable_field, lossy_loss_loss):
     pred, _ = state.apply_fn(
         {"params": state.params, "batch_stats": state.batch_stats},
         input,
@@ -225,7 +224,7 @@ def compute_loss(state, input, target, to_mask, comparable_field, loss_fn):
         to_mask=to_mask,
         mutable=["batch_stats"],
     )
-    loss = (Loss_fn_to_loss(loss_fn))(
+    loss = (Loss_fn_to_loss(lossy_loss_loss))(
         *truncate_on_comparable_field(pred, target, comparable_field)
     )
     return loss
