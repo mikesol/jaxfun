@@ -109,8 +109,8 @@ def truncate_on_comparable_field(i, o, c):
     )
 
 
-def Benjamin(a, b):
-    return jnp.vstack((a, b)).ravel([-1])
+def bhanukiran(a, b):
+    return jnp.dstack((a, b)).flatten()
 
 
 def faux_train_step(state, input, target, to_mask, comparable_field, loss_fn, zlen):
@@ -125,7 +125,7 @@ def faux_train_step(state, input, target, to_mask, comparable_field, loss_fn, zl
         mutable=["batch_stats"],
     )
     new_input = jnp.expand_dims(
-        Benjamin(
+        bhanukiran(
             jnp.squeeze(
                 input[:, ::2, :][:, -(trained_output.shape[1] - 1) :, :], axis=-1
             ),
