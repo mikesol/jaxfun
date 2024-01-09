@@ -6,6 +6,7 @@ from contextlib import nullcontext
 import logging
 from enum import Enum
 from fork_on_parallelism import fork_on_parallelism
+from data import Paul
 
 # import logging
 # logging.basicConfig(level=logging.INFO)
@@ -40,18 +41,6 @@ from jax.sharding import Mesh, PartitionSpec, NamedSharding
 from jax.lax import with_sharding_constraint
 from jax.experimental import mesh_utils
 
-logging.basicConfig(level=logging.WARN)
-logging.warn("logging works")
-if local_env.parallelism == Parallelism.PMAP:
-    if local_env.do_manual_parallelism_setup:
-        jax.distributed.initialize(
-            coordinator_address=local_env.coordinator_address,
-            num_processes=local_env.num_processes,
-            process_id=local_env.process_id,
-        )
-    else:
-        jax.distributed.initialize()
-
 
 def LogCoshLoss(input, target, a=1.0, eps=1e-8):
     losses = jnp.mean((1 / a) * jnp.log(jnp.cosh(a * (input - target)) + eps), axis=-2)
@@ -68,37 +57,14 @@ def ESRLoss(input, target):
     return losses
 
 
-checkpoint_dir = "/tmp/flax_ckpt/orbax/managed"
-
-if os.path.exists(checkpoint_dir):
-    raise ValueError(f"clear checkpoint dir first: {checkpoint_dir}")
-else:
-    os.makedirs(checkpoint_dir)
-
-orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
-options = orbax.checkpoint.CheckpointManagerOptions(max_to_keep=2, create=True)
-checkpoint_manager = orbax.checkpoint.CheckpointManager(
-    checkpoint_dir, orbax_checkpointer, options
-)
-
-
 def checkpoint_walker(ckpt):
     def _cmp(i):
-        # logging.warning(f"considering {type(i)}")
-        # if type(i) == type(jnp.ones((1, 1))):
-        #     logging.warning(
-        #         f"info for type {i.is_fully_addressable} {i.is_fully_replicated} {i.shape} {i.sharding}"
-        #     )
         try:
-            # orbax.checkpoint.utils.fully_replicated_host_local_array_to_global_array
             o = jax.device_get(i)
-            # logging.warning("found a fully replicated local array")
             return o
         except Exception as e:
-            # logging.warning(f"could not make global {e}")
             return i
 
-    # logging.warning("attempting treemap")
     return jax.tree_map(_cmp, ckpt)
 
 
@@ -140,6 +106,36 @@ def truncate_on_comparable_field(i, o, c):
     return (
         i[:, -c:, :],
         o[:, -c:, :],
+    )
+
+
+def faux_train_step(state, input, target, to_mask, comparable_field, loss_fn, zlen):
+    seq_len = input.shape[1]
+    input = jnp.pad(input, ((0, 0), (zlen, 0), (0, 0)))
+
+    trained_output = state.apply_fn(
+        {"params": state.params, "batch_stats": state.batch_stats},
+        input,
+        train=True,
+        to_mask=seq_len,
+        mutable=["batch_stats"],
+    )
+    new_input = jnp.transpose(
+        Paul(
+            jnp.transpose(
+                input[:, ::2, :][:, -(trained_output.shape[1] - 1) :, :], (0, 2, 1)
+            ),
+            jnp.transpose(trained_output[:, :-1, :], (0, 2, 1)),
+        ),
+        (0, 2, 1),
+    )
+    return train_step(
+        state,
+        jax.lax.stop_gradient(new_input),
+        target,
+        to_mask,
+        comparable_field,
+        loss_fn,
     )
 
 
@@ -219,6 +215,31 @@ def mesh_sharding(pspec: PartitionSpec) -> NamedSharding:
 if __name__ == "__main__":
     from get_files import FILES
 
+    logging.basicConfig(level=logging.WARN)
+    logging.warn("logging works")
+    if local_env.parallelism == Parallelism.PMAP:
+        if local_env.do_manual_parallelism_setup:
+            jax.distributed.initialize(
+                coordinator_address=local_env.coordinator_address,
+                num_processes=local_env.num_processes,
+                process_id=local_env.process_id,
+            )
+        else:
+            jax.distributed.initialize()
+
+    checkpoint_dir = "/tmp/flax_ckpt/orbax/managed"
+
+    if os.path.exists(checkpoint_dir):
+        raise ValueError(f"clear checkpoint dir first: {checkpoint_dir}")
+    else:
+        os.makedirs(checkpoint_dir)
+
+    orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
+    options = orbax.checkpoint.CheckpointManagerOptions(max_to_keep=2, create=True)
+    checkpoint_manager = orbax.checkpoint.CheckpointManager(
+        checkpoint_dir, orbax_checkpointer, options
+    )
+
     device_len = len(jax.devices())
 
     print(f"Using {device_len} devices")
@@ -259,6 +280,9 @@ if __name__ == "__main__":
     _config["mesh_x"] = 2
     _config["mesh_y"] = device_len // _config["mesh_x"]
     _config["loss_fn"] = LossFn.LOGCOSH
+    ###
+    _config["gen_barrier"] = 0.001
+    ###
     run.log_parameters(_config)
     if local_env.parallelism == Parallelism.PMAP:
         run.log_parameter("run_id", sys.argv[1])
@@ -375,6 +399,15 @@ if __name__ == "__main__":
         ),
         partial(jax.pmap, static_broadcasted_argnums=(3, 4, 5)),
     )(train_step)
+    jit_faux_train_step = fork_on_parallelism(
+        partial(
+            jax.jit,
+            static_argnums=(3, 4, 5, 6),
+            in_shardings=(state_sharding, x_sharding, x_sharding),
+            out_shardings=(state_sharding, None),
+        ),
+        partial(jax.pmap, static_broadcasted_argnums=(3, 4, 5, 6)),
+    )(faux_train_step)
 
     jit_compute_loss = fork_on_parallelism(
         partial(
@@ -408,15 +441,20 @@ if __name__ == "__main__":
             else proto_inference_dataset.take(config.batch_size * to_take_in_0_epoch)
         )
 
+        hit_loss_threshold = False
+
         # log the epoch
         run.log_current_epoch(epoch)
         train_dataset.set_epoch(epoch)
+
         # train
         with tqdm(
             enumerate(
                 train_dataset.iter(batch_size=config.batch_size, drop_last_batch=True)
             ),
-            total=(train_dataset_total // config.batch_size) if not epoch_is_0 else to_take_in_0_epoch,
+            total=(train_dataset_total // config.batch_size)
+            if not epoch_is_0
+            else to_take_in_0_epoch,
             unit="batch",
         ) as loop:
             for batch_ix, batch in loop:
@@ -424,23 +462,45 @@ if __name__ == "__main__":
                 input = maybe_device_put(input, x_sharding)
                 target = maybe_replicate(jnp.array(batch["target"]))
                 with fork_on_parallelism(mesh, nullcontext()):
-                    state, loss = jit_train_step(
-                        state, input, target, to_mask, comparable_field, config.loss_fn
+                    state, loss = (
+                        jit_faux_train_step(
+                            state,
+                            input,
+                            target,
+                            to_mask,
+                            comparable_field,
+                            config.loss_fn,
+                        )
+                        if (batch_ix % 2 == 1) and hit_loss_threshold
+                        else jit_train_step(
+                            state,
+                            input,
+                            target,
+                            to_mask,
+                            comparable_field,
+                            config.loss_fn,
+                            module.get_zlen(),
+                        )
                     )
+
                     state = add_losses_to_metrics(state=state, loss=loss)
 
                 if batch_ix % config.step_freq == 0:
                     metrics = maybe_unreplicate(state.metrics).compute()
                     run.log_metrics({"train_loss": metrics["loss"]}, step=batch_ix)
                     loop.set_postfix(loss=metrics["loss"])
+                    if loss < config.gen_barrier:
+                        hit_loss_threshold = True
                     state = replace_metrics(state)
         test_dataset.set_epoch(epoch)
         with tqdm(
             enumerate(
                 test_dataset.iter(batch_size=config.batch_size, drop_last_batch=True)
             ),
-            total=(test_dataset_total // config.batch_size) if not epoch_is_0 else to_take_in_0_epoch,
-            unit="batch"
+            total=(test_dataset_total // config.batch_size)
+            if not epoch_is_0
+            else to_take_in_0_epoch,
+            unit="batch",
         ) as loop:
             for batch_ix, batch in loop:
                 input = maybe_replicate(jnp.array(batch["input"]))

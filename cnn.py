@@ -124,13 +124,8 @@ class ConvFauxLarsen(nn.Module):
     sidechain_layers: tuple[int] = ()
     dilation_layers: tuple[int] = ()
 
-    # ugh, code dup
     def get_zlen(self):
-        zlen = 1
-        for _ in range(self.depth - 1):
-            zlen = c1d(zlen, self.kernel_size, 1)
-        zlen = c1d(zlen, self.kernel_size * 2, 2)
-        return zlen
+        return self.cell.get_zlen()
 
     def setup(self):
         self.cell = ConvFauxCell(
@@ -145,7 +140,7 @@ class ConvFauxLarsen(nn.Module):
         )
 
     def __call__(self, x, train: bool = True, to_mask: int = None):
-        if (to_mask >= x.shape[1]) or (type(to_mask) == type((1, 2))):
+        if (to_mask > x.shape[1]) or (type(to_mask) == type((1, 2))):
             # from a bug during training
             raise ValueError(
                 f"to_mask must be less than the input sequence length: {x.shape[1]} vs {to_mask}"
@@ -154,11 +149,17 @@ class ConvFauxLarsen(nn.Module):
         x_masked = x[:, : -(to_mask * 2), :] if to_mask > 0 else x
         x_final = x[:, -(to_mask * 2) :: 2, :] if to_mask > 0 else []
         foundry = x_masked
+        if foundry.shape[1] < self.get_zlen():
+            raise ValueError(
+                f"Input sequence length {foundry.shape[1]} is too short for the model: {self.get_zlen()}"
+            )
         z = x_masked
-        foundry, z0 = self.cell(foundry, z, is_first=True, train=train)
+        z0 = None
+        if to_mask < x.shape[1]:
+            foundry, z0 = self.cell(foundry, z, is_first=True, train=train)
 
-        if to_mask <= 0:
-            return z0
+            if to_mask <= 0:
+                return z0
 
         def body_fn(cell, carry, x):
             carry, y = cell(carry, x, is_first=False, train=train)

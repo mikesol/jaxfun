@@ -88,6 +88,7 @@ def audio_gen(pair, window, stride, normalize=True):
 
 
 def Paul(a, b):
+    assert a.shape[-1] == b.shape[-1]
     c = np.empty(
         (
             *a.shape[:-1],
