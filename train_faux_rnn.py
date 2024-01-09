@@ -117,7 +117,7 @@ def faux_train_step(state, input, target, to_mask, comparable_field, loss_fn, zl
         {"params": state.params, "batch_stats": state.batch_stats},
         input,
         train=True,
-        to_mask=seq_len,
+        to_mask=seq_len // 2,
         mutable=["batch_stats"],
     )
     new_input = jnp.expand_dims(
