@@ -113,7 +113,7 @@ def faux_train_step(state, input, target, to_mask, comparable_field, loss_fn, zl
     seq_len = input.shape[1]
     input = jnp.pad(input, ((0, 0), (zlen, 0), (0, 0)))
 
-    trained_output = state.apply_fn(
+    trained_output, _ = state.apply_fn(
         {"params": state.params, "batch_stats": state.batch_stats},
         input,
         train=True,
