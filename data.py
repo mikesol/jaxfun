@@ -3,7 +3,6 @@ import librosa
 import numpy as np
 from functools import partial
 import wave
-import jax.numpy as jnp
 
 
 ### copied from feeeeedback
@@ -88,9 +87,9 @@ def audio_gen(pair, window, stride, normalize=True):
     return _audio_gen
 
 
-def Paul(a, b, use_np=True):
+def Paul(a, b):
     assert a.shape[-1] == b.shape[-1]
-    c = (np if use_np else jnp).empty(
+    c = np.empty(
         (
             *a.shape[:-1],
             a.shape[-1] + b.shape[-1],
