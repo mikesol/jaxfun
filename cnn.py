@@ -2,6 +2,7 @@ import flax.linen as nn
 import jax.numpy as jnp
 import jax
 import math
+from typing import Tuple
 from flax.linen import initializers
 from cnn_attn import ConvblockNofrills
 from fork_on_parallelism import fork_on_parallelism
@@ -23,8 +24,8 @@ class ConvFauxCell(nn.Module):
     norm_factor: float = 1.0
     skip_freq: int = 1
     inner_skip: bool = True
-    sidechain_layers: tuple[int] = ()
-    dilation_layers: tuple[int] = ()
+    sidechain_layers: Tuple[int] = ()
+    dilation_layers: Tuple[int] = ()
 
     def get_zlen(self):
         zlen = 1
@@ -121,8 +122,8 @@ class ConvFauxLarsen(nn.Module):
     norm_factor: float = 1.0
     skip_freq: int = 1
     inner_skip: bool = True
-    sidechain_layers: tuple[int] = ()
-    dilation_layers: tuple[int] = ()
+    sidechain_layers: Tuple[int] = ()
+    dilation_layers: Tuple[int] = ()
 
     def get_zlen(self):
         return self.cell.get_zlen()
