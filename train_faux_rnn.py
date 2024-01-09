@@ -143,29 +143,25 @@ def interleave_jax(input_array, trained_output):
     return interleaved
 
 
-def faux_train_step(state, input, target, to_mask, comparable_field, loss_fn, zlen):
-    seq_len = input.shape[1]
-    input = jnp.pad(input, ((0, 0), (zlen, 0), (0, 0)))
+def faux_step(fn):
+    def _o(state, input, target, zlen, *args):
+        seq_len = input.shape[1]
+        input = jnp.pad(input, ((0, 0), (zlen, 0), (0, 0)))
 
-    trained_output, _ = state.apply_fn(
-        {"params": state.params, "batch_stats": state.batch_stats},
-        input,
-        train=True,
-        to_mask=seq_len // 2,
-        mutable=["batch_stats"],
-    )
-    new_input = interleave_jax(
-        input[:, ::2, :][:, -(trained_output.shape[1] - 1) :, :],
-        trained_output[:, :-1, :],
-    )
-    return train_step(
-        state,
-        jax.lax.stop_gradient(new_input),
-        target,
-        to_mask,
-        comparable_field,
-        loss_fn,
-    )
+        trained_output, _ = state.apply_fn(
+            {"params": state.params, "batch_stats": state.batch_stats},
+            input,
+            train=True,
+            to_mask=seq_len // 2,
+            mutable=["batch_stats"],
+        )
+        new_input = interleave_jax(
+            input[:, ::2, :][:, -(trained_output.shape[1] - 1) :, :],
+            trained_output[:, :-1, :],
+        )
+        return fn(state, jax.lax.stop_gradient(new_input), target, *args)
+
+    return _o
 
 
 def train_step(state, input, target, to_mask, comparable_field, loss_fn):
@@ -436,7 +432,7 @@ if __name__ == "__main__":
             out_shardings=(state_sharding, None),
         ),
         partial(jax.pmap, static_broadcasted_argnums=(3, 4, 5, 6)),
-    )(faux_train_step)
+    )(faux_step(train_step))
 
     jit_compute_loss = fork_on_parallelism(
         partial(
@@ -491,17 +487,19 @@ if __name__ == "__main__":
                 if input.shape[0] == 0:
                     continue
                 input = maybe_device_put(input, x_sharding)
-                target = maybe_replicate(trim_batch(jnp.array(batch["target"]), config.batch_size))
+                target = maybe_replicate(
+                    trim_batch(jnp.array(batch["target"]), config.batch_size)
+                )
                 with fork_on_parallelism(mesh, nullcontext()):
                     state, loss = (
                         jit_faux_train_step(
                             state,
                             input,
                             target,
+                            module.get_zlen(),
                             to_mask,
                             comparable_field,
                             config.loss_fn,
-                            module.get_zlen(),
                         )
                         if batch_ix % 2 == 1
                         else jit_train_step(
@@ -532,11 +530,15 @@ if __name__ == "__main__":
             unit="batch",
         ) as loop:
             for batch_ix, batch in loop:
-                input = maybe_replicate(trim_batch(jnp.array(batch["input"]), config.batch_size))
+                input = maybe_replicate(
+                    trim_batch(jnp.array(batch["input"]), config.batch_size)
+                )
                 if input.shape[0] == 0:
                     continue
                 input = maybe_device_put(input, x_sharding)
-                target = maybe_replicate(trim_batch(jnp.array(batch["target"]), config.batch_size))
+                target = maybe_replicate(
+                    trim_batch(jnp.array(batch["target"]), config.batch_size)
+                )
                 loss = jit_compute_loss(
                     state, input, target, to_mask, comparable_field, config.loss_fn
                 )
@@ -593,8 +595,20 @@ if __name__ == "__main__":
                 ),
                 partial(jax.pmap, static_broadcasted_argnums=(2,)),
             )(do_inference)
+            jit_faux_do_inference = fork_on_parallelism(
+                partial(
+                    jax.jit,
+                    static_argnums=(2,),
+                    in_shardings=(state_sharding, x_sharding),
+                    out_shardings=x_sharding,
+                ),
+                partial(jax.pmap, static_broadcasted_argnums=(2,)),
+            )(faux_step(do_inference))
+
             o = jit_do_inference(ckpt_model, input, config.to_mask)
             o = maybe_unreplicate(o)
+            ofaux = jit_faux_do_inference(ckpt_model, input, config.to_mask)
+            ofaux = maybe_unreplicate(ofaux)
             # logging.info(f"shape of batch is {input.shape}")
 
             for i in range(o.shape[0]):
@@ -603,7 +617,14 @@ if __name__ == "__main__":
                     audy,
                     sample_rate=44100,
                     step=batch_ix,
-                    file_name=f"audio_{epoch}_{batch_ix}_{i}_prediction.wav",
+                    file_name=f"audio_{epoch}_{batch_ix}_{i}_ideal_prediction.wav",
+                )
+                audy = np.squeeze(np.array(ofaux[i]))
+                run.log_audio(
+                    audy,
+                    sample_rate=44100,
+                    step=batch_ix,
+                    file_name=f"audio_{epoch}_{batch_ix}_{i}_actual_prediction.wav",
                 )
                 audy = np.squeeze(np.array(input_[i]))
                 run.log_audio(
