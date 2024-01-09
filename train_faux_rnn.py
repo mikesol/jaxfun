@@ -126,7 +126,7 @@ def faux_train_step(state, input, target, to_mask, comparable_field, loss_fn, zl
                 input[:, ::2, :][:, -(trained_output.shape[1] - 1) :, :], axis=-1
             ),
             jnp.squeeze(trained_output[:, :-1, :], axis=-1),
-        ),
+        use_np=False),
         axis=-1,
     )
     return train_step(
