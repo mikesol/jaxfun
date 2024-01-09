@@ -12,9 +12,9 @@ maybe_partition = fork_on_parallelism(
     lambda x, y: nn.with_partitioning(x, y), lambda x, _: x
 )
 
+
 def c1d(o, k, s, d):
     return (s * (o - 1)) + 1 + (d * (k - 1))
-
 
 
 class ConvBase(nn.Module):
@@ -130,7 +130,6 @@ class ConvFauxLarsen(ConvBase):
     inner_skip: bool = True
     sidechain_layers: Tuple[int] = ()
     dilation_layers: Tuple[int] = ()
-
 
     def setup(self):
         self.cell = ConvFauxCell(
