@@ -130,7 +130,7 @@ def Loss_fn_to_loss(loss_fn):
         return LogCoshLoss
     if loss_fn == LossFn.LOGCOSH_RANGE:
         return lambda x, y: LogCoshLoss(apply_fade_in(x), apply_fade_in(y))
-    raise ValueError("What function?")
+    raise ValueError(f"What function? {loss_fn}")
 
 
 def truncate_on_comparable_field(i, o, c):
