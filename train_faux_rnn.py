@@ -111,10 +111,15 @@ def truncate_on_comparable_field(i, o, c):
 
 def interleave_jax(input_array, trained_output):
     input_expanded = jnp.expand_dims(input_array, axis=3)
-    trained_output_expanded = jnp.expand_dims(trained_output, axis=3) 
-    concatenated = jnp.concatenate([input_expanded, trained_output_expanded], axis=3) 
-    interleaved = concatenated.reshape(trained_output.shape[0], input_array.shape[1] + trained_output.shape[1], trained_output.shape[2]) 
+    trained_output_expanded = jnp.expand_dims(trained_output, axis=3)
+    concatenated = jnp.concatenate([input_expanded, trained_output_expanded], axis=3)
+    interleaved = concatenated.reshape(
+        trained_output.shape[0],
+        input_array.shape[1] + trained_output.shape[1],
+        trained_output.shape[2],
+    )
     return interleaved
+
 
 def faux_train_step(state, input, target, to_mask, comparable_field, loss_fn, zlen):
     seq_len = input.shape[1]
@@ -127,17 +132,9 @@ def faux_train_step(state, input, target, to_mask, comparable_field, loss_fn, zl
         to_mask=seq_len // 2,
         mutable=["batch_stats"],
     )
-    new_input = jnp.expand_dims(
-        interleave_jax(
-            jnp.squeeze(
-                input[:, ::2, :][:, -(trained_output.shape[1] - 1) :, :], axis=-1
-            ),
-            jnp.squeeze(trained_output[:, :-1, :], axis=-1),
-        ),
-        axis=-1,
-    )
-    logging.warning(
-        f"new_input shape is {new_input.shape}, input shape is {input.shape}, trained_output shape is {trained_output.shape}, to_mask {to_mask}"
+    new_input = interleave_jax(
+        input[:, ::2, :][:, -(trained_output.shape[1] - 1) :, :],
+        trained_output[:, :-1, :],
     )
     return train_step(
         state,
