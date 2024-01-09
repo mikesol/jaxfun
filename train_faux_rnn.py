@@ -143,8 +143,8 @@ def interleave_jax(input_array, trained_output):
     return interleaved
 
 
-def faux_step(fn):
-    def _o(state, input, target, zlen, *args):
+def faux_step(fn, zlen):
+    def _o(state, input, target, *args):
         seq_len = input.shape[1]
         input = jnp.pad(input, ((0, 0), (zlen, 0), (0, 0)))
 
@@ -414,6 +414,7 @@ if __name__ == "__main__":
         tx,
         config.to_mask,
     )
+    zlen = module.get_zlen(),
 
     jit_train_step = fork_on_parallelism(
         partial(
@@ -427,12 +428,12 @@ if __name__ == "__main__":
     jit_faux_train_step = fork_on_parallelism(
         partial(
             jax.jit,
-            static_argnums=(3, 4, 5, 6),
+            static_argnums=(3, 4, 5),
             in_shardings=(state_sharding, x_sharding, x_sharding),
             out_shardings=(state_sharding, None),
         ),
-        partial(jax.pmap, static_broadcasted_argnums=(3, 4, 5, 6)),
-    )(faux_step(train_step))
+        partial(jax.pmap, static_broadcasted_argnums=(3, 4, 5)),
+    )(faux_step(train_step, zlen))
 
     jit_compute_loss = fork_on_parallelism(
         partial(
@@ -492,17 +493,7 @@ if __name__ == "__main__":
                 )
                 with fork_on_parallelism(mesh, nullcontext()):
                     state, loss = (
-                        jit_faux_train_step(
-                            state,
-                            input,
-                            target,
-                            module.get_zlen(),
-                            to_mask,
-                            comparable_field,
-                            config.loss_fn,
-                        )
-                        if batch_ix % 2 == 1
-                        else jit_train_step(
+                        (jit_faux_train_step if batch_ix % 2 == 1 else jit_train_step)(
                             state,
                             input,
                             target,
@@ -603,7 +594,7 @@ if __name__ == "__main__":
                     out_shardings=x_sharding,
                 ),
                 partial(jax.pmap, static_broadcasted_argnums=(2,)),
-            )(faux_step(do_inference))
+            )(faux_step(do_inference, zlen))
 
             o = jit_do_inference(ckpt_model, input, config.to_mask)
             o = maybe_unreplicate(o)
