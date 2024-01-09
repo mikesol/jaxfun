@@ -287,7 +287,7 @@ if __name__ == "__main__":
     _config["window"] = 2**12
     _config["inference_window"] = 2**17
     _config["stride"] = 2**8
-    _config["step_freq"] = 100
+    _config["step_freq"] = 50
     _config["test_size"] = 0.1
     _config["channels"] = 2**6
     _config["depth"] = 2**4
