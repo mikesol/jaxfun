@@ -436,12 +436,11 @@ if __name__ == "__main__":
     jit_faux_train_gen_step = fork_on_parallelism(
         partial(
             jax.jit,
-            static_argnums=(3, 4, 5),
-            in_shardings=(state_sharding_rnn, x_sharding_rnn, x_sharding_rnn),
+            in_shardings=(state_sharding_rnn, x_sharding_rnn),
             out_shardings=x_sharding_rnn,
         ),
-        partial(jax.pmap, static_broadcasted_argnums=(3, 4, 5)),
-    )(faux_step(lambda _, x, *args: x, zlen))
+        jax.pmap,
+    )(faux_step(lambda _, x: x, zlen))
 
     jit_compute_loss = fork_on_parallelism(
         partial(
@@ -515,7 +514,7 @@ if __name__ == "__main__":
                         # first, we use the faux rnn to generate a new input
                         # this is done with a sharding that optimized for batches
                         input = maybe_device_put(input, x_sharding_rnn)
-                        input = jit_faux_train_gen_step(state, input, target)
+                        input = jit_faux_train_gen_step(state, input)
                         # move to a different sharding and continue
                         input = maybe_device_put(input, x_sharding)
                         state, loss = jit_train_step(
