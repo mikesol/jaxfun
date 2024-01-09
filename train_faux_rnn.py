@@ -277,8 +277,8 @@ if __name__ == "__main__":
     _config["inner_skip"] = True
     # _config["shift"] = 2**4
     # _config["dilation"] = 2**0
-    _config["mesh_x"] = 2
-    _config["mesh_y"] = device_len // _config["mesh_x"]
+    _config["mesh_x"] = device_len
+    _config["mesh_y"] = 1
     _config["loss_fn"] = LossFn.LOGCOSH
     ###
     _config["gen_barrier"] = 0.001
