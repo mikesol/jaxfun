@@ -71,6 +71,29 @@ def checkpoint_walker(ckpt):
 PRNGKey = jax.Array
 
 
+def trim_batch(tensor, batch_size):
+    """
+    Truncates the tensor to the largest multiple of batch_size.
+
+    Parameters:
+    tensor (jax.numpy.ndarray): The input tensor with a leading batch dimension.
+    batch_size (int): The batch size to truncate to.
+
+    Returns:
+    jax.numpy.ndarray: The truncated tensor.
+    """
+    # Get the size of the leading dimension (batch dimension)
+    batch_dim = tensor.shape[0]
+
+    # Calculate the size of the truncated dimension
+    truncated_size = (batch_dim // batch_size) * batch_size
+
+    # Truncate the tensor
+    truncated_tensor = tensor[:truncated_size]
+
+    return truncated_tensor
+
+
 @struct.dataclass
 class Metrics(metrics.Collection):
     loss: metrics.Average.from_output("loss")
@@ -455,7 +478,7 @@ if __name__ == "__main__":
         # train
         with tqdm(
             enumerate(
-                train_dataset.iter(batch_size=config.batch_size, drop_last_batch=True)
+                train_dataset.iter(batch_size=config.batch_size, drop_last_batch=False)
             ),
             total=(train_dataset_total // config.batch_size)
             if not epoch_is_0
@@ -463,9 +486,13 @@ if __name__ == "__main__":
             unit="batch",
         ) as loop:
             for batch_ix, batch in loop:
-                input = maybe_replicate(jnp.array(batch["input"]))
+                input = maybe_replicate(
+                    trim_batch(jnp.array(batch["input"]), config.batch_size)
+                )
+                if input.shape[0] == 0:
+                    continue
                 input = maybe_device_put(input, x_sharding)
-                target = maybe_replicate(jnp.array(batch["target"]))
+                target = maybe_replicate(trim_batch(jnp.array(batch["target"]), config.batch_size))
                 with fork_on_parallelism(mesh, nullcontext()):
                     state, loss = (
                         jit_faux_train_step(
@@ -498,7 +525,7 @@ if __name__ == "__main__":
         test_dataset.set_epoch(epoch)
         with tqdm(
             enumerate(
-                test_dataset.iter(batch_size=config.batch_size, drop_last_batch=True)
+                test_dataset.iter(batch_size=config.batch_size, drop_last_batch=False)
             ),
             total=(test_dataset_total // config.batch_size)
             if not epoch_is_0
@@ -506,9 +533,11 @@ if __name__ == "__main__":
             unit="batch",
         ) as loop:
             for batch_ix, batch in loop:
-                input = maybe_replicate(jnp.array(batch["input"]))
+                input = maybe_replicate(trim_batch(jnp.array(batch["input"]), config.batch_size))
+                if input.shape[0] == 0:
+                    continue
                 input = maybe_device_put(input, x_sharding)
-                target = maybe_replicate(jnp.array(batch["target"]))
+                target = maybe_replicate(trim_batch(jnp.array(batch["target"]), config.batch_size))
                 loss = jit_compute_loss(
                     state, input, target, to_mask, comparable_field, config.loss_fn
                 )
@@ -549,8 +578,10 @@ if __name__ == "__main__":
             if not epoch_is_0
             else 2,
         ):
-            input_ = truncate_if_odd.truncate_if_odd(jnp.array(batch["input"]))
-            target_ = truncate_if_odd.truncate_if_odd(jnp.array(batch["input"]))
+            input_ = trim_batch(jnp.array(batch["input"]), config.batch_size)
+            if input.shape[0] == 0:
+                continue
+            target_ = trim_batch(jnp.array(batch["input"]), config.batch_size)
             input = maybe_replicate(input_)
             input = maybe_device_put(input, x_sharding)
             logging.warning(f"input shape for inference is is {input.shape}")
