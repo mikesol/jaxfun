@@ -260,7 +260,7 @@ if __name__ == "__main__":
     _config["step_freq"] = 50
     _config["test_size"] = 0.1
     _config["features"] = 2**7
-    _config["levels"] = 2**5
+    _config["levels"] = 2**4
     _config["heads"] = 2**4
     _config["attn_layers"] = 2**2
     _config["positional_encodings"] = False  # in orig was true
