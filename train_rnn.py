@@ -151,7 +151,7 @@ def train_step(state, input, target, lossy_loss_loss):
             
             
         )
-        loss = (Loss_fn_to_loss(lossy_loss_loss))(
+        loss = (Loss_fn_to_loss(LossFn(lossy_loss_loss)))(
             pred, target
         )
         return loss, updates
@@ -185,7 +185,7 @@ def compute_loss(state, input, target, lossy_loss_loss):
         {"params": state.params, },
         input,
     )
-    loss = (Loss_fn_to_loss(lossy_loss_loss))(
+    loss = (Loss_fn_to_loss(LossFn(lossy_loss_loss)))(
         pred, target
     )
     return loss
@@ -449,7 +449,7 @@ if __name__ == "__main__":
                         state,
                         input,
                         target,
-                        config.loss_fn
+                        config.loss_fn.value
                     )
 
                     state = add_losses_to_metrics(state=state, loss=loss)
@@ -479,7 +479,7 @@ if __name__ == "__main__":
                 target = maybe_replicate(
                     trim_batch(jnp.array(batch["target"]), config.batch_size)
                 )
-                loss = jit_compute_loss(state, input, target, config.loss_fn)
+                loss = jit_compute_loss(state, input, target, config.loss_fn.value)
                 loop.set_postfix(loss=loss)
                 state = add_losses_to_metrics(state=state, loss=loss)
         metrics = maybe_unreplicate(state.metrics).compute()
