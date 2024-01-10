@@ -141,24 +141,6 @@ def interleave_jax(input_array, trained_output):
     )
     return interleaved
 
-
-def faux_step(fn, faux_mask):
-    def _o(state, input, target, *args):
-        # logging.warning(f"FAUX {input.shape}, {target.shape}, {faux_mask}")
-        trained_output, _ = state.apply_fn(
-            {"params": state.params, },
-            input,
-            
-        )
-        new_input = interleave_jax(
-            input[:, ::2, :][:, -(trained_output.shape[1] - 1) :, :],
-            trained_output[:, :-1, :],
-        )
-        return fn(state, jax.lax.stop_gradient(new_input), target, *args)
-
-    return _o
-
-
 def train_step(state, input, target, lossy_loss_loss):
     """Train for a single step."""
 
@@ -264,7 +246,7 @@ if __name__ == "__main__":
 
     run = Experiment(
         api_key=local_env.comet_ml_api_key,
-        project_name="jax-faux-rnn",
+        project_name="jax-rnn",
     )
     _config = {}
     # cnn
