@@ -607,7 +607,7 @@ if __name__ == "__main__":
                     out_shardings=x_sharding,
                 ),
                 partial(jax.pmap, static_broadcasted_argnums=(2,)),
-            )(faux_step(do_inference, config.gen_to_mask))
+            )(faux_step(do_inference, faux_masking))
 
             o = jit_do_inference(ckpt_model, input, config.to_mask)
             o = maybe_unreplicate(o)
