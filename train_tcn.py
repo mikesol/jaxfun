@@ -341,7 +341,7 @@ if __name__ == "__main__":
         conv_depth=config.conv_depth,
         attn_depth=config.attn_depth,
         expand_factor=config.expand_factor,
-        positional_encodings=config.positional_encodings
+        positional_encodings=config.positional_encodings,
     )
     tx = optax.adam(config.learning_rate)
 
@@ -357,7 +357,7 @@ if __name__ == "__main__":
     jit_create_train_state = fork_on_parallelism(
         partial(
             jax.jit,
-            static_argnums=(2, 3, 4),
+            static_argnums=(2, 3),
             in_shardings=(
                 mesh_sharding(None)
                 if local_env.parallelism == Parallelism.SHARD
@@ -366,7 +366,7 @@ if __name__ == "__main__":
             ),  # PRNG key and x
             out_shardings=state_sharding,
         ),
-        partial(jax.pmap, static_broadcasted_argnums=(2, 3, 4)),
+        partial(jax.pmap, static_broadcasted_argnums=(2, 3)),
     )(create_train_state)
     rng_for_train_state = (
         init_rng
@@ -386,20 +386,20 @@ if __name__ == "__main__":
     jit_train_step = fork_on_parallelism(
         partial(
             jax.jit,
-            static_argnums=(3, 4, 5),
+            static_argnums=(3,),
             in_shardings=(state_sharding, x_sharding, x_sharding),
             out_shardings=(state_sharding, None),
         ),
-        partial(jax.pmap, static_broadcasted_argnums=(3, 4, 5)),
+        partial(jax.pmap, static_broadcasted_argnums=(3,)),
     )(train_step)
 
     jit_compute_loss = fork_on_parallelism(
         partial(
             jax.jit,
-            static_argnums=(3, 4, 5),
+            static_argnums=(3,),
             in_shardings=(state_sharding, x_sharding, x_sharding),
         ),
-        partial(jax.pmap, static_broadcasted_argnums=(3, 4, 5)),
+        partial(jax.pmap, static_broadcasted_argnums=(3,)),
     )(compute_loss)
 
     del init_rng  # Must not be used anymore.
@@ -525,11 +525,10 @@ if __name__ == "__main__":
             jit_do_inference = fork_on_parallelism(
                 partial(
                     jax.jit,
-                    static_argnums=(2,),
                     in_shardings=(state_sharding, x_sharding),
                     out_shardings=x_sharding,
                 ),
-                partial(jax.pmap, static_broadcasted_argnums=(2,)),
+                jax.pmap,
             )(do_inference)
 
             o = jit_do_inference(ckpt_model, input)
