@@ -263,7 +263,7 @@ if __name__ == "__main__":
     _config["levels"] = 2**4
     _config["heads"] = 2**4
     _config["attn_layers"] = 2**2
-    _config["positional_encodings"] = True  # in orig was true
+    _config["positional_encodings"] = False  # in orig was true
     _config["mesh_x"] = device_len
     _config["mesh_y"] = 1
     _config["loss_fn"] = LossFn.LOGCOSH
