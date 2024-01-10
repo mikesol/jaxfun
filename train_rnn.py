@@ -257,7 +257,7 @@ if __name__ == "__main__":
     _config["stride"] = 2**8
     _config["step_freq"] = 50
     _config["test_size"] = 0.1
-    _config["features"] = 2**4
+    _config["features"] = 2**5
     _config["levels"] = 2**4
     _config["inner_skip"] = True
     # _config["shift"] = 2**4
