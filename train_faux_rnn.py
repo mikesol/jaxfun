@@ -305,7 +305,7 @@ if __name__ == "__main__":
     _config["dilation_layers"] = tuple([x for x in range(1, _config["depth"], 2)])
     _config["do_progressive_masking"] = False
     _config["to_mask"] = 0
-    _config["faux_to_mask"] = _config["window"] // 2
+    _config["faux_to_mask"] = _config["gen_window"] // 2
     _config["comparable_field"] = None  # _config["to_mask"] // 2
     _config["kernel_size"] = 7
     _config["skip_freq"] = 1
