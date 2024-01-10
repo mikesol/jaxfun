@@ -315,7 +315,7 @@ if __name__ == "__main__":
     _config["mesh_x"] = device_len // 2
     _config["mesh_y"] = 2
     _config["loss_fn_ideal"] = LossFn.LOGCOSH
-    _config["loss_fn_actual"] = LossFn.LOGCOSH
+    _config["loss_fn_actual"] = LossFn.LOGCOSH_RANGE
     ###
     _config["gen_barrier"] = 0.001
     ###
