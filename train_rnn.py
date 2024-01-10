@@ -383,10 +383,11 @@ if __name__ == "__main__":
     jit_train_step = fork_on_parallelism(
         partial(
             jax.jit,
+            static_argnums=(3,),
             in_shardings=(state_sharding, x_sharding, x_sharding),
             out_shardings=(state_sharding, None),
         ),
-        jax.pmap,
+        partial(jax.pmap, static_broadcasted_argnums=(3,)),
     )(train_step)
 
     jit_compute_loss = fork_on_parallelism(
