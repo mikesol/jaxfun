@@ -293,7 +293,7 @@ if __name__ == "__main__":
     _config["validation_split"] = 0.2
     _config["learning_rate"] = 1e-4
     _config["epochs"] = 2**7
-    _config["window"] = 2**13
+    _config["window"] = 2**12
     _config["inference_window"] = 2**17
     _config["stride"] = 2**8
     _config["step_freq"] = 50
@@ -304,9 +304,9 @@ if __name__ == "__main__":
     _config["dilation_layers"] = tuple([x for x in range(1, _config["depth"], 2)])
     _config["do_progressive_masking"] = False
     _config["to_mask"] = 0
-    _config["gen_to_mask"] = _config["window"] // 4
+    # _config["gen_to_mask"] = _config["window"] // 4
     _config["comparable_field"] = None
-    _config["gen_comparable_field"] = _config["gen_to_mask"] // 2
+    # _config["gen_comparable_field"] = _config["gen_to_mask"] // 2
     _config["kernel_size"] = 7
     _config["skip_freq"] = 1
     _config["norm_factor"] = math.sqrt(_config["channels"])
@@ -436,6 +436,7 @@ if __name__ == "__main__":
         ),
         partial(jax.pmap, static_broadcasted_argnums=(3, 4, 5)),
     )(train_step)
+    faux_masking = config.window - (module.get_zlen() * 2)
     jit_faux_train_step = fork_on_parallelism(
         partial(
             jax.jit,
@@ -444,7 +445,7 @@ if __name__ == "__main__":
             out_shardings=(state_sharding, None),
         ),
         partial(jax.pmap, static_broadcasted_argnums=(3, 4, 5)),
-    )(faux_step(train_step, config.gen_to_mask))
+    )(faux_step(train_step, faux_masking))
 
     jit_compute_loss = fork_on_parallelism(
         partial(
@@ -456,9 +457,7 @@ if __name__ == "__main__":
     )(compute_loss)
 
     to_mask = config.to_mask
-    gen_to_mask = config.gen_to_mask
     comparable_field = config.comparable_field
-    gen_comparable_field = config.gen_comparable_field
     del init_rng  # Must not be used anymore.
     for epoch in range(config.epochs):
         # ugggh
@@ -513,7 +512,7 @@ if __name__ == "__main__":
                         input,
                         target,
                         to_mask,
-                        gen_comparable_field if should_use_gen else comparable_field,
+                        faux_masking if should_use_gen else comparable_field,
                         config.loss_fn_actual
                         if should_use_gen
                         else config.loss_fn_ideal,
@@ -558,8 +557,6 @@ if __name__ == "__main__":
         if not epoch_is_0 and config.do_progressive_masking:
             to_mask += config.to_mask
             comparable_field += config.comparable_field
-            gen_to_mask += config.gen_to_mask
-            gen_comparable_field += config.gen_comparable_field
 
         # checkpoint
         ckpt_model = state
