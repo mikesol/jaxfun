@@ -383,7 +383,7 @@ if __name__ == "__main__":
             jax.jit,
             static_argnums=(3,),
             in_shardings=(state_sharding, x_sharding, x_sharding),
-            out_shardings=(state_sharding, None),
+            out_shardings=state_sharding,
         ),
         partial(jax.pmap, static_broadcasted_argnums=(3,)),
     )(train_step)
