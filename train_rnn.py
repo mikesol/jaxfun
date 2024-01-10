@@ -489,7 +489,7 @@ if __name__ == "__main__":
             f"saved checkpoint for epoch {epoch} in {os.listdir(checkpoint_dir)}"
         )
         try:
-            artifact = Artifact("checkpoint", artifact_type="model")
+            artifact = Artifact("rnn-checkpoint", artifact_type="model")
             artifact.add(os.path.join(checkpoint_dir, f"{epoch}"))
             run.log_artifact(artifact)
         except ValueError as e:
