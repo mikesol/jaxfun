@@ -263,19 +263,12 @@ if __name__ == "__main__":
     _config["test_size"] = 0.1
     _config["features"] = 2**6
     _config["levels"] = 2**4
-    _config["sidechain_layers"] = tuple([x for x in range(2, _config["depth"], 2)])
-    _config["dilation_layers"] = tuple([x for x in range(1, _config["depth"], 2)])
-    _config["do_progressive_masking"] = False
-    _config["skip_freq"] = 1
-    _config["norm_factor"] = math.sqrt(_config["channels"])
     _config["inner_skip"] = True
     # _config["shift"] = 2**4
     # _config["dilation"] = 2**0
     _config["mesh_x"] = device_len // 2
     _config["mesh_y"] = 2
     _config["loss_fn"] = LossFn.LOGCOSH
-    ###
-    _config["gen_barrier"] = 0.001
     ###
     run.log_parameters(_config)
     if local_env.parallelism == Parallelism.PMAP:
