@@ -31,7 +31,7 @@ import math
 from flax.training import train_state
 import optax
 import jax
-from data import make_2d_data
+from data import make_data
 import orbax.checkpoint
 from tqdm import tqdm
 import sys
@@ -305,20 +305,20 @@ if __name__ == "__main__":
         FILES[int(len_files * config.test_size) :] if not IS_CPU else FILES[1:2]
     )
     print("making datasets")
-    # can't use make_2d_data_with_delays_and_dilations because the RNN becomes too dicey :-(
-    proto_train_dataset, train_dataset_total = make_2d_data(
+    # can't use make_data_with_delays_and_dilations because the RNN becomes too dicey :-(
+    proto_train_dataset, train_dataset_total = make_data(
         paths=train_files,
         window=config.window,
         stride=config.stride,  # , shift=config.shift, dilation=config.dilation, features=config.features, feature_dim=-1, shuffle=True
         # shuffle=fork_on_parallelism(True, False),
     )
-    proto_test_dataset, test_dataset_total = make_2d_data(
+    proto_test_dataset, test_dataset_total = make_data(
         paths=test_files,
         window=config.window,
         stride=config.stride,  # , shift=config.shift, dilation=config.dilation, features=config.features, feature_dim=-1, shuffle=True
         # shuffle=fork_on_parallelism(True, False),
     )
-    proto_inference_dataset, inference_dataset_total = make_2d_data(
+    proto_inference_dataset, inference_dataset_total = make_data(
         paths=test_files,
         window=config.inference_window,
         stride=config.stride,  # , shift=config.shift, dilation=config.dilation, features=config.features, feature_dim=-1, shuffle=True
@@ -444,7 +444,7 @@ if __name__ == "__main__":
                 input = trim_batch(jnp.array(batch["input"]), config.batch_size)
                 if input.shape[0] == 0:
                     continue
-                assert input.shape[1] == config.window * 2
+                assert input.shape[1] == config.window
                 input = maybe_replicate(input)
                 input = maybe_device_put(input, x_sharding)
                 target = trim_batch(jnp.array(batch["target"]), config.batch_size)
