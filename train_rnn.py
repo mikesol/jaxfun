@@ -147,15 +147,13 @@ def train_step(state, input, target, lossy_loss_loss):
 
     def loss_fn(params):
         pred = state.apply_fn(
-            {
-                "params": params,
-            },
+            {"params": params},
             input,
         )
         loss = (Loss_fn_to_loss(LossFn(lossy_loss_loss)))(pred, target)
         return loss
 
-    grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
+    grad_fn = jax.value_and_grad(loss_fn)
     loss, grads = grad_fn(state.params)
     state = state.apply_gradients(grads=grads)
     return state, loss
