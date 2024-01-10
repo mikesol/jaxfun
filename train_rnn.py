@@ -329,7 +329,8 @@ if __name__ == "__main__":
                 features=config.features,
                 levels=config.levels,
                 skip=True,
-                only_last=False,
+                only_last=True, # false for transformeresque
+                projection=1, # delete for transformeresque
                 cell=LSTMCell
             # ),
             # heads=config.heads,
