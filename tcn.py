@@ -145,14 +145,14 @@ class TCNNetwork(nn.Module):
                 kernel_dilation=self.kernel_dilation,
                 kernel_size=self.conv_kernel_size,
             )(x, train)
-        x = ConvAttnBlock(
-            features=self.features,
-            kernel_size=self.attn_kernel_size,
-            heads=self.heads,
-            expand_factor=self.expand_factor,
-            depth=self.attn_depth,
-            positional_encodings=self.positional_encodings,
-        )(x)
+        # x = ConvAttnBlock(
+        #     features=self.features,
+        #     kernel_size=self.attn_kernel_size,
+        #     heads=self.heads,
+        #     expand_factor=self.expand_factor,
+        #     depth=self.attn_depth,
+        #     positional_encodings=self.positional_encodings,
+        # )(x)
         return x
 
 
