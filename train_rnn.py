@@ -438,7 +438,7 @@ if __name__ == "__main__":
                 input = trim_batch(jnp.array(batch["input"]), config.batch_size)
                 if input.shape[0] == 0:
                     continue
-                assert input.shape[1] == config.window * 2
+                assert input.shape[1] == config.window
                 input = maybe_replicate(input)
                 input = maybe_device_put(input, x_sharding)
                 target = trim_batch(jnp.array(batch["target"]), config.batch_size)
