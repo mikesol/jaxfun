@@ -259,8 +259,8 @@ if __name__ == "__main__":
     _config["stride"] = 2**8
     _config["step_freq"] = 50
     _config["test_size"] = 0.1
-    _config["features"] = 2**5
-    _config["levels"] = 2**4
+    _config["features"] = 2**8
+    _config["levels"] = 2**5
     _config["heads"] = 2**4
     _config["attn_layers"] = 2**2
     _config["positional_encodings"] = False  # in orig was true
@@ -325,22 +325,23 @@ if __name__ == "__main__":
     par_onez = maybe_replicate(jnp.ones([config.batch_size, config.window * 2, 1]))
 
     module = nn.RNN(
-        Transformeresque(
-            to_wrap=partial(
-                StackedRNNCell,
+        # Transformeresque(
+        #     to_wrap=
+        #     partial(
+                StackedRNNCell(
                 features=config.features,
                 levels=config.levels,
                 skip=True,
-                only_last=False,  # false for transformeresque
-                # projection=1, # delete for transformeresque
+                only_last=True,  # false for transformeresque
+                projection=1, # delete for transformeresque
                 cell=LSTMCell,
             ),
-            heads=config.heads,
-            attn_layers=config.attn_layers,
-            positional_encodings=config.positional_encodings,
-            projection=1,
+            # heads=config.heads,
+            # attn_layers=config.attn_layers,
+            # positional_encodings=config.positional_encodings,
+            # projection=1,
         )
-    )
+    
     tx = optax.adam(config.learning_rate)
 
     if local_env.parallelism == Parallelism.SHARD:
