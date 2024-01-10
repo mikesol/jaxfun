@@ -154,9 +154,7 @@ def train_step(state, input, target, lossy_loss_loss):
             train=True,
             mutable=["batch_stats"],
         )
-        loss = (Loss_fn_to_loss(lossy_loss_loss))(
-            pred, target
-        )
+        loss = (Loss_fn_to_loss(lossy_loss_loss))(pred, target[:, -pred.shape[1] :, :])
         return loss, updates
 
     grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
@@ -190,9 +188,7 @@ def compute_loss(state, input, target, lossy_loss_loss):
         train=False,
         mutable=["batch_stats"],
     )
-    loss = (Loss_fn_to_loss(lossy_loss_loss))(
-        pred, target
-    )
+    loss = (Loss_fn_to_loss(lossy_loss_loss))(pred, target[:, -pred.shape[1] :, :])
     return loss
 
 
@@ -336,14 +332,14 @@ if __name__ == "__main__":
     par_onez = maybe_replicate(jnp.ones([config.batch_size, config.window * 2, 1]))
 
     module = TCNNetwork(
-    features=config.features,
-    kernel_dilation=config.kernel_dilation,
-    conv_kernel_size=config.conv_kernel_size,
-    attn_kernel_size=config.attn_kernel_size,
-    heads=config.heads,
-    conv_depth=config.conv_depth,
-    attn_depth=config.attn_depth,
-    expand_factor=config.expand_factor,
+        features=config.features,
+        kernel_dilation=config.kernel_dilation,
+        conv_kernel_size=config.conv_kernel_size,
+        attn_kernel_size=config.attn_kernel_size,
+        heads=config.heads,
+        conv_depth=config.conv_depth,
+        attn_depth=config.attn_depth,
+        expand_factor=config.expand_factor,
     )
     tx = optax.adam(config.learning_rate)
 
@@ -451,12 +447,7 @@ if __name__ == "__main__":
                 assert target.shape[1] == config.window
                 target = maybe_replicate(target)
                 with fork_on_parallelism(mesh, nullcontext()):
-                    state, loss =jit_train_step(
-                        state,
-                        input,
-                        target,
-                        config.loss_fn
-                    )
+                    state, loss = jit_train_step(state, input, target, config.loss_fn)
 
                     state = add_losses_to_metrics(state=state, loss=loss)
 
