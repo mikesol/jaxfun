@@ -6,6 +6,7 @@ from typing import (
     Tuple,
     TypeVar,
 )
+import math
 from functools import partial
 import jax
 from jax import numpy as jnp
@@ -226,6 +227,95 @@ class StackedRNNCell(nn.Module):
         return 1
 
 
+class StackedRNNCellWithAttn(nn.Module):
+    features: int
+    cell: Callable[..., Any] = LSTMCell
+    skip: bool = False
+    dense_init: nn.initializers.Initializer = nn.linear.default_kernel_init
+    bias_init: nn.initializers.Initializer = nn.initializers.zeros_init()
+    dtype: Optional[Dtype] = None
+    param_dtype: Dtype = jnp.float32
+    carry_init: nn.initializers.Initializer = nn.initializers.zeros_init()
+    levels: int = 2
+    attn_levels: int = 1
+    projection: Optional[int] = None
+    only_last: bool = True
+
+    @nn.compact
+    def __call__(self, carry, inputs):
+        c, h = carry
+        inputs = jnp.expand_dims(inputs, axis=-2)
+        inputs = nn.Dense(
+            features=self.features,
+            use_bias=True,
+            kernel_init=self.dense_init,
+            bias_init=self.bias_init,
+            dtype=self.dtype,
+            param_dtype=self.param_dtype,
+        )(inputs)
+        inputs = jax.lax.concatenate(
+            [inputs, remove_last_entry_of_second_last_dim(h)],
+            dimension=inputs.ndim - 2,
+        )
+        C = []
+        H = []
+        I = []
+        for LI in range(0, self.levels, self.attn_levels):
+            x, y = nn.vmap(
+                self.cell,
+                variable_axes={"params": 0},
+                split_rngs={"params": True},
+                in_axes=2,
+                out_axes=2,
+            )(features=self.features)(
+                (
+                    c[:, LI : LI + self.attn_levels, :],
+                    h[:, LI : LI + self.attn_levels, :],
+                ),
+                inputs[:, LI : LI + self.attn_levels, :],
+            )
+            C.append(x[0])
+            H.append(x[1])
+            I.append(AttnBlock(heads=self.attn_levels // 2)(y))
+
+        out = jnp.concatenate(I, axis=-2)
+        c = jnp.concatenate(C, axis=-2)
+        h = jnp.concatenate(H, axis=-2)
+        if self.only_last:
+            out = out[..., -1, :]
+
+        if self.projection is not None:
+            out = nn.Dense(
+                features=self.projection,
+                use_bias=True,
+                kernel_init=self.dense_init,
+                bias_init=self.bias_init,
+                dtype=self.dtype,
+                param_dtype=self.param_dtype,
+            )(out)
+
+        return (c, h), out
+
+    @nn.nowrap
+    def initialize_carry(
+        self, rng: PRNGKey, input_shape: Tuple[int, ...]
+    ) -> Tuple[Array, Array]:
+        batch_dims = input_shape[:-1]
+        key1, key2 = random.split(rng)
+        levels = self.levels
+        mem_shape = batch_dims + (
+            levels,
+            self.features,
+        )
+        c = self.carry_init(key1, mem_shape, self.param_dtype)
+        h = self.carry_init(key2, mem_shape, self.param_dtype)
+        return (c, h)
+
+    @property
+    def num_feature_axes(self) -> int:
+        return 1
+
+
 class PositionalEncoding(nn.Module):
     @nn.compact
     def __call__(self, x):
@@ -368,18 +458,31 @@ if __name__ == "__main__":
     #     cell=partial(LSTMCell, combinator=ComplexLSTMCombinator),
     # )
     # print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**8, 1))))
+    # model = nn.RNN(
+    #     Transformeresque(
+    #         to_wrap=partial(
+    #             StackedRNNCell,
+    #             features=2**7,
+    #             levels=2**5,
+    #             skip=True,
+    #             only_last=False,
+    #             cell=LSTMCell,
+    #         ),
+    #         heads=2**4,
+    #         attn_layers=2**2,
+    #     )
+    # )
+    # print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**8, 1))))
+
     model = nn.RNN(
-        Transformeresque(
-            to_wrap=partial(
-                StackedRNNCell,
-                features=2**7,
-                levels=2**5,
-                skip=True,
-                only_last=False,
-                cell=LSTMCell,
-            ),
-            heads=2**4,
-            attn_layers=2**2,
+        StackedRNNCellWithAttn(
+            features=2**7,
+            levels=2**5,
+            attn_levels=2**2,
+            skip=True,
+            only_last=False,
+            cell=LSTMCell,
         )
     )
+
     print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**8, 1))))

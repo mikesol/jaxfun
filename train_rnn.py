@@ -1,5 +1,5 @@
 import os
-from rnn import Transformeresque, StackedRNNCell, LSTMCell
+from rnn import StackedRNNCellWithAttn, LSTMCell
 from parallelism import Parallelism
 from contextlib import nullcontext
 import logging
@@ -261,6 +261,7 @@ if __name__ == "__main__":
     _config["test_size"] = 0.1
     _config["features"] = 2**5
     _config["levels"] = 2**4
+    _config["attn_levels"] = 2**2
     _config["heads"] = 2**4
     _config["attn_layers"] = 2**2
     _config["positional_encodings"] = False  # in orig was true
@@ -325,20 +326,14 @@ if __name__ == "__main__":
     par_onez = maybe_replicate(jnp.ones([config.batch_size, config.window * 2, 1]))
 
     module = nn.RNN(
-        Transformeresque(
-            to_wrap=partial(
-                StackedRNNCell,
-                features=config.features,
-                levels=config.levels,
-                skip=True,
-                only_last=False,  # false for transformeresque
-                # projection=1, # delete for transformeresque
-                cell=LSTMCell,
-            ),
-            heads=config.heads,
-            attn_layers=config.attn_layers,
-            positional_encodings=config.positional_encodings,
+        StackedRNNCellWithAttn(
+            features=config.features,
+            levels=config.levels,
+            attn_levels=config.attn_levels,
+            skip=True,
+            only_last=True,
             projection=1,
+            cell=LSTMCell,
         )
     )
 
