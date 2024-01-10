@@ -305,7 +305,8 @@ if __name__ == "__main__":
     _config["do_progressive_masking"] = False
     _config["to_mask"] = 0
     _config["gen_to_mask"] = _config["gen_window"] // 2
-    _config["comparable_field"] =  _config["gen_to_mask"]
+    _config["comparable_field"] = None
+    _config["gen_comparable_field"] = _config["gen_to_mask"]
     _config["kernel_size"] = 7
     _config["skip_freq"] = 1
     _config["norm_factor"] = math.sqrt(_config["channels"])
@@ -455,7 +456,9 @@ if __name__ == "__main__":
     )(compute_loss)
 
     to_mask = config.to_mask
-    comparable_field = to_mask // 2
+    gen_to_mask = config.gen_to_mask
+    comparable_field = config.comparable_field
+    gen_comparable_field = config.gen_comparable_field
     del init_rng  # Must not be used anymore.
     for epoch in range(config.epochs):
         # ugggh
@@ -514,7 +517,7 @@ if __name__ == "__main__":
                         input,
                         target,
                         to_mask,
-                        comparable_field,
+                        gen_comparable_field if should_use_gen else comparable_field,
                         config.loss_fn_actual
                         if should_use_gen
                         else config.loss_fn_ideal,
@@ -558,7 +561,9 @@ if __name__ == "__main__":
 
         if not epoch_is_0 and config.do_progressive_masking:
             to_mask += config.to_mask
-            comparable_field = config.to_mask // 2
+            comparable_field += config.comparable_field
+            gen_to_mask += config.gen_to_mask
+            gen_comparable_field += config.gen_comparable_field
 
         # checkpoint
         ckpt_model = state
