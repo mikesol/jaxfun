@@ -20,7 +20,7 @@ def c1d(o, k, s, d):
 class ConvBase(nn.Module):
     depth: int = 2**4
     kernel_size: int = 7
-    sidechain_layers: Tuple[int] = ()
+    dilation_layers: Tuple[int] = ()
 
     def get_zlen(self):
         zlen = 1
