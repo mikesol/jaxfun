@@ -323,19 +323,19 @@ if __name__ == "__main__":
     par_onez = maybe_replicate(jnp.ones([config.batch_size, config.window * 2, 1]))
 
     module = nn.RNN(
-        # Transformeresque(
-        #     to_wrap=partial(
-                StackedRNNCell(
+        Transformeresque(
+            to_wrap=partial(
+                StackedRNNCell,
                 features=config.features,
                 levels=config.levels,
                 skip=True,
-                only_last=True, # false for transformeresque
-                projection=1, # delete for transformeresque
-                cell=LSTMCell
-            # ),
-            # heads=config.heads,
-            # attn_layers=config.attn_layers,
-            # positional_encodings=config.positional_encodings,
+                only_last=False,  # false for transformeresque
+                # projection=1, # delete for transformeresque
+                cell=LSTMCell,
+            ),
+            heads=config.heads,
+            attn_layers=config.attn_layers,
+            positional_encodings=config.positional_encodings,
         )
     )
     tx = optax.adam(config.learning_rate)
