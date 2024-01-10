@@ -7,4 +7,5 @@ pip install jax[tpu] -f https://storage.googleapis.com/jax-releases/libtpu_relea
 pip install -r requirements-tpu.txt
 screen -S train
 # clear && git pull && rm -rf /tmp/flax_ckpt/orbax/managed && python train_faux_rnn.py
-clear && git pull && rm -rf /tmp/flax_ckpt/orbax/managed && python train_rnn.py
+# clear && git pull && rm -rf /tmp/flax_ckpt/orbax/managed && python train_rnn.py
+clear && git pull && rm -rf /tmp/flax_ckpt/orbax/managed && python train_tcn.py
