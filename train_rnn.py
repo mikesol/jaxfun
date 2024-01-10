@@ -449,6 +449,7 @@ if __name__ == "__main__":
                         state,
                         input,
                         target,
+                        config.loss_fn
                     )
 
                     state = add_losses_to_metrics(state=state, loss=loss)
