@@ -150,6 +150,7 @@ def train_step(state, input, target, lossy_loss_loss):
             {"params": params},
             input,
         )
+        assert pred.shape == target.shape
         loss = (Loss_fn_to_loss(LossFn(lossy_loss_loss)))(pred, target)
         return loss
 
@@ -183,6 +184,7 @@ def compute_loss(state, input, target, lossy_loss_loss):
         },
         input,
     )
+    assert pred.shape == target.shape
     loss = (Loss_fn_to_loss(LossFn(lossy_loss_loss)))(pred, target)
     return loss
 

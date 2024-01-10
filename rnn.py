@@ -359,27 +359,27 @@ class LSTM(nn.Module):
 
 
 if __name__ == "__main__":
-    model = LSTM(
-        features=2**8,
-        levels=2**5,
-        skip=True,
-        projection=1,
-        name="lstm",
-        cell=partial(LSTMCell, combinator=ComplexLSTMCombinator),
-    )
-    print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**8, 1))))
-    # model = nn.RNN(
-    #     Transformeresque(
-    #         to_wrap=partial(
-    #             StackedRNNCell,
-    #             features=2**7,
-    #             levels=2**5,
-    #             skip=True,
-    #             only_last=False,
-    #             cell=LSTMCell,
-    #         ),
-    #         heads=2**4,
-    #         attn_layers=2**2,
-    #     )
+    # model = LSTM(
+    #     features=2**8,
+    #     levels=2**5,
+    #     skip=True,
+    #     projection=1,
+    #     name="lstm",
+    #     cell=partial(LSTMCell, combinator=ComplexLSTMCombinator),
     # )
     # print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**8, 1))))
+    model = nn.RNN(
+        Transformeresque(
+            to_wrap=partial(
+                StackedRNNCell,
+                features=2**7,
+                levels=2**5,
+                skip=True,
+                only_last=False,
+                cell=LSTMCell,
+            ),
+            heads=2**4,
+            attn_layers=2**2,
+        )
+    )
+    print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**8, 1))))
