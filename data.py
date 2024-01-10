@@ -79,10 +79,13 @@ def audio_gen(pair, window, stride, normalize=True):
         start = 0
         normy = librosa.util.normalize if normalize else lambda x: x
         while start + window <= len(i):
-            yield {
-                "input": normy(i[start : start + window]),
-                "target": normy(o[start : start + window]),
-            }
+            for m in [1.0, -1.0]:
+                ii = i[start  : start + window] * m
+                oo = o[start : start + window]
+                yield {
+                    "input": normy(ii),
+                    "target": normy(oo),
+                }
             start += stride
 
     return _audio_gen
@@ -157,7 +160,7 @@ def make_data(paths, window, stride, feature_dim=-1, normalize=True):
         # .with_format("jax")
     )
 
-    return dataset, get_total_lens(paths, window, stride)
+    return dataset, get_total_lens(paths, window, stride) * 2
 
 
 def make_2d_data(paths, window, stride, feature_dim=-1, shuffle=True, normalize=True):
