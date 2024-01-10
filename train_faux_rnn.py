@@ -156,7 +156,7 @@ def interleave_jax(input_array, trained_output):
 
 def faux_step(fn, faux_mask):
     def _o(state, input, target, *args):
-        logging.warning(f"FAUX {input.shape}, {target.shape}, {faux_mask}")
+        # logging.warning(f"FAUX {input.shape}, {target.shape}, {faux_mask}")
         trained_output, _ = state.apply_fn(
             {"params": state.params, "batch_stats": state.batch_stats},
             input,
@@ -294,7 +294,6 @@ if __name__ == "__main__":
     _config["learning_rate"] = 1e-4
     _config["epochs"] = 2**7
     _config["window"] = 2**12
-    _config["gen_window"] = 2**13
     _config["inference_window"] = 2**17
     _config["stride"] = 2**8
     _config["step_freq"] = 50
@@ -305,7 +304,7 @@ if __name__ == "__main__":
     _config["dilation_layers"] = tuple([x for x in range(1, _config["depth"], 2)])
     _config["do_progressive_masking"] = False
     _config["to_mask"] = 0
-    _config["gen_to_mask"] = _config["gen_window"] // 2
+    _config["gen_to_mask"] = _config["window"] // 2
     _config["comparable_field"] = None
     _config["gen_comparable_field"] = _config["gen_to_mask"]
     _config["kernel_size"] = 7
@@ -501,14 +500,10 @@ if __name__ == "__main__":
                 if input.shape[0] == 0:
                     continue
                 assert input.shape[1] == config.window * 2
-                if should_use_gen:
-                    input = input[:, -config.gen_window * 2 :, :]
                 input = maybe_replicate(input)
                 input = maybe_device_put(input, x_sharding)
                 target = trim_batch(jnp.array(batch["target"]), config.batch_size)
                 assert target.shape[1] == config.window
-                if should_use_gen:
-                    target = target[:, -config.gen_window :, :]
                 target = maybe_replicate(target)
                 with fork_on_parallelism(mesh, nullcontext()):
                     state, loss = (
