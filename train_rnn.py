@@ -141,25 +141,23 @@ def interleave_jax(input_array, trained_output):
     )
     return interleaved
 
+
 def train_step(state, input, target, lossy_loss_loss):
     """Train for a single step."""
 
     def loss_fn(params):
-        pred, updates = state.apply_fn(
-            {"params": params, },
+        pred = state.apply_fn(
+            {
+                "params": params,
+            },
             input,
-            
-            
         )
-        loss = (Loss_fn_to_loss(LossFn(lossy_loss_loss)))(
-            pred, target
-        )
-        return loss, updates
+        loss = (Loss_fn_to_loss(LossFn(lossy_loss_loss)))(pred, target)
+        return loss
 
     grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
-    (loss, updates), grads = grad_fn(state.params)
+    loss, grads = grad_fn(state.params)
     state = state.apply_gradients(grads=grads)
-    state = state.replace(batch_stats=updates["batch_stats"])
     return state, loss
 
 
@@ -169,10 +167,10 @@ def _replace_metrics(state):
 
 def do_inference(state, input):
     o, _ = state.apply_fn(
-        {"params": state.params, },
+        {
+            "params": state.params,
+        },
         input,
-        
-        
     )
     return o
 
@@ -182,12 +180,12 @@ replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
 
 def compute_loss(state, input, target, lossy_loss_loss):
     pred, _ = state.apply_fn(
-        {"params": state.params, },
+        {
+            "params": state.params,
+        },
         input,
     )
-    loss = (Loss_fn_to_loss(LossFn(lossy_loss_loss)))(
-        pred, target
-    )
+    loss = (Loss_fn_to_loss(LossFn(lossy_loss_loss)))(pred, target)
     return loss
 
 
@@ -447,10 +445,7 @@ if __name__ == "__main__":
                 target = maybe_replicate(target)
                 with fork_on_parallelism(mesh, nullcontext()):
                     state, loss = jit_train_step(
-                        state,
-                        input,
-                        target,
-                        config.loss_fn.value
+                        state, input, target, config.loss_fn.value
                     )
 
                     state = add_losses_to_metrics(state=state, loss=loss)
