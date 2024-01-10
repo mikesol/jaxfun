@@ -316,7 +316,7 @@ if __name__ == "__main__":
     _config["mesh_x"] = device_len // 2
     _config["mesh_y"] = 2
     _config["loss_fn_ideal"] = LossFn.LOGCOSH
-    _config["loss_fn_actual"] = LossFn.LOGCOSH # _RANGE
+    _config["loss_fn_actual"] = LossFn.LOGCOSH  # _RANGE
     ###
     _config["gen_barrier"] = 0.001
     ###
@@ -546,7 +546,12 @@ if __name__ == "__main__":
                     trim_batch(jnp.array(batch["target"]), config.batch_size)
                 )
                 loss = jit_compute_loss(
-                    state, input, target, to_mask, comparable_field, config.loss_fn_ideal
+                    state,
+                    input,
+                    target,
+                    to_mask,
+                    comparable_field,
+                    config.loss_fn_ideal,
                 )
                 loop.set_postfix(loss=loss)
                 state = add_losses_to_metrics(state=state, loss=loss)

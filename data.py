@@ -80,7 +80,7 @@ def audio_gen(pair, window, stride, normalize=True):
         normy = librosa.util.normalize if normalize else lambda x: x
         while start + window <= len(i):
             for m in [1.0, -1.0]:
-                ii = i[start  : start + window] * m
+                ii = i[start : start + window] * m
                 oo = o[start : start + window]
                 yield {
                     "input": normy(ii),

@@ -338,6 +338,7 @@ if __name__ == "__main__":
             heads=config.heads,
             attn_layers=config.attn_layers,
             positional_encodings=config.positional_encodings,
+            projection=1,
         )
     )
     tx = optax.adam(config.learning_rate)
