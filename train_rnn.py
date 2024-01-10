@@ -259,9 +259,9 @@ if __name__ == "__main__":
     _config["test_size"] = 0.1
     _config["features"] = 2**5
     _config["levels"] = 2**4
-    _config["inner_skip"] = True
-    # _config["shift"] = 2**4
-    # _config["dilation"] = 2**0
+    _config["heads"] = 2**4
+    _config["attn_layers"] = 2**2
+    _config["positional_encodings"] = False  # in orig was true
     _config["mesh_x"] = device_len
     _config["mesh_y"] = 1
     _config["loss_fn"] = LossFn.LOGCOSH
@@ -332,8 +332,9 @@ if __name__ == "__main__":
                 only_last=False,
                 cell=LSTMCell,
             ),
-            heads=2**4,
-            attn_layers=2**2,
+            heads=config.heads,
+            attn_layers=config.attn_layers,
+            positional_encodings=config.positional_encodings,
         )
     )
     tx = optax.adam(config.learning_rate)
@@ -517,7 +518,7 @@ if __name__ == "__main__":
                     in_shardings=(state_sharding, x_sharding),
                     out_shardings=x_sharding,
                 ),
-               jax.pmap,
+                jax.pmap,
             )(do_inference)
             o = jit_do_inference(ckpt_model, input)
             o = maybe_unreplicate(o)
