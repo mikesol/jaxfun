@@ -156,6 +156,7 @@ def interleave_jax(input_array, trained_output):
 
 def faux_step(fn, faux_mask):
     def _o(state, input, target, *args):
+        logging.warn("FAUX {input.shape}, {target.shape}, {faux_mask}")
         trained_output, _ = state.apply_fn(
             {"params": state.params, "batch_stats": state.batch_stats},
             input,
