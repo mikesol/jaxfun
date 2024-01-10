@@ -252,7 +252,7 @@ if __name__ == "__main__":
     _config["validation_split"] = 0.2
     _config["learning_rate"] = 1e-4
     _config["epochs"] = 2**7
-    _config["window"] = 2**12
+    _config["window"] = 2**11
     _config["inference_window"] = 2**17
     _config["stride"] = 2**8
     _config["step_freq"] = 50
@@ -262,8 +262,8 @@ if __name__ == "__main__":
     _config["inner_skip"] = True
     # _config["shift"] = 2**4
     # _config["dilation"] = 2**0
-    _config["mesh_x"] = device_len // 2
-    _config["mesh_y"] = 2
+    _config["mesh_x"] = device_len // 4
+    _config["mesh_y"] = 4
     _config["loss_fn"] = LossFn.LOGCOSH
     ###
     run.log_parameters(_config)
