@@ -156,7 +156,6 @@ def interleave_jax(input_array, trained_output):
 
 def faux_step(fn, faux_mask):
     def _o(state, input, target, *args):
-        logging.warning(f"INPUT SHAPE {input.shape} {faux_mask}")
         trained_output, _ = state.apply_fn(
             {"params": state.params, "batch_stats": state.batch_stats},
             input,
@@ -294,7 +293,7 @@ if __name__ == "__main__":
     _config["learning_rate"] = 1e-4
     _config["epochs"] = 2**7
     _config["window"] = 2**12
-    _config["gen_window"] = 2**11
+    _config["gen_window"] = 2**13
     _config["inference_window"] = 2**17
     _config["stride"] = 2**8
     _config["step_freq"] = 50
@@ -305,8 +304,8 @@ if __name__ == "__main__":
     _config["dilation_layers"] = tuple([x for x in range(1, _config["depth"], 2)])
     _config["do_progressive_masking"] = False
     _config["to_mask"] = 0
-    _config["faux_to_mask"] = _config["gen_window"] // 2
-    _config["comparable_field"] = None  # _config["to_mask"] // 2
+    _config["gen_to_mask"] = _config["gen_window"] // 2
+    _config["comparable_field"] =  _config["gen_to_mask"]
     _config["kernel_size"] = 7
     _config["skip_freq"] = 1
     _config["norm_factor"] = math.sqrt(_config["channels"])
@@ -316,7 +315,7 @@ if __name__ == "__main__":
     _config["mesh_x"] = device_len // 2
     _config["mesh_y"] = 2
     _config["loss_fn_ideal"] = LossFn.LOGCOSH
-    _config["loss_fn_actual"] = LossFn.LOGCOSH_RANGE
+    _config["loss_fn_actual"] = LossFn.LOGCOSH # _RANGE
     ###
     _config["gen_barrier"] = 0.001
     ###
@@ -444,7 +443,7 @@ if __name__ == "__main__":
             out_shardings=(state_sharding, None),
         ),
         partial(jax.pmap, static_broadcasted_argnums=(3, 4, 5)),
-    )(faux_step(train_step, config.faux_to_mask))
+    )(faux_step(train_step, config.gen_to_mask))
 
     jit_compute_loss = fork_on_parallelism(
         partial(
@@ -610,7 +609,7 @@ if __name__ == "__main__":
                     out_shardings=x_sharding,
                 ),
                 partial(jax.pmap, static_broadcasted_argnums=(2,)),
-            )(faux_step(do_inference, config.faux_to_mask))
+            )(faux_step(do_inference, config.gen_to_mask))
 
             o = jit_do_inference(ckpt_model, input, config.to_mask)
             o = maybe_unreplicate(o)
