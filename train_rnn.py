@@ -164,7 +164,7 @@ def _replace_metrics(state):
 
 
 def do_inference(state, input):
-    o, _ = state.apply_fn(
+    o = state.apply_fn(
         {
             "params": state.params,
         },
@@ -177,7 +177,7 @@ replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
 
 
 def compute_loss(state, input, target, lossy_loss_loss):
-    pred, _ = state.apply_fn(
+    pred = state.apply_fn(
         {
             "params": state.params,
         },
@@ -258,7 +258,7 @@ if __name__ == "__main__":
     _config["step_freq"] = 50
     _config["test_size"] = 0.1
     _config["features"] = 2**4
-    _config["levels"] = 2**2
+    _config["levels"] = 2**4
     _config["inner_skip"] = True
     # _config["shift"] = 2**4
     # _config["dilation"] = 2**0
