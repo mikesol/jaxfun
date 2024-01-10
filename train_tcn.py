@@ -270,6 +270,7 @@ if __name__ == "__main__":
     _config["conv_depth"] = 2**4
     _config["attn_depth"] = 2**4
     _config["expand_factor"] = 2.0
+    _config["positional_encodings"] = True
     _config["kernel_size"] = 7
     _config["mesh_x"] = device_len
     _config["mesh_y"] = 1
@@ -340,6 +341,7 @@ if __name__ == "__main__":
         conv_depth=config.conv_depth,
         attn_depth=config.attn_depth,
         expand_factor=config.expand_factor,
+        positional_encodings=config.positional_encodings
     )
     tx = optax.adam(config.learning_rate)
 
