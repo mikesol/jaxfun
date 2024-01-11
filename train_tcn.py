@@ -472,6 +472,15 @@ if __name__ == "__main__":
                         if local_env.parallelism == Parallelism.PMAP:
                             ckpt = checkpoint_walker(ckpt)
                         checkpoint_manager.save(epoch * train_total + batch_ix, ckpt)
+                        logging.warning(
+                            f"saved checkpoint for epoch {epoch} in {os.listdir(checkpoint_dir)}"
+                        )
+                        try:
+                            artifact = Artifact("checkpoint", artifact_type="model")
+                            artifact.add(os.path.join(checkpoint_dir, f"{epoch}"))
+                            run.log_artifact(artifact)
+                        except ValueError as e:
+                            logging.warning(f"checkpoint artifact did not work {e}")
                         start_time = current_time
         test_dataset.set_epoch(epoch)
         with tqdm(
@@ -504,16 +513,6 @@ if __name__ == "__main__":
         metrics = maybe_unreplicate(state.metrics).compute()
         run.log_metrics({"val_loss": metrics["loss"]}, step=batch_ix)
         state = replace_metrics(state)
-
-        logging.warning(
-            f"saved checkpoint for epoch {epoch} in {os.listdir(checkpoint_dir)}"
-        )
-        try:
-            artifact = Artifact("checkpoint", artifact_type="model")
-            artifact.add(os.path.join(checkpoint_dir, f"{epoch}"))
-            run.log_artifact(artifact)
-        except ValueError as e:
-            logging.warning(f"checkpoint artifact did not work {e}")
         # inference
         inference_dataset.set_epoch(epoch)
         for batch_ix, batch in tqdm(
