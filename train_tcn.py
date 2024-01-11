@@ -542,7 +542,7 @@ if __name__ == "__main__":
                 jax.pmap,
             )(do_inference)
 
-            o = jit_do_inference(ckpt_model, input)
+            o = jit_do_inference(state, input)
             o = maybe_unreplicate(o)
             # logging.info(f"shape of batch is {input.shape}")
 
