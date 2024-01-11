@@ -152,8 +152,8 @@ def make_data(paths, window, stride, feature_dim=-1, normalize=True):
     dataset = (
         interleave_datasets(
             [
-                Dataset.from_generator(
-                    audio_gen(pair, window, stride, normalize=normalize), num_proc=NP
+                IterableDataset.from_generator(
+                    audio_gen(pair, window, stride, normalize=normalize)
                 )
                 for pair in paths
             ]
@@ -163,7 +163,6 @@ def make_data(paths, window, stride, feature_dim=-1, normalize=True):
                 "input": np.expand_dims(x["input"], axis=feature_dim),
                 "target": np.expand_dims(x["target"], axis=feature_dim),
             },
-            num_proc=NP,
         )
         .shuffle(seed=42, buffer_size=2**10)
         # .with_format("jax")
