@@ -262,7 +262,7 @@ if __name__ == "__main__":
     _config["stride"] = 2**8
     _config["step_freq"] = 2**6
     _config["test_size"] = 0.1
-    _config["features"] = 2**6
+    _config["features"] = 2**7
     _config["kernel_dilation"] = 2**1
     _config["conv_kernel_size"] = 2**3
     _config["attn_kernel_size"] = 2**6 # 2**7
