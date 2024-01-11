@@ -252,7 +252,7 @@ if __name__ == "__main__":
     _config = {}
     # cnn
     _config["seed"] = 42
-    _config["batch_size"] = 2**6
+    _config["batch_size"] = 2**5
     _config["inference_artifacts_per_batch_per_epoch"] = _config["batch_size"] * 2
     _config["validation_split"] = 0.2
     _config["learning_rate"] = 1e-4
