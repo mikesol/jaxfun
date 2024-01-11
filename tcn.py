@@ -1,7 +1,7 @@
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
-from functools import partial
+from flax.linen import initializers
 
 
 class TCN(nn.Module):
@@ -14,16 +14,20 @@ class TCN(nn.Module):
         x_ = x
         x = nn.Conv(
             features=self.features,
+            kernel_init=nn.with_partitioning(initializers.lecun_normal(), (None, "model")),
             kernel_dilation=(self.kernel_dilation,),
             kernel_size=(self.kernel_size,),
             padding=((0, 0),),
+            use_bias=False,
         )(x)
         x = nn.BatchNorm(use_running_average=not train)(x)
         x = nn.gelu(x)
         x_res = nn.Conv(
             features=self.features,
             kernel_size=(1,),
+            kernel_init=nn.with_partitioning(initializers.lecun_normal(), (None, "model")),
             feature_group_count=self.features if x_.shape[-1] > 1 else 1,
+            use_bias=False,
         )(x_)
         x = x + x_res[:, -x.shape[-2] :, :]
         return x
@@ -32,27 +36,33 @@ class TCN(nn.Module):
 class AttnBlock(nn.Module):
     heads: int
     expand_factor: float = 2.0
-    dense_init: nn.initializers.Initializer = nn.linear.default_kernel_init
-    bias_init: nn.initializers.Initializer = nn.initializers.zeros_init()
 
     @nn.compact
     def __call__(self, out):
         features = out.shape[-1]
         out_ = out
-        out = nn.MultiHeadDotProductAttention(self.heads)(out, out)
+        out = nn.MultiHeadDotProductAttention(
+            self.heads,
+            kernel_init=nn.with_partitioning(
+                initializers.lecun_normal(), (None, "model")
+            ),
+        )(out, out)
         out = nn.LayerNorm()(out_ + out)
         out_ = out
         out = nn.Dense(
             features=int(out.shape[-1] * self.expand_factor),
-            kernel_init=self.dense_init,
+            kernel_init=nn.with_partitioning(
+                initializers.lecun_normal(), (None, "model")
+            ),
             bias_init=self.bias_init,
             use_bias=True,
         )(out)
         out = nn.gelu(out)
         out = nn.Dense(
             features=features,
-            kernel_init=self.dense_init,
-            bias_init=self.bias_init,
+            kernel_init=nn.with_partitioning(
+                initializers.lecun_normal(), (None, "model")
+            ),
             use_bias=True,
         )(out)
         return nn.LayerNorm()(out_ + out)
@@ -119,6 +129,9 @@ class ConvAttnBlock(nn.Module):
             out_axes=-1,
             variable_axes={"params": None},
             split_rngs={"params": False},
+            kernel_init=nn.with_partitioning(
+                initializers.lecun_normal(), (None, "model")
+            ),
         )(features=1)(x)
         # (batch, seq, channel, k)
         x = jnp.transpose(x, (0, 3, 1, 2))
@@ -145,25 +158,25 @@ class TCNNetwork(nn.Module):
                 kernel_dilation=self.kernel_dilation,
                 kernel_size=self.conv_kernel_size,
             )(x, train)
-        # x = ConvAttnBlock(
-        #     features=self.features,
-        #     kernel_size=self.attn_kernel_size,
-        #     heads=self.heads,
-        #     expand_factor=self.expand_factor,
-        #     depth=self.attn_depth,
-        #     positional_encodings=self.positional_encodings,
-        # )(x)
+        x = ConvAttnBlock(
+            features=self.features,
+            kernel_size=self.attn_kernel_size,
+            heads=self.heads,
+            expand_factor=self.expand_factor,
+            depth=self.attn_depth,
+            positional_encodings=self.positional_encodings,
+        )(x)
         return x
 
 
 if __name__ == "__main__":
     model = TCNNetwork(
-        features=2**8,
+        features=2**6,
         kernel_dilation=2**1,
-        conv_kernel_size=2**4,
-        attn_kernel_size=2**8,
-        heads=2**6,
-        conv_depth=2**5,
+        conv_kernel_size=2**3,
+        attn_kernel_size=2**7,
+        heads=2**5,
+        conv_depth=2**4,
         attn_depth=2**4,
         expand_factor=2.0,
     )
