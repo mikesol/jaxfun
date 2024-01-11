@@ -11,6 +11,9 @@ from fade_in import apply_fade_in
 import soundfile
 from types import SimpleNamespace
 import local_env
+import time
+
+start_time = time.time()
 
 IS_CPU = local_env.parallelism == Parallelism.NONE
 if IS_CPU:
@@ -254,22 +257,24 @@ if __name__ == "__main__":
     _config["seed"] = 42
     _config["batch_size"] = 2**5
     _config["inference_batch_size"] = 2**3
-    _config["inference_artifacts_per_batch_per_epoch"] = _config["inference_batch_size"] * 4
+    _config["inference_artifacts_per_batch_per_epoch"] = (
+        _config["inference_batch_size"] * 4
+    )
     _config["validation_split"] = 0.2
     _config["learning_rate"] = 1e-4
     _config["epochs"] = 2**7
     _config["window"] = 2**11
-    _config["inference_window"] = 2**10 # 2**11
+    _config["inference_window"] = 2**10  # 2**11
     _config["stride"] = 2**8
     _config["step_freq"] = 2**6
     _config["test_size"] = 0.1
     _config["features"] = 2**6
     _config["kernel_dilation"] = 2**1
     _config["conv_kernel_size"] = 2**3
-    _config["attn_kernel_size"] = 2**5 # 2**6
+    _config["attn_kernel_size"] = 2**5  # 2**6
     _config["heads"] = 2**2
-    _config["conv_depth"] = 2**3 # 2**4
-    _config["attn_depth"] = 2**2 # 2**4
+    _config["conv_depth"] = 2**3  # 2**4
+    _config["attn_depth"] = 2**2  # 2**4
     _config["expand_factor"] = 2.0
     _config["positional_encodings"] = True
     _config["kernel_size"] = 7
@@ -429,13 +434,12 @@ if __name__ == "__main__":
         train_dataset.set_epoch(epoch)
 
         # train
+        train_total = train_dataset_total // config.batch_size
         with tqdm(
             enumerate(
                 train_dataset.iter(batch_size=config.batch_size, drop_last_batch=False)
             ),
-            total=(train_dataset_total // config.batch_size)
-            if not epoch_is_0
-            else to_take_in_0_epoch,
+            total=train_total if not epoch_is_0 else to_take_in_0_epoch,
             unit="batch",
         ) as loop:
             for batch_ix, batch in loop:
@@ -459,6 +463,16 @@ if __name__ == "__main__":
                     run.log_metrics({"train_loss": metrics["loss"]}, step=batch_ix)
                     loop.set_postfix(loss=metrics["loss"])
                     state = replace_metrics(state)
+                    current_time = time.time()
+                    elapsed_time = current_time - start_time
+                    if elapsed_time >= 3600:
+                        # checkpoint
+                        ckpt_model = state
+                        ckpt = {"model": ckpt_model, "config": config}
+                        if local_env.parallelism == Parallelism.PMAP:
+                            ckpt = checkpoint_walker(ckpt)
+                        checkpoint_manager.save(epoch * train_total + batch_ix, ckpt)
+                        start_time = current_time
         test_dataset.set_epoch(epoch)
         with tqdm(
             enumerate(
@@ -491,12 +505,6 @@ if __name__ == "__main__":
         run.log_metrics({"val_loss": metrics["loss"]}, step=batch_ix)
         state = replace_metrics(state)
 
-        # checkpoint
-        ckpt_model = state
-        ckpt = {"model": ckpt_model, "config": config}
-        if local_env.parallelism == Parallelism.PMAP:
-            ckpt = checkpoint_walker(ckpt)
-        checkpoint_manager.save(epoch, ckpt)
         logging.warning(
             f"saved checkpoint for epoch {epoch} in {os.listdir(checkpoint_dir)}"
         )
@@ -519,7 +527,9 @@ if __name__ == "__main__":
             input_ = trim_batch(jnp.array(batch["input"]), config.inference_batch_size)
             if input_.shape[0] == 0:
                 continue
-            target_ = trim_batch(jnp.array(batch["target"]), config.inference_batch_size)
+            target_ = trim_batch(
+                jnp.array(batch["target"]), config.inference_batch_size
+            )
             input = maybe_replicate(input_)
             input = maybe_device_put(input, x_sharding)
             logging.warning(f"input shape for inference is is {input.shape}")
