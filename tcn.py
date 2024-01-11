@@ -14,9 +14,9 @@ class TCN(nn.Module):
         x_ = x
         x = nn.Conv(
             features=self.features,
-            kernel_init=nn.with_partitioning(
+            kernel_init= nn.with_partitioning(
                 initializers.lecun_normal(), (None, "model")
-            ),
+            ) if x.shape[-1] > 1 else initializers.lecun_normal(),
             kernel_dilation=(self.kernel_dilation,),
             kernel_size=(self.kernel_size,),
             padding=((0, 0),),
