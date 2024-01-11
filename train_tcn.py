@@ -266,7 +266,7 @@ if __name__ == "__main__":
     _config["features"] = 2**6 # 2**7
     _config["kernel_dilation"] = 2**1
     _config["conv_kernel_size"] = 2**3
-    _config["attn_kernel_size"] = 2**6 # 2**7
+    _config["attn_kernel_size"] = 2**7
     _config["heads"] = 2**5
     _config["conv_depth"] = 2**3 # 2**4
     _config["attn_depth"] = 2**3 # 2**4
