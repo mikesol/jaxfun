@@ -134,10 +134,7 @@ class ConvAttnBlock(nn.Module):
             split_rngs={"params": False},
         )(
             features=1,
-            # dim 1, so sharding may not work
-            kernel_init=nn.with_partitioning(
-                initializers.lecun_normal(), (None, "model")
-            ),
+            # no sharding as we go to 1
         )(
             x
         )
