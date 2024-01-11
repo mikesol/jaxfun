@@ -27,9 +27,7 @@ class TCN(nn.Module):
         x_res = nn.Conv(
             features=self.features,
             kernel_size=(1,),
-            kernel_init=nn.with_partitioning(
-                initializers.lecun_normal(), (None, "model")
-            ),
+            # no kernel init as we're going down to 1
             feature_group_count=self.features if x_.shape[-1] > 1 else 1,
             use_bias=False,
         )(x_)
