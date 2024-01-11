@@ -1,9 +1,13 @@
-from datasets import IterableDataset, interleave_datasets
+from datasets import IterableDataset, Dataset, interleave_datasets
 import librosa
 import numpy as np
 from functools import partial
 import wave
 import soundfile
+from jostle import process_audio
+import multiprocessing
+
+NP = multiprocessing.cpu_count()
 
 
 ### copied from feeeeedback
@@ -80,12 +84,16 @@ def audio_gen(pair, window, stride, normalize=True):
         normy = librosa.util.normalize if normalize else lambda x: x
         while start + window <= len(i):
             for m in [1.0, -1.0]:
-                ii = i[start : start + window] * m
-                oo = o[start : start + window]
-                yield {
-                    "input": normy(ii),
-                    "target": normy(oo),
-                }
+                for aug in [False, True, True, True]:
+                    ii = i[start : start + window] * m
+                    if aug:
+                        ii = process_audio(ii, 1024, 10)
+                    assert len(ii) == window
+                    oo = o[start : start + window]
+                    yield {
+                        "input": normy(ii),
+                        "target": normy(oo),
+                    }
             start += stride
 
     return _audio_gen
@@ -144,8 +152,8 @@ def make_data(paths, window, stride, feature_dim=-1, normalize=True):
     dataset = (
         interleave_datasets(
             [
-                IterableDataset.from_generator(
-                    audio_gen(pair, window, stride, normalize=normalize)
+                Dataset.from_generator(
+                    audio_gen(pair, window, stride, normalize=normalize), num_proc=NP
                 )
                 for pair in paths
             ]
@@ -155,6 +163,7 @@ def make_data(paths, window, stride, feature_dim=-1, normalize=True):
                 "input": np.expand_dims(x["input"], axis=feature_dim),
                 "target": np.expand_dims(x["target"], axis=feature_dim),
             },
+            num_proc=NP,
         )
         .shuffle(seed=42, buffer_size=2**10)
         # .with_format("jax")
