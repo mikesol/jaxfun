@@ -14,7 +14,9 @@ class TCN(nn.Module):
         x_ = x
         x = nn.Conv(
             features=self.features,
-            kernel_init=nn.with_partitioning(initializers.lecun_normal(), (None, "model")),
+            kernel_init=nn.with_partitioning(
+                initializers.lecun_normal(), (None, "model")
+            ),
             kernel_dilation=(self.kernel_dilation,),
             kernel_size=(self.kernel_size,),
             padding=((0, 0),),
@@ -25,7 +27,9 @@ class TCN(nn.Module):
         x_res = nn.Conv(
             features=self.features,
             kernel_size=(1,),
-            kernel_init=nn.with_partitioning(initializers.lecun_normal(), (None, "model")),
+            kernel_init=nn.with_partitioning(
+                initializers.lecun_normal(), (None, "model")
+            ),
             feature_group_count=self.features if x_.shape[-1] > 1 else 1,
             use_bias=False,
         )(x_)
@@ -128,10 +132,14 @@ class ConvAttnBlock(nn.Module):
             out_axes=-1,
             variable_axes={"params": None},
             split_rngs={"params": False},
+        )(
+            features=1,
             kernel_init=nn.with_partitioning(
                 initializers.lecun_normal(), (None, "model")
             ),
-        )(features=1)(x)
+        )(
+            x
+        )
         # (batch, seq, channel, k)
         x = jnp.transpose(x, (0, 3, 1, 2))
         x = jnp.squeeze(x, axis=-1)
