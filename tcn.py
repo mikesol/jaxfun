@@ -54,7 +54,6 @@ class AttnBlock(nn.Module):
             kernel_init=nn.with_partitioning(
                 initializers.lecun_normal(), (None, "model")
             ),
-            bias_init=self.bias_init,
             use_bias=True,
         )(out)
         out = nn.gelu(out)
