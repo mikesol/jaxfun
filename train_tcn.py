@@ -253,12 +253,13 @@ if __name__ == "__main__":
     # cnn
     _config["seed"] = 42
     _config["batch_size"] = 2**4
-    _config["inference_artifacts_per_batch_per_epoch"] = _config["batch_size"] * 2
+    _config["inference_batch_size"] = 2**0
+    _config["inference_artifacts_per_batch_per_epoch"] = _config["inference_batch_size"] * 4
     _config["validation_split"] = 0.2
     _config["learning_rate"] = 1e-4
     _config["epochs"] = 2**7
     _config["window"] = 2**11
-    _config["inference_window"] = 2**17
+    _config["inference_window"] = 2**16
     _config["stride"] = 2**8
     _config["step_freq"] = 2**6
     _config["test_size"] = 0.1
@@ -511,14 +512,14 @@ if __name__ == "__main__":
             enumerate(
                 inference_dataset.take(
                     config.inference_artifacts_per_batch_per_epoch
-                ).iter(batch_size=config.batch_size)
+                ).iter(batch_size=config.inference_batch_size)
             ),
             total=config.inference_artifacts_per_batch_per_epoch,
         ):
-            input_ = trim_batch(jnp.array(batch["input"]), config.batch_size)
+            input_ = trim_batch(jnp.array(batch["input"]), config.inference_batch_size)
             if input_.shape[0] == 0:
                 continue
-            target_ = trim_batch(jnp.array(batch["target"]), config.batch_size)
+            target_ = trim_batch(jnp.array(batch["target"]), config.inference_batch_size)
             input = maybe_replicate(input_)
             input = maybe_device_put(input, x_sharding)
             logging.warning(f"input shape for inference is is {input.shape}")
