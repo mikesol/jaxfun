@@ -272,8 +272,8 @@ if __name__ == "__main__":
     _config["expand_factor"] = 2.0
     _config["positional_encodings"] = True
     _config["kernel_size"] = 7
-    _config["mesh_x"] = device_len // 2
-    _config["mesh_y"] = 2
+    _config["mesh_x"] = device_len // 1
+    _config["mesh_y"] = 1
     _config["loss_fn"] = LossFn.LOGCOSH
     ###
     run.log_parameters(_config)
