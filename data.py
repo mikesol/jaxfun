@@ -6,6 +6,7 @@ import wave
 import soundfile
 from jostle import process_audio
 import multiprocessing
+from create_filtered_audio import create_filtered_audio
 
 NP = multiprocessing.cpu_count()
 
@@ -169,7 +170,15 @@ def make_data_stacked(
     )
     d = d.map(
         lambda x: {
-            "input": np.concatenate([x["input"] for _ in range(channels)], axis=-1),
+            "input": np.concatenate(
+                [
+                    x["input"],
+                    create_filtered_audio(
+                        x["input"], (2**11) - 1, 44100, 100, 19000, 30, 10
+                    ),
+                ],
+                axis=-1,
+            ),
             "target": x["target"],
         }
     )
