@@ -273,8 +273,8 @@ if __name__ == "__main__":
     _config["conv_kernel_size"] = 2**3
     _config["attn_kernel_size"] = 2**5  # 2**6
     _config["heads"] = 2**2
-    _config["conv_depth"] = tuple(2**n for n in (11,10,9,8,7,6)) # 2**3  # 2**4
-    _config["attn_depth"] = 2**2 # 2**2  # 2**4
+    _config["conv_depth"] = tuple(2**n for n in (11, 10, 9, 8, 7, 6))  # 2**3  # 2**4
+    _config["attn_depth"] = 2**2  # 2**2  # 2**4
     _config["sidechain_modulo_l"] = 2
     _config["sidechain_modulo_r"] = 1
     _config["expand_factor"] = 2.0
@@ -283,6 +283,11 @@ if __name__ == "__main__":
     _config["mesh_x"] = device_len // 1
     _config["mesh_y"] = 1
     _config["loss_fn"] = LossFn.LOGCOSH
+    #
+    _config["afstart"] = 100
+    _config["afend"] = 19000
+    _config["qstart"] = 30
+    _config["qend"] = 10
     ###
     run.log_parameters(_config)
     if local_env.parallelism == Parallelism.PMAP:
@@ -312,6 +317,10 @@ if __name__ == "__main__":
     print("making datasets")
     proto_train_dataset, train_dataset_total = make_data_stacked(
         channels=config.conv_depth[0],
+        afstart=config.afstart,
+        afend=config.afend,
+        qstart=config.qstart,
+        qend=config.qend,
         paths=train_files,
         window=config.window,
         stride=config.stride,  # , shift=config.shift, dilation=config.dilation, features=config.features, feature_dim=-1, shuffle=True
@@ -320,6 +329,10 @@ if __name__ == "__main__":
     proto_test_dataset, test_dataset_total = make_data_stacked(
         channels=config.conv_depth[0],
         paths=test_files,
+        afstart=config.afstart,
+        afend=config.afend,
+        qstart=config.qstart,
+        qend=config.qend,
         window=config.window,
         stride=config.stride,  # , shift=config.shift, dilation=config.dilation, features=config.features, feature_dim=-1, shuffle=True
         # shuffle=fork_on_parallelism(True, False),
@@ -327,19 +340,17 @@ if __name__ == "__main__":
     proto_inference_dataset, inference_dataset_total = make_data_stacked(
         channels=config.conv_depth[0],
         paths=test_files,
+        afstart=config.afstart,
+        afend=config.afend,
+        qstart=config.qstart,
+        qend=config.qend,
         window=config.inference_window,
         stride=config.stride,  # , shift=config.shift, dilation=config.dilation, features=config.features, feature_dim=-1, shuffle=True
         # shuffle=fork_on_parallelism(True, False),
     )
     print("datasets generated")
     init_rng = jax.random.PRNGKey(config.seed)
-    onez = jnp.ones(
-        [
-            config.batch_size,
-            config.window * 2,
-            config.conv_depth[0] # 1,
-        ]
-    )
+    onez = jnp.ones([config.batch_size, config.window * 2, config.conv_depth[0]])  # 1,
     par_onez = maybe_replicate(jnp.ones([config.batch_size, config.window * 2, 1]))
 
     module = ExperimentalTCNNetwork(
@@ -560,7 +571,7 @@ if __name__ == "__main__":
                     step=batch_ix,
                     file_name=f"audio_{epoch}_{batch_ix}_{i}_prediction.wav",
                 )
-                audy = np.squeeze(np.array(input_[i])[:,:,0:1])
+                audy = np.squeeze(np.array(input_[i])[:, :, 0:1])
                 run.log_audio(
                     audy,
                     sample_rate=44100,

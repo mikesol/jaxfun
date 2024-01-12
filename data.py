@@ -158,6 +158,10 @@ def make_data_stacked(
     normalize=True,
     naug=3,
     shuffle=True,
+    afstart=100,
+    afend=19000,
+    qstart=30,
+    qend=10,
 ):
     d, n = make_data(
         paths,
@@ -174,7 +178,7 @@ def make_data_stacked(
                 [
                     x["input"],
                     create_filtered_audio(
-                        x["input"], (2**11) - 1, 44100, 100, 19000, 30, 10
+                        x["input"], (2**11) - 1, 44100, afstart, afend, qstart, qend
                     ),
                 ],
                 axis=-1,
