@@ -244,6 +244,7 @@ class ExperimentalTCNNetwork(nn.Module):
 
     @nn.compact
     def __call__(self, x, train: bool):
+        print("EXPER", x.shape)
         for i in self.conv_depth:
             x = TCN(
                 features=i,
