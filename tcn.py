@@ -228,17 +228,49 @@ class TCNNetwork(nn.Module):
         return x
 
 
+class ExperimentalTCNNetwork(nn.Module):
+    kernel_dilation: int
+    conv_kernel_size: int
+    attn_kernel_size: int
+    heads: int
+    conv_depth: tuple[int]
+    attn_depth: int
+    sidechain_modulo_l: int = 2
+    sidechain_modulo_r: int = 1
+    expand_factor: float = 2.0
+    positional_encodings: bool = True
+
+    @nn.compact
+    def __call__(self, x, train: bool):
+        for i in self.conv_depth:
+            x = TCN(
+                features=i,
+                kernel_dilation=self.kernel_dilation,
+                kernel_size=self.conv_kernel_size,
+                with_sidechain=False
+            )(x, train)
+        x = ConvAttnBlock(
+            features=self.conv_depth[-1],
+            kernel_size=self.attn_kernel_size,
+            heads=self.heads,
+            expand_factor=self.expand_factor,
+            depth=self.attn_depth,
+            positional_encodings=self.positional_encodings,
+        )(x)
+        return x
+
+
 if __name__ == "__main__":
-    model = TCNNetwork(
-        features=2**6,
+    model = ExperimentalTCNNetwork(
+        # features=2**6,
         kernel_dilation=2**1,
         conv_kernel_size=2**3,
         attn_kernel_size=2**7,
         heads=2**5,
-        conv_depth=2**4,
+        conv_depth=tuple(2**n for n in (11,11,10,10,9,9,8,8)), # 2**4,
         attn_depth=2**4,
         expand_factor=2.0,
     )
     print(
-        model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**14, 1)), train=False)
+        model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**14, 2**11)), train=False)
     )
