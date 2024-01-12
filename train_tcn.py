@@ -268,13 +268,15 @@ if __name__ == "__main__":
     _config["stride"] = 2**8
     _config["step_freq"] = 2**6
     _config["test_size"] = 0.1
-    _config["features"] = 2**6
+    _config["features"] = 2**7
     _config["kernel_dilation"] = 2**1
     _config["conv_kernel_size"] = 2**3
     _config["attn_kernel_size"] = 2**5  # 2**6
     _config["heads"] = 2**2
     _config["conv_depth"] = 2**3  # 2**4
     _config["attn_depth"] = 2**2  # 2**4
+    _config["sidechain_modulo_l"] = 2
+    _config["sidechain_modulo_r"] = 1
     _config["expand_factor"] = 2.0
     _config["positional_encodings"] = True
     _config["kernel_size"] = 7
@@ -348,6 +350,8 @@ if __name__ == "__main__":
         attn_depth=config.attn_depth,
         expand_factor=config.expand_factor,
         positional_encodings=config.positional_encodings,
+        sidechain_modulo_l=config.sidechain_modulo_l,
+        sidechain_modulo_r=config.sidechain_modulo_r,
     )
     tx = optax.adam(config.learning_rate)
 
