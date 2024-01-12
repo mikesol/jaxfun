@@ -30,7 +30,9 @@ def process_audio(audio_buffer, window_size, phase_jostle_deg):
     jostled_stft_matrix = magnitude * jostled_phase
 
     # ISTFT to resynthesize audio
-    resynthesized_audio = librosa.istft(jostled_stft_matrix, window="hann", dtype=np.float32)
+    resynthesized_audio = librosa.istft(
+        jostled_stft_matrix, window="hann", dtype=np.float32
+    )
 
     return resynthesized_audio
 

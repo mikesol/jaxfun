@@ -6,7 +6,6 @@ import math
 from typing import Tuple
 
 
-
 class Sidechain(nn.Module):
     channels: int = 2**6
     kernel_size: int = 7
@@ -217,7 +216,7 @@ class TCNNetwork(nn.Module):
                 features=self.features,
                 kernel_dilation=self.kernel_dilation,
                 kernel_size=self.conv_kernel_size,
-                with_sidechain=i % self.sidechain_modulo_l == self.sidechain_modulo_r
+                with_sidechain=i % self.sidechain_modulo_l == self.sidechain_modulo_r,
             )(x, train)
         x = ConvAttnBlock(
             features=self.features,
@@ -250,7 +249,7 @@ class ExperimentalTCNNetwork(nn.Module):
                 features=i,
                 kernel_dilation=self.kernel_dilation,
                 kernel_size=self.conv_kernel_size,
-                with_sidechain=False
+                with_sidechain=False,
             )(x, train)
         x = ConvAttnBlock(
             features=self.conv_depth[-1],
@@ -270,10 +269,12 @@ if __name__ == "__main__":
         conv_kernel_size=2**3,
         attn_kernel_size=2**7,
         heads=2**5,
-        conv_depth=tuple(2**n for n in (11,11,10,10,9,9,8,8)), # 2**4,
+        conv_depth=tuple(2**n for n in (11, 11, 10, 10, 9, 9, 8, 8)),  # 2**4,
         attn_depth=2**4,
         expand_factor=2.0,
     )
     print(
-        model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**14, 2**11)), train=False)
+        model.tabulate(
+            jax.random.key(0), jnp.ones((2**2, 2**14, 2**11)), train=False
+        )
     )
