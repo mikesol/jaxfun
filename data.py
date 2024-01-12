@@ -172,13 +172,14 @@ def make_data_stacked(
         naug=naug,
         shuffle=shuffle,
     )
+    cfa = create_filtered_audio((2**11) - 1, 44100, afstart, afend, qstart, qend)
     d = d.map(
         lambda x: {
             "input": np.concatenate(
                 [
                     x["input"],
-                    create_filtered_audio(
-                        x["input"], (2**11) - 1, 44100, afstart, afend, qstart, qend
+                    cfa(
+                        x["input"],
                     ),
                 ],
                 axis=-1,
