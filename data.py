@@ -84,7 +84,7 @@ def audio_gen(pair, window, stride, normalize=True, naug=3):
         normy = librosa.util.normalize if normalize else lambda x: x
         while start + window <= len(i):
             for m in [1.0, -1.0]:
-                for aug in [False, *[True for _ in naug]]:
+                for aug in [False, *[True for _ in range(naug)]]:
                     ii = i[start : start + window] * m
                     if aug:
                         ii = process_audio(ii, 1024, 10)
