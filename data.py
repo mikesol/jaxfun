@@ -76,7 +76,7 @@ def mix_input_and_output(batch):
 #####
 
 
-def audio_gen(pair, window, stride, normalize=True):
+def audio_gen(pair, window, stride, normalize=True, naug=3):
     def _audio_gen():
         i, _ = librosa.load(pair[0], sr=44100)
         o, _ = librosa.load(pair[1], sr=44100)
@@ -84,7 +84,7 @@ def audio_gen(pair, window, stride, normalize=True):
         normy = librosa.util.normalize if normalize else lambda x: x
         while start + window <= len(i):
             for m in [1.0, -1.0]:
-                for aug in [False, True, True, True]:
+                for aug in [False, *[True for _ in naug]]:
                     ii = i[start : start + window] * m
                     if aug:
                         ii = process_audio(ii, 1024, 10)
@@ -148,25 +148,24 @@ def get_total_lens(paths, window, stride, f=get_total_len):
     return sum([f(x[0], window, stride) for x in paths], 0)
 
 
-def make_data(paths, window, stride, feature_dim=-1, normalize=True):
-    dataset = (
-        interleave_datasets(
-            [
-                IterableDataset.from_generator(
-                    audio_gen(pair, window, stride, normalize=normalize)
-                )
-                for pair in paths
-            ]
-        )
-        .map(
-            lambda x: {
-                "input": np.expand_dims(x["input"], axis=feature_dim),
-                "target": np.expand_dims(x["target"], axis=feature_dim),
-            },
-        )
-        .shuffle(seed=42, buffer_size=2**10)
-        # .with_format("jax")
+def make_data(
+    paths, window, stride, feature_dim=-1, normalize=True, naug=3, shuffle=True
+):
+    dataset = interleave_datasets(
+        [
+            IterableDataset.from_generator(
+                audio_gen(pair, window, stride, normalize=normalize, naug=naug)
+            )
+            for pair in paths
+        ]
+    ).map(
+        lambda x: {
+            "input": np.expand_dims(x["input"], axis=feature_dim),
+            "target": np.expand_dims(x["target"], axis=feature_dim),
+        },
     )
+    if shuffle:
+        dataset = dataset.shuffle(seed=42, buffer_size=2**10)
 
     return dataset, get_total_lens(paths, window, stride) * 2
 
