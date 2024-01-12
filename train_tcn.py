@@ -560,14 +560,7 @@ if __name__ == "__main__":
                     step=batch_ix,
                     file_name=f"audio_{epoch}_{batch_ix}_{i}_prediction.wav",
                 )
-                audy = np.squeeze(np.array(input_[i]))
-                run.log_audio(
-                    audy,
-                    sample_rate=44100,
-                    step=batch_ix,
-                    file_name=f"audio_{epoch}_{batch_ix}_{i}_interleaved_input.wav",
-                )
-                audy = np.squeeze(np.array(input_[i]))[::2]
+                audy = np.squeeze(np.array(input_[i])[:,:,0:1])
                 run.log_audio(
                     audy,
                     sample_rate=44100,

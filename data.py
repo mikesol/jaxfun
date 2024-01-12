@@ -167,16 +167,13 @@ def make_data_stacked(
         naug=naug,
         shuffle=shuffle,
     )
-    o = d.map(
+    d = d.map(
         lambda x: {
             "input": np.concat([x["input"] for _ in range(channels)], axis=-1),
             "target": x["target"],
         }
     )
-    assert o.shape[0] == d.shape[0]
-    assert o.shape[1] == d.shape[1]
-    assert o.shape[2] == channels
-    return o, n
+    return d, n
 
 
 def make_data(
