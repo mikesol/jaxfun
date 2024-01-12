@@ -3,6 +3,8 @@ import jax
 import jax.numpy as jnp
 from flax.linen import initializers
 import math
+from typing import Tuple
+
 
 
 class Sidechain(nn.Module):
@@ -233,7 +235,7 @@ class ExperimentalTCNNetwork(nn.Module):
     conv_kernel_size: int
     attn_kernel_size: int
     heads: int
-    conv_depth: tuple[int]
+    conv_depth: Tuple[int]
     attn_depth: int
     sidechain_modulo_l: int = 2
     sidechain_modulo_r: int = 1
