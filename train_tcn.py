@@ -337,7 +337,7 @@ if __name__ == "__main__":
         [
             config.batch_size,
             config.window * 2,
-            1,
+            config.conv_depth[0] # 1,
         ]
     )
     par_onez = maybe_replicate(jnp.ones([config.batch_size, config.window * 2, 1]))
