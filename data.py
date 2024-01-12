@@ -169,7 +169,7 @@ def make_data_stacked(
     )
     d = d.map(
         lambda x: {
-            "input": np.concat([x["input"] for _ in range(channels)], axis=-1),
+            "input": np.concatenate([x["input"] for _ in range(channels)], axis=-1),
             "target": x["target"],
         }
     )
