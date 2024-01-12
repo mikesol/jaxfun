@@ -64,7 +64,7 @@ class TCN(nn.Module):
             )
             if x.shape[-1] > 1
             else initializers.lecun_normal(),
-            kernel_dilation=(self.kernel_dilation,),
+            kernel_dilation=(self.kernel_dilation if not self.with_sidechain else 1,),
             kernel_size=(self.kernel_size,),
             padding=((0, 0),),
             use_bias=False,
@@ -74,7 +74,7 @@ class TCN(nn.Module):
                 channels=self.features,
                 kernel_size=self.kernel_size,
                 norm_factor=math.sqrt(self.features),
-            )(x)
+            )(x_)
         x = nn.BatchNorm(use_running_average=not train)(x)
         x = nn.gelu(x)
         x_res = nn.Conv(
@@ -203,16 +203,19 @@ class TCNNetwork(nn.Module):
     heads: int
     conv_depth: int
     attn_depth: int
+    sidechain_modulo_l: int = 2
+    sidechain_modulo_r: int = 1
     expand_factor: float = 2.0
     positional_encodings: bool = True
 
     @nn.compact
     def __call__(self, x, train: bool):
-        for _ in range(self.conv_depth):
+        for i in range(self.conv_depth):
             x = TCN(
                 features=self.features,
                 kernel_dilation=self.kernel_dilation,
                 kernel_size=self.conv_kernel_size,
+                with_sidechain=i % self.sidechain_modulo_l == self.sidechain_modulo_r
             )(x, train)
         x = ConvAttnBlock(
             features=self.features,
