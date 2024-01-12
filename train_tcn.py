@@ -23,7 +23,7 @@ if IS_CPU:
 from typing import Any
 from flax import struct
 from comet_ml import Experiment, Artifact
-from tcn import TCNNetwork
+from tcn import TCNNetwork, ExperimentalTCNNetwork
 from clu import metrics
 from functools import partial
 import jax.numpy as jnp
@@ -34,7 +34,7 @@ import math
 from flax.training import train_state
 import optax
 import jax
-from data import make_data
+from data import make_data_stacked
 import orbax.checkpoint
 from tqdm import tqdm
 import sys
@@ -268,12 +268,12 @@ if __name__ == "__main__":
     _config["stride"] = 2**8
     _config["step_freq"] = 2**6
     _config["test_size"] = 0.1
-    _config["features"] = 2**7
+    # _config["features"] = 2**7
     _config["kernel_dilation"] = 2**1
     _config["conv_kernel_size"] = 2**3
     _config["attn_kernel_size"] = 2**5  # 2**6
     _config["heads"] = 2**2
-    _config["conv_depth"] = 2**3  # 2**4
+    _config["conv_depth"] = tuple(2**n for n in (11,11,10,10,9,9,8,8)) # 2**3  # 2**4
     _config["attn_depth"] = 2**2  # 2**4
     _config["sidechain_modulo_l"] = 2
     _config["sidechain_modulo_r"] = 1
@@ -310,20 +310,22 @@ if __name__ == "__main__":
         FILES[int(len_files * config.test_size) :] if not IS_CPU else FILES[1:2]
     )
     print("making datasets")
-    # can't use make_data_with_delays_and_dilations because the RNN becomes too dicey :-(
-    proto_train_dataset, train_dataset_total = make_data(
+    proto_train_dataset, train_dataset_total = make_data_stacked(
+        channels=config.conv_depth[0],
         paths=train_files,
         window=config.window,
         stride=config.stride,  # , shift=config.shift, dilation=config.dilation, features=config.features, feature_dim=-1, shuffle=True
         # shuffle=fork_on_parallelism(True, False),
     )
-    proto_test_dataset, test_dataset_total = make_data(
+    proto_test_dataset, test_dataset_total = make_data_stacked(
+        channels=config.conv_depth[0],
         paths=test_files,
         window=config.window,
         stride=config.stride,  # , shift=config.shift, dilation=config.dilation, features=config.features, feature_dim=-1, shuffle=True
         # shuffle=fork_on_parallelism(True, False),
     )
-    proto_inference_dataset, inference_dataset_total = make_data(
+    proto_inference_dataset, inference_dataset_total = make_data_stacked(
+        channels=config.conv_depth[0],
         paths=test_files,
         window=config.inference_window,
         stride=config.stride,  # , shift=config.shift, dilation=config.dilation, features=config.features, feature_dim=-1, shuffle=True
@@ -340,8 +342,8 @@ if __name__ == "__main__":
     )
     par_onez = maybe_replicate(jnp.ones([config.batch_size, config.window * 2, 1]))
 
-    module = TCNNetwork(
-        features=config.features,
+    module = ExperimentalTCNNetwork(
+        # features=config.features,
         kernel_dilation=config.kernel_dilation,
         conv_kernel_size=config.conv_kernel_size,
         attn_kernel_size=config.attn_kernel_size,

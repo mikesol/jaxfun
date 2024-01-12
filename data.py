@@ -148,6 +148,37 @@ def get_total_lens(paths, window, stride, f=get_total_len):
     return sum([f(x[0], window, stride) for x in paths], 0)
 
 
+def make_data_stacked(
+    paths,
+    window,
+    stride,
+    channels,
+    feature_dim=-1,
+    normalize=True,
+    naug=3,
+    shuffle=True,
+):
+    d, n = make_data(
+        paths,
+        window,
+        stride,
+        feature_dim=feature_dim,
+        normalize=normalize,
+        naug=naug,
+        shuffle=shuffle,
+    )
+    o = d.map(
+        lambda x: {
+            "input": np.concat([x["input"] for _ in range(channels)], axis=-1),
+            "target": x["target"],
+        }
+    )
+    assert o.shape[0] == d.shape[0]
+    assert o.shape[1] == d.shape[1]
+    assert o.shape[2] == channels
+    return o, n
+
+
 def make_data(
     paths, window, stride, feature_dim=-1, normalize=True, naug=3, shuffle=True
 ):
