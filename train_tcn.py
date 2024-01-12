@@ -471,13 +471,14 @@ if __name__ == "__main__":
                         ckpt = {"model": ckpt_model, "config": config}
                         if local_env.parallelism == Parallelism.PMAP:
                             ckpt = checkpoint_walker(ckpt)
-                        checkpoint_manager.save(epoch * train_total + batch_ix, ckpt)
+                        CHECK_NAME = epoch * train_total + batch_ix
+                        checkpoint_manager.save(CHECK_NAME, ckpt)
                         logging.warning(
                             f"saved checkpoint for epoch {epoch} in {os.listdir(checkpoint_dir)}"
                         )
                         try:
                             artifact = Artifact("checkpoint", artifact_type="model")
-                            artifact.add(os.path.join(checkpoint_dir, f"{epoch}"))
+                            artifact.add(os.path.join(checkpoint_dir, f"{CHECK_NAME}"))
                             run.log_artifact(artifact)
                         except ValueError as e:
                             logging.warning(f"checkpoint artifact did not work {e}")
