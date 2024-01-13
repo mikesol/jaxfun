@@ -359,7 +359,14 @@ if __name__ == "__main__":
         else:
             return arr
 
-    coefficients = create_biquad_coefficients(config.conv_depth[0]-1, 44100, config.afstart, config.afend, config.qstart, config.qend)
+    coefficients = create_biquad_coefficients(
+        config.conv_depth[0] - 1,
+        44100,
+        config.afstart,
+        config.afend,
+        config.qstart,
+        config.qend,
+    )
     module = ExperimentalTCNNetwork(
         # features=config.features,
         coefficients=array_to_tuple(coefficients),

@@ -290,7 +290,6 @@ class MultiBiquad(nn.Module):
 
     @nn.compact
     def __call__(self, inputs):
-        print("INFO", self.coefficients.shape, inputs.shape)
         inputs = jnp.transpose(
             jax.lax.conv_general_dilated_patches(
                 jnp.transpose(inputs, (0, 2, 1)),
@@ -324,7 +323,6 @@ class ExperimentalTCNNetwork(nn.Module):
     expand_factor: float = 2.0
     positional_encodings: bool = True
 
-    
     @nn.compact
     def __call__(self, x, train: bool):
         mb = MultiBiquad(coefficients=jnp.array(self.coefficients))(x)

@@ -57,8 +57,8 @@ def test_biquad():
     o = np.array(model.apply({}, i))
     assert o.shape == (4, 1024, 127)
     for x in range(o.shape[1]):
-        assert np.allclose(o[0][x][0], filtered00[x], atol=1.e-3)
+        assert np.allclose(o[0][x][0], filtered00[x], atol=1.0e-3)
     for x in range(o.shape[1]):
-        assert np.allclose(o[1][x][0], filtered10[x], atol=1.e-3)
+        assert np.allclose(o[1][x][0], filtered10[x], atol=1.0e-3)
     for x in range(o.shape[1]):
-        assert np.allclose(o[0][x][-1], filtered01[x], atol=1.e-3)
+        assert np.allclose(o[0][x][-1], filtered01[x], atol=1.0e-3)
