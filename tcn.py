@@ -290,6 +290,7 @@ class MultiBiquad(nn.Module):
 
     @nn.compact
     def __call__(self, inputs):
+        print("INFO", self.coefficients.shape, inputs.shape)
         inputs = jnp.transpose(
             jax.lax.conv_general_dilated_patches(
                 jnp.transpose(inputs, (0, 2, 1)),
@@ -323,34 +324,28 @@ class ExperimentalTCNNetwork(nn.Module):
     expand_factor: float = 2.0
     positional_encodings: bool = True
 
-    def setup(self):
-        self.mb = MultiBiquad(coefficients=jnp.array(self.coefficients))
-        tcns = []
+    
+    @nn.compact
+    def __call__(self, x, train: bool):
+        assert self.coefficients.shape[-1] == self.conv_depth[0] - 1
+        mb = MultiBiquad(coefficients=jnp.array(self.coefficients))(x)
+        x = jnp.concatenate([x, mb], axis=-1)
+        x = jax.lax.stop_gradient(x)
         for i in self.conv_depth:
-            tcns.append(
-                TCN(
-                    features=i,
-                    kernel_dilation=self.kernel_dilation,
-                    kernel_size=self.conv_kernel_size,
-                    with_sidechain=False,
-                )
-            )
-        self.tcns = nn.Sequential(tcns)
-        self.cablock = ConvAttnBlock(
+            x = TCN(
+                features=i,
+                kernel_dilation=self.kernel_dilation,
+                kernel_size=self.conv_kernel_size,
+                with_sidechain=False,
+            )(x, train)
+        x = ConvAttnBlock(
             features=self.conv_depth[-1],
             kernel_size=self.attn_kernel_size,
             heads=self.heads,
             expand_factor=self.expand_factor,
             depth=self.attn_depth,
             positional_encodings=self.positional_encodings,
-        )
-
-    def __call__(self, x, train: bool):
-        mb = self.mb(x)
-        x = jnp.concatenate([x, mb], axis=-1)
-        x = jax.lax.stop_gradient(x)
-        x = self.tcns(x, train)
-        x = self.cablock(x)
+        )(x)
         return x
 
 
