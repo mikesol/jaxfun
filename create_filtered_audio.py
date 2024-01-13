@@ -3,6 +3,21 @@ from scipy import signal
 from scipy.signal import lfilter
 
 
+def no_norm_factor_and_neg(b, a):
+    return np.array(list(reversed(b))), -1 * a[1:]
+
+
+def create_biquad_coefficients(num_filters, fs, f0_start, f0_end, Qstart, Qend):
+    f0_values = np.logspace(np.log10(f0_start), np.log10(f0_end), num_filters)
+    Q_values = np.logspace(np.log10(Qstart), np.log10(Qend), num_filters)
+    return np.stack(
+        [
+            np.concatenate(no_norm_factor_and_neg(*signal.iirpeak(f0, Q, fs)))
+            for f0, Q in zip(f0_values, Q_values)
+        ],
+        axis=-1,
+    )
+
 
 def create_filtered_audio(num_filters, fs, f0_start, f0_end, Qstart, Qend):
     f0_values = np.logspace(np.log10(f0_start), np.log10(f0_end), num_filters)

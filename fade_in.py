@@ -1,5 +1,4 @@
 import jax.numpy as jnp
-from jax import vmap
 
 
 def logarithmic_fade_in(seq_length):
