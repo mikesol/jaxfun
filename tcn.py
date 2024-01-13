@@ -327,7 +327,6 @@ class ExperimentalTCNNetwork(nn.Module):
     
     @nn.compact
     def __call__(self, x, train: bool):
-        assert self.coefficients.shape[-1] == self.conv_depth[0] - 1
         mb = MultiBiquad(coefficients=jnp.array(self.coefficients))(x)
         x = jnp.concatenate([x, mb], axis=-1)
         x = jax.lax.stop_gradient(x)
