@@ -344,7 +344,7 @@ class ExperimentalTCNNetwork(nn.Module):
             expand_factor=self.expand_factor,
             depth=self.attn_depth,
             positional_encodings=self.positional_encodings,
-        )(x)
+        )
 
     def __call__(self, x, train: bool):
         assert self.coefficients.shape[-1] == self.conv_depth[0] - 1
