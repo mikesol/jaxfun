@@ -290,7 +290,6 @@ class MultiBiquad(nn.Module):
 
     @nn.compact
     def __call__(self, inputs):
-        print("INFO", self.coefficients.shape, inputs.shape)
         inputs = jnp.transpose(
             jax.lax.conv_general_dilated_patches(
                 jnp.transpose(inputs, (0, 2, 1)),
@@ -347,7 +346,6 @@ class ExperimentalTCNNetwork(nn.Module):
         )
 
     def __call__(self, x, train: bool):
-        assert self.coefficients.shape[-1] == self.conv_depth[0] - 1
         mb = self.mb(x)
         x = jnp.concatenate([x, mb], axis=-1)
         x = jax.lax.stop_gradient(x)
