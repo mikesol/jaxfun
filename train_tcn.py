@@ -353,10 +353,16 @@ if __name__ == "__main__":
     onez = jnp.ones([config.batch_size, config.window * 2, 1])  # 1,
     par_onez = maybe_replicate(jnp.ones([config.batch_size, config.window * 2, 1]))
 
+    def array_to_tuple(arr):
+        if isinstance(arr, np.ndarray):
+            return tuple(array_to_tuple(a) for a in arr)
+        else:
+            return arr
+
     coefficients = create_biquad_coefficients(config.conv_depth[0]-1, 44100, config.afstart, config.afend, config.qstart, config.qend)
     module = ExperimentalTCNNetwork(
         # features=config.features,
-        coefficients=coefficients,
+        coefficients=array_to_tuple(coefficients),
         kernel_dilation=config.kernel_dilation,
         conv_kernel_size=config.conv_kernel_size,
         attn_kernel_size=config.attn_kernel_size,
