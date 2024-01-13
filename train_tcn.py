@@ -5,6 +5,7 @@ import logging
 from enum import Enum
 from fork_on_parallelism import fork_on_parallelism
 from fade_in import apply_fade_in
+from create_filtered_audio import create_biquad_coefficients
 
 # import logging
 # logging.basicConfig(level=logging.INFO)
@@ -34,7 +35,7 @@ import math
 from flax.training import train_state
 import optax
 import jax
-from data import make_data_stacked
+from data import make_data
 import orbax.checkpoint
 from tqdm import tqdm
 import sys
@@ -315,35 +316,35 @@ if __name__ == "__main__":
         FILES[int(len_files * config.test_size) :] if not IS_CPU else FILES[1:2]
     )
     print("making datasets")
-    proto_train_dataset, train_dataset_total = make_data_stacked(
-        channels=config.conv_depth[0],
-        afstart=config.afstart,
-        afend=config.afend,
-        qstart=config.qstart,
-        qend=config.qend,
+    proto_train_dataset, train_dataset_total = make_data(
+        # channels=config.conv_depth[0],
+        # afstart=config.afstart,
+        # afend=config.afend,
+        # qstart=config.qstart,
+        # qend=config.qend,
         paths=train_files,
         window=config.window,
         stride=config.stride,  # , shift=config.shift, dilation=config.dilation, features=config.features, feature_dim=-1, shuffle=True
         # shuffle=fork_on_parallelism(True, False),
     )
-    proto_test_dataset, test_dataset_total = make_data_stacked(
-        channels=config.conv_depth[0],
-        paths=test_files,
-        afstart=config.afstart,
-        afend=config.afend,
-        qstart=config.qstart,
-        qend=config.qend,
+    proto_test_dataset, test_dataset_total = make_data(
+        # channels=config.conv_depth[0],
+        # paths=test_files,
+        # afstart=config.afstart,
+        # afend=config.afend,
+        # qstart=config.qstart,
+        # qend=config.qend,
         window=config.window,
         stride=config.stride,  # , shift=config.shift, dilation=config.dilation, features=config.features, feature_dim=-1, shuffle=True
         # shuffle=fork_on_parallelism(True, False),
     )
-    proto_inference_dataset, inference_dataset_total = make_data_stacked(
-        channels=config.conv_depth[0],
-        paths=test_files,
-        afstart=config.afstart,
-        afend=config.afend,
-        qstart=config.qstart,
-        qend=config.qend,
+    proto_inference_dataset, inference_dataset_total = make_data(
+        # channels=config.conv_depth[0],
+        # paths=test_files,
+        # afstart=config.afstart,
+        # afend=config.afend,
+        # qstart=config.qstart,
+        # qend=config.qend,
         window=config.inference_window,
         stride=config.stride,  # , shift=config.shift, dilation=config.dilation, features=config.features, feature_dim=-1, shuffle=True
         # shuffle=fork_on_parallelism(True, False),
@@ -353,8 +354,10 @@ if __name__ == "__main__":
     onez = jnp.ones([config.batch_size, config.window * 2, config.conv_depth[0]])  # 1,
     par_onez = maybe_replicate(jnp.ones([config.batch_size, config.window * 2, 1]))
 
+    coefficients = create_biquad_coefficients(config.conv_depth[0]-1, 44100, config.afstart, config.afend, config.qstart, config.qend)
     module = ExperimentalTCNNetwork(
         # features=config.features,
+        coefficients=coefficients,
         kernel_dilation=config.kernel_dilation,
         conv_kernel_size=config.conv_kernel_size,
         attn_kernel_size=config.attn_kernel_size,

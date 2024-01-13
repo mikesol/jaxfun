@@ -53,8 +53,8 @@ def test_biquad():
         - a[1] * filtered00[1]
         - a[2] * filtered00[0],
     )
-    model = MultiBiquad()
-    o = np.array(model.apply({}, i, bc))
+    model = MultiBiquad(coefficients=bc)
+    o = np.array(model.apply({}, i))
     assert o.shape == (4, 1024, 127)
     for x in range(o.shape[1]):
         assert np.allclose(o[0][x][0], filtered00[x], atol=1.e-3)

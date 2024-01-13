@@ -256,7 +256,6 @@ class BiquadCell(nn.Module):
 
     @nn.compact
     def __call__(self, carry, inputs):
-        print("RNN STARTING, carry", carry.shape, "inputs", inputs.shape)
         yx = jnp.concatenate([inputs, carry], axis=-1)
         o = jnp.sum(yx * self.coefficients[None, :], axis=-1, keepdims=True)
         return jnp.concatenate([o, carry[..., :-1]], axis=-1), o
@@ -280,18 +279,17 @@ class Biquad(nn.Module):
 
     @nn.compact
     def __call__(self, inputs, coefficients):
-        print("TO RNN, inputs", inputs.shape, coefficients.shape)
         return nn.RNN(
             BiquadCell(carry_init=self.carry_init, coefficients=coefficients)
         )(inputs)
 
 
 class MultiBiquad(nn.Module):
+    coefficients: Array
     carry_init: nn.initializers.Initializer = nn.initializers.zeros_init()
 
     @nn.compact
-    def __call__(self, inputs, coefficients):
-        print("INPUTS SHAPE", inputs.shape, "COEFFICIENTS SHAPE", coefficients.shape)
+    def __call__(self, inputs):
         inputs = jnp.transpose(
             jax.lax.conv_general_dilated_patches(
                 jnp.transpose(inputs, (0, 2, 1)),
@@ -301,14 +299,13 @@ class MultiBiquad(nn.Module):
             ),
             (0, 2, 1),
         )
-        print("INPUTS DILATED", inputs.shape)
         vmapped = nn.vmap(
             lambda m, c: m(inputs, c),
             in_axes=-1,
             out_axes=-1,
         )(
             Biquad(carry_init=self.carry_init),
-            coefficients,
+            self.coefficients,
         )
         return jnp.squeeze(vmapped, axis=-2)
 
@@ -320,14 +317,15 @@ class ExperimentalTCNNetwork(nn.Module):
     heads: int
     conv_depth: Tuple[int]
     attn_depth: int
+    coefficients: Array
     sidechain_modulo_l: int = 2
     sidechain_modulo_r: int = 1
     expand_factor: float = 2.0
     positional_encodings: bool = True
 
     @nn.compact
-    def __call__(self, x, coefficients, train: bool):
-        x = jax.np.concatenate([x, MultiBiquad()(x, coefficients)], axis=-1)
+    def __call__(self, x, train: bool):
+        x = jax.np.concatenate([x, MultiBiquad(coefficients=self.coefficients)(x)], axis=-1)
         x = jax.lax.stop_gradient(x)
         for i in self.conv_depth:
             x = TCN(
