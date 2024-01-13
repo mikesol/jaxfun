@@ -218,7 +218,6 @@ if __name__ == "__main__":
     from get_files import FILES
 
     logging.basicConfig(level=logging.WARN)
-    logging.warning("logging works")
     if local_env.parallelism == Parallelism.PMAP:
         if local_env.do_manual_parallelism_setup:
             jax.distributed.initialize(
