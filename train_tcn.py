@@ -218,7 +218,7 @@ if __name__ == "__main__":
     from get_files import FILES
 
     logging.basicConfig(level=logging.WARN)
-    logging.warn("logging works")
+    logging.warning("logging works")
     if local_env.parallelism == Parallelism.PMAP:
         if local_env.do_manual_parallelism_setup:
             jax.distributed.initialize(
@@ -329,22 +329,22 @@ if __name__ == "__main__":
     )
     proto_test_dataset, test_dataset_total = make_data(
         # channels=config.conv_depth[0],
-        # paths=test_files,
         # afstart=config.afstart,
         # afend=config.afend,
         # qstart=config.qstart,
         # qend=config.qend,
+        paths=test_files,
         window=config.window,
         stride=config.stride,  # , shift=config.shift, dilation=config.dilation, features=config.features, feature_dim=-1, shuffle=True
         # shuffle=fork_on_parallelism(True, False),
     )
     proto_inference_dataset, inference_dataset_total = make_data(
         # channels=config.conv_depth[0],
-        # paths=test_files,
         # afstart=config.afstart,
         # afend=config.afend,
         # qstart=config.qstart,
         # qend=config.qend,
+        paths=test_files,
         window=config.inference_window,
         stride=config.stride,  # , shift=config.shift, dilation=config.dilation, features=config.features, feature_dim=-1, shuffle=True
         # shuffle=fork_on_parallelism(True, False),
