@@ -350,7 +350,7 @@ if __name__ == "__main__":
     )
     print("datasets generated")
     init_rng = jax.random.PRNGKey(config.seed)
-    onez = jnp.ones([config.batch_size, config.window * 2, config.conv_depth[0]])  # 1,
+    onez = jnp.ones([config.batch_size, config.window * 2, 1])  # 1,
     par_onez = maybe_replicate(jnp.ones([config.batch_size, config.window * 2, 1]))
 
     coefficients = create_biquad_coefficients(config.conv_depth[0]-1, 44100, config.afstart, config.afend, config.qstart, config.qend)

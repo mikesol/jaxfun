@@ -149,47 +149,6 @@ def get_total_lens(paths, window, stride, f=get_total_len):
     return sum([f(x[0], window, stride) for x in paths], 0)
 
 
-def make_data_stacked(
-    paths,
-    window,
-    stride,
-    channels,
-    feature_dim=-1,
-    normalize=True,
-    naug=3,
-    shuffle=True,
-    afstart=100,
-    afend=19000,
-    qstart=30,
-    qend=10,
-):
-    d, n = make_data(
-        paths,
-        window,
-        stride,
-        feature_dim=feature_dim,
-        normalize=normalize,
-        naug=naug,
-        shuffle=shuffle,
-    )
-    cfa = create_filtered_audio(channels - 1, 44100, afstart, afend, qstart, qend)
-    d = d.map(
-        lambda x: {
-            "input": np.concatenate(
-                [
-                    x["input"],
-                    cfa(
-                        x["input"],
-                    ),
-                ],
-                axis=-1,
-            ),
-            "target": x["target"],
-        }
-    )
-    return d, n
-
-
 def make_data(
     paths, window, stride, feature_dim=-1, normalize=True, naug=3, shuffle=True
 ):
