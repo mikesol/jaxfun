@@ -195,10 +195,8 @@ class MixingBoard(nn.Module):
 
     @nn.compact
     def __call__(self, x):
-        x_ = x
         x = MultiBiquad(channels=self.channels)(x)
         for _ in range(self.depth - 1):
-            x_ = x
             x = MultiBiquad(channels=self.channels)(x)
         x = nn.Dense(features=1)(x)
         return x
