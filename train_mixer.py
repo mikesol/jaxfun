@@ -102,19 +102,16 @@ class Metrics(metrics.Collection):
 
 class TrainState(train_state.TrainState):
     metrics: Metrics
-    batch_stats: Any
 
 
 def create_train_state(rng: PRNGKey, x, module, tx) -> TrainState:
     print("creating train state", rng.shape, x.shape)
     variables = module.init(rng, x)
     params = variables["params"]
-    batch_stats = variables["batch_stats"]
     return TrainState.create(
         apply_fn=module.apply,
         params=params,
         tx=tx,
-        batch_stats=batch_stats,
         metrics=Metrics.empty(),
     )
 
@@ -158,10 +155,9 @@ def train_step(state, input, target, lossy_loss_loss):
         loss = (Loss_fn_to_loss(lossy_loss_loss))(pred, target[:, -pred.shape[1] :, :])
         return loss, updates
 
-    grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
-    (loss, updates), grads = grad_fn(state.params)
+    grad_fn = jax.value_and_grad(loss_fn)
+    loss, grads = grad_fn(state.params)
     state = state.apply_gradients(grads=grads)
-    state = state.replace(batch_stats=updates["batch_stats"])
     return state, loss
 
 
