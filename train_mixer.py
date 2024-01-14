@@ -257,7 +257,7 @@ if __name__ == "__main__":
     _config["step_freq"] = 2**6
     _config["test_size"] = 0.1
     _config["channels"] = 2**6
-    _config["order"] = 3
+    _config["order"] = 2**3
     _config["depth"] = 2**4
     _config["mesh_x"] = device_len // 1
     _config["mesh_y"] = 1
