@@ -318,6 +318,7 @@ if __name__ == "__main__":
     module = MixingBoard(
         channels=config.channels,
         depth=config.depth,
+        order=config.order
     )
     tx = optax.adam(config.learning_rate)
 
