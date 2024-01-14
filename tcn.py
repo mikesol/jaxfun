@@ -274,36 +274,6 @@ class BiquadCell(nn.Module):
         return 1
 
 
-class BiquadCellWithRNN(nn.Module):
-    carry_init: nn.initializers.Initializer = nn.initializers.zeros_init()
-    param_dtype: Dtype = jnp.float32
-
-    @nn.compact
-    def __call__(self, carry, inputs):
-        yx = jnp.concatenate([inputs, carry], axis=-1)
-        weights = self.param(
-            "weights",
-            nn.with_partitioning(initializers.lecun_normal(), (None, "model")),
-            (1, yx.shape[-1]),
-            jnp.float32,
-        )
-        o = jnp.sum(yx * weights, axis=-1, keepdims=True)
-        return jnp.concatenate([o, carry[..., :-1]], axis=-1), o
-
-    @nn.nowrap
-    def initialize_carry(
-        self, rng: PRNGKey, input_shape: Tuple[int, ...]
-    ) -> Tuple[Array, Array]:
-        batch_dims = input_shape[:-1]
-        mem_shape = batch_dims + (2,)
-        c = self.carry_init(rng, mem_shape, self.param_dtype)
-        return c
-
-    @property
-    def num_feature_axes(self) -> int:
-        return 1
-
-
 class Biquad(nn.Module):
     carry_init: nn.initializers.Initializer = nn.initializers.zeros_init()
 
@@ -312,14 +282,6 @@ class Biquad(nn.Module):
         return nn.RNN(
             BiquadCell(carry_init=self.carry_init, coefficients=coefficients)
         )(inputs)
-
-
-class BiquadWithRNN(nn.Module):
-    carry_init: nn.initializers.Initializer = nn.initializers.zeros_init()
-
-    @nn.compact
-    def __call__(self, inputs):
-        return nn.RNN(BiquadCellWithRNN(carry_init=self.carry_init))(inputs)
 
 
 class MultiBiquad(nn.Module):
@@ -348,30 +310,6 @@ class MultiBiquad(nn.Module):
         return jnp.squeeze(vmapped, axis=-2)
 
 
-class MultiBiquadWithRNN(nn.Module):
-    carry_init: nn.initializers.Initializer = nn.initializers.zeros_init()
-
-    @nn.compact
-    def __call__(self, inputs):
-        inputs = jnp.transpose(
-            jax.lax.conv_general_dilated_patches(
-                jnp.transpose(inputs, (0, 2, 1)),
-                filter_shape=(3,),
-                window_strides=(1,),
-                padding=((2, 0),),
-            ),
-            (0, 2, 1),
-        )
-        vmapped = nn.vmap(
-            lambda m: m(inputs),
-            in_axes=-1,
-            out_axes=-1,
-        )(
-            BiquadWithRNN(carry_init=self.carry_init),
-        )
-        return jnp.squeeze(vmapped, axis=-2)
-
-
 class ExperimentalTCNNetwork(nn.Module):
     kernel_dilation: int
     conv_kernel_size: int
@@ -388,42 +326,6 @@ class ExperimentalTCNNetwork(nn.Module):
     @nn.compact
     def __call__(self, x, train: bool):
         mb = MultiBiquad(coefficients=jnp.array(self.coefficients))(x)
-        x = jnp.concatenate([x, mb], axis=-1)
-        x = jax.lax.stop_gradient(x)
-        for i in self.conv_depth:
-            x = TCN(
-                features=i,
-                kernel_dilation=self.kernel_dilation,
-                kernel_size=self.conv_kernel_size,
-                with_sidechain=False,
-            )(x, train)
-        x = ConvAttnBlock(
-            features=self.conv_depth[-1],
-            kernel_size=self.attn_kernel_size,
-            heads=self.heads,
-            expand_factor=self.expand_factor,
-            depth=self.attn_depth,
-            positional_encodings=self.positional_encodings,
-        )(x)
-        return x
-
-
-class ExperimentalTCNWithRNN(nn.Module):
-    kernel_dilation: int
-    conv_kernel_size: int
-    attn_kernel_size: int
-    heads: int
-    conv_depth: Tuple[int]
-    attn_depth: int
-    coefficients: Array
-    sidechain_modulo_l: int = 2
-    sidechain_modulo_r: int = 1
-    expand_factor: float = 2.0
-    positional_encodings: bool = True
-
-    @nn.compact
-    def __call__(self, x, train: bool):
-        mb = MultiBiquadWithRNN()(x)
         x = jnp.concatenate([x, mb], axis=-1)
         x = jax.lax.stop_gradient(x)
         for i in self.conv_depth:
