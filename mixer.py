@@ -54,8 +54,7 @@ class BiquadCellWithSidechain(nn.Module):
             (1, yx.shape[-1]),
             jnp.float32,
         )
-        # o = jnp.sum(yx * (weights + sidechain), axis=-1, keepdims=True)
-        o = jnp.sum(yx * (weights ), axis=-1, keepdims=True)
+        o = jnp.sum(yx * (weights + sidechain), axis=-1, keepdims=True)
         return jnp.concatenate([o, carry[..., :-1]], axis=-1), o
 
 
