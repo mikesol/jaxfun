@@ -39,7 +39,8 @@ class BiquadCell(nn.Module):
             jnp.float32,
         )
         o = jnp.sum(yx * weights, axis=-1, keepdims=True)
-        o = nn.tanh(o)
+        # skip
+        o = nn.tanh(o + inputs[..., -1:])
         return jnp.concatenate([o, carry[..., :-1]], axis=-1), o
 
 
@@ -56,6 +57,7 @@ class BiquadCellWithSidechain(nn.Module):
             jnp.float32,
         )
         o = jnp.sum(yx * (weights + sidechain), axis=-1, keepdims=True)
+        o = nn.tanh(o)
         return jnp.concatenate([o, carry[..., :-1]], axis=-1), o
 
 
@@ -195,11 +197,9 @@ class MixingBoard(nn.Module):
     def __call__(self, x):
         x_ = x
         x = MultiBiquad(channels=self.channels)(x)
-        x = nn.tanh(x + x_)
         for _ in range(self.depth - 1):
             x_ = x
             x = MultiBiquad(channels=self.channels)(x)
-            x = nn.tanh(x + x_)
         x = nn.Dense(features=1)(x)
         return x
         
