@@ -39,7 +39,7 @@ class BiquadCell(nn.Module):
             jnp.float32,
         )
         o = jnp.sum(yx * weights, axis=-1, keepdims=True)
-        return jnp.concatenate([o, carry[..., :-1]], axis=-1), o
+        return jnp.concatenate([o, carry[..., :-1]], axis=-1), nn.tanh(o)
 
 
 class BiquadCellWithSidechain(nn.Module):
