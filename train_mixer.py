@@ -5,7 +5,6 @@ import logging
 from enum import Enum
 from fork_on_parallelism import fork_on_parallelism
 from fade_in import apply_fade_in
-from create_filtered_audio import create_biquad_coefficients
 
 # import logging
 # logging.basicConfig(level=logging.INFO)
@@ -320,14 +319,6 @@ if __name__ == "__main__":
         else:
             return arr
 
-    coefficients = create_biquad_coefficients(
-        config.conv_depth[0] - 1,
-        44100,
-        config.afstart,
-        config.afend,
-        config.qstart,
-        config.qend,
-    )
     module = MixingBoard(
         channels=config.channels,
         depth=config.depth,

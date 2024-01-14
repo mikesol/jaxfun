@@ -8,4 +8,5 @@ pip install -r requirements-tpu.txt
 screen -S train
 # clear && git pull && rm -rf /tmp/flax_ckpt/orbax/managed && python train_faux_rnn.py
 # clear && git pull && rm -rf /tmp/flax_ckpt/orbax/managed && python train_rnn.py
-clear && git pull && rm -rf /tmp/flax_ckpt/orbax/managed && python train_tcn.py
+# clear && git pull && rm -rf /tmp/flax_ckpt/orbax/managed && python train_tcn.py
+clear && git pull && rm -rf /tmp/flax_ckpt/orbax/managed && python train_mixer.py
