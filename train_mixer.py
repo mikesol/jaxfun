@@ -148,12 +148,12 @@ def train_step(state, input, target, lossy_loss_loss):
     """Train for a single step."""
 
     def loss_fn(params):
-        pred, updates = state.apply_fn(
+        pred = state.apply_fn(
             {"params": params},
             input,
         )
         loss = (Loss_fn_to_loss(lossy_loss_loss))(pred, target[:, -pred.shape[1] :, :])
-        return loss, updates
+        return loss
 
     grad_fn = jax.value_and_grad(loss_fn)
     loss, grads = grad_fn(state.params)
@@ -166,7 +166,7 @@ def _replace_metrics(state):
 
 
 def do_inference(state, input):
-    o, _ = state.apply_fn(
+    o = state.apply_fn(
         {"params": state.params},
         input,
     )
@@ -177,7 +177,7 @@ replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
 
 
 def compute_loss(state, input, target, lossy_loss_loss):
-    pred, _ = state.apply_fn(
+    pred = state.apply_fn(
         {"params": state.params },
         input,
     )
