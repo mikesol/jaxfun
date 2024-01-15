@@ -333,7 +333,7 @@ class ExperimentalTCNNetwork(nn.Module):
                 features=i,
                 kernel_dilation=self.kernel_dilation,
                 kernel_size=self.conv_kernel_size,
-                with_sidechain=False,
+                with_sidechain=i % self.sidechain_modulo_l == self.sidechain_modulo_r,
             )(x, train)
         x = ConvAttnBlock(
             features=self.conv_depth[-1],
