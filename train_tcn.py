@@ -271,7 +271,7 @@ if __name__ == "__main__":
     # _config["features"] = 2**7
     _config["kernel_dilation"] = 2**1
     _config["conv_kernel_size"] = 2**3
-    _config["attn_kernel_size"] = 2**6  # 2**6
+    _config["attn_kernel_size"] = 2**5  # 2**6
     _config["heads"] = 2**3
     _config["conv_depth"] = tuple(
         2**n for n in (11, 11, 10, 10, 9, 9, 8, 8, 7, 7)
