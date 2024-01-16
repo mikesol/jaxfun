@@ -294,7 +294,7 @@ if __name__ == "__main__":
         _config["qstart"] = 30
         _config["qend"] = 10
     else:
-        print("USING ckpt", CKPT["config"])
+        print("USING ckpt", CKPT.keys())
         _config = CKPT["config"]
     ###
     run.log_parameters(_config)
