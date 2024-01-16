@@ -242,7 +242,6 @@ if __name__ == "__main__":
     )
 
     CKPT = checkpoint_manager.restore(896276)
-    print("RESTORED", CKPT)
 
     device_len = len(jax.devices())
 
@@ -295,6 +294,7 @@ if __name__ == "__main__":
         _config["qstart"] = 30
         _config["qend"] = 10
     else:
+        print("USING ckpt", CKPT["config"])
         _config = CKPT["config"]
     ###
     run.log_parameters(_config)
