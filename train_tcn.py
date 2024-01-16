@@ -274,7 +274,7 @@ if __name__ == "__main__":
     _config["attn_kernel_size"] = 2**5
     _config["heads"] = 2**2
     _config["conv_depth"] = tuple(
-        2**n for n in (11, 9)
+        2**n for n in (11, 7)
     )  # 2**3  # 2**4
     _config["attn_depth"] = 2**4  # 2**2  # 2**4
     _config["sidechain_modulo_l"] = 2
@@ -352,8 +352,7 @@ if __name__ == "__main__":
     )
     print("datasets generated")
     init_rng = jax.random.PRNGKey(config.seed)
-    onez = jnp.ones([config.batch_size, config.window * 2, 1])  # 1,
-    par_onez = maybe_replicate(jnp.ones([config.batch_size, config.window * 2, 1]))
+    onez = jnp.ones([config.batch_size, config.window, 1])  # 1,
 
     def array_to_tuple(arr):
         if isinstance(arr, np.ndarray):
@@ -415,10 +414,10 @@ if __name__ == "__main__":
             init_rng, 8
         )  ### #UGH we hardcode 8, not sure why this worked before :-/
     )
-    print("will call jit_create_train_state", rng_for_train_state.shape, par_onez.shape)
+    print("will call jit_create_train_state", rng_for_train_state.shape, onez)
     state = jit_create_train_state(
         rng_for_train_state,
-        fork_on_parallelism(onez, par_onez),
+        fork_on_parallelism(onez, onez),
         module,
         tx,
     )
