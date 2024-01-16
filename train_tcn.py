@@ -276,7 +276,7 @@ if __name__ == "__main__":
     _config["conv_depth"] = tuple(
         2**n for n in (11, 7)
     )  # 2**3  # 2**4
-    _config["attn_depth"] = 8  # 2**2  # 2**4
+    _config["attn_depth"] = 10  # 2**2  # 2**4
     _config["sidechain_modulo_l"] = 2
     _config["sidechain_modulo_r"] = 1
     _config["expand_factor"] = 2.0
