@@ -272,11 +272,11 @@ if __name__ == "__main__":
     _config["kernel_dilation"] = 2**1
     _config["conv_kernel_size"] = 2**3
     _config["attn_kernel_size"] = 2**6
-    _config["heads"] = 2**2
+    _config["heads"] = 2**4
     _config["conv_depth"] = tuple(
-        2**n for n in (11, 7)
+        2**n for n in (11 for _ in range(2**4))
     )  # 2**3  # 2**4
-    _config["attn_depth"] = 10  # 2**2  # 2**4
+    _config["attn_depth"] = 2**1  # 2**2  # 2**4
     _config["sidechain_modulo_l"] = 2
     _config["sidechain_modulo_r"] = 1
     _config["expand_factor"] = 2.0
