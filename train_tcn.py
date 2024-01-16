@@ -242,6 +242,7 @@ if __name__ == "__main__":
     )
 
     CKPT = checkpoint_manager.restore(896276)
+    print("RESTORED", CKPT)
 
     device_len = len(jax.devices())
 
