@@ -241,8 +241,6 @@ if __name__ == "__main__":
         checkpoint_dir, orbax_checkpointer, options
     )
 
-    CKPT = checkpoint_manager.restore(896276)
-
     device_len = len(jax.devices())
 
     print(f"Using {device_len} devices")
@@ -277,7 +275,14 @@ if __name__ == "__main__":
     _config["attn_kernel_size"] = 2**5
     _config["heads"] = 2**2
     _config["conv_depth"] = tuple(
-        (2048,1024,512,256,128,64) # 2**n for n in (11,11,11,10,10,10,9,9,9,8,8,8,7,7,7)
+        (
+            2048,
+            1024,
+            512,
+            256,
+            128,
+            64,
+        )  # 2**n for n in (11,11,11,10,10,10,9,9,9,8,8,8,7,7,7)
     )  # 2**3  # 2**4
     _config["attn_depth"] = 2**4
     _config["sidechain_modulo_l"] = 2
@@ -421,16 +426,18 @@ if __name__ == "__main__":
         )  ### #UGH we hardcode 8, not sure why this worked before :-/
     )
     print("will call jit_create_train_state", rng_for_train_state.shape, onez)
-    state = None
-    if CKPT is None:
-        state = jit_create_train_state(
-            rng_for_train_state,
-            fork_on_parallelism(onez, onez),
-            module,
-            tx,
-        )
-    else:
-        state = CKPT["model"]
+    state = jit_create_train_state(
+        rng_for_train_state,
+        fork_on_parallelism(onez, onez),
+        module,
+        tx,
+    )
+
+    target = {"model": state, "config": None}
+
+    CKPT = checkpoint_manager.restore(896276, target)
+
+    state = CKPT["model"]
 
     jit_train_step = fork_on_parallelism(
         partial(
