@@ -6,7 +6,7 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install jax[tpu] -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
 pip install -r requirements-tpu.txt
 screen -S train
-# clear && git pull && rm -rf /tmp/flax_ckpt/orbax/managed && python train_faux_rnn.py
-# clear && git pull && rm -rf /tmp/flax_ckpt/orbax/managed && python train_rnn.py
-clear && git pull && rm -rf /tmp/flax_ckpt/orbax/managed && python train_tcn.py
-# clear && git pull && rm -rf /tmp/flax_ckpt/orbax/managed && python train_mixer.py
+# clear && git pull && python train_faux_rnn.py
+# clear && git pull && python train_rnn.py
+clear && git pull && python train_tcn.py
+# clear && git pull && python train_mixer.py
