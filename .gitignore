@@ -1,3 +1,5 @@
 .venv
 __pycache__
 local_env.py
+model
+wandb
