@@ -241,6 +241,8 @@ if __name__ == "__main__":
         checkpoint_dir, orbax_checkpointer, options
     )
 
+    CKPT = checkpoint_manager.restore(896276)
+
     device_len = len(jax.devices())
 
     print(f"Using {device_len} devices")
@@ -253,43 +255,46 @@ if __name__ == "__main__":
         project_name="jax-tcn-attn",
     )
     _config = {}
-    # cnn
-    _config["seed"] = 42
-    _config["batch_size"] = 2**4
-    _config["inference_batch_size"] = 2**3
-    _config["inference_artifacts_per_batch_per_epoch"] = (
-        _config["inference_batch_size"] * 4
-    )
-    _config["validation_split"] = 0.2
-    _config["learning_rate"] = 1e-4
-    _config["epochs"] = 2**7
-    _config["window"] = 2**11
-    _config["inference_window"] = 2**11
-    _config["stride"] = 2**8
-    _config["step_freq"] = 2**6
-    _config["test_size"] = 0.1
-    # _config["features"] = 2**7
-    _config["kernel_dilation"] = 2**1
-    _config["conv_kernel_size"] = 2**3
-    _config["attn_kernel_size"] = 2**5
-    _config["heads"] = 2**4
-    _config["conv_depth"] = tuple(
-        2**n for n in (11,11,11,10,10,10,9,9,9,8,8,8,7,7,7)
-    )  # 2**3  # 2**4
-    _config["attn_depth"] = 2**1  # 2**2  # 2**4
-    _config["sidechain_modulo_l"] = 2
-    _config["sidechain_modulo_r"] = 1
-    _config["expand_factor"] = 2.0
-    _config["positional_encodings"] = True
-    _config["kernel_size"] = 7
-    _config["mesh_x"] = device_len // 1
-    _config["mesh_y"] = 1
-    _config["loss_fn"] = LossFn.LOGCOSH
-    #
-    _config["afstart"] = 100
-    _config["afend"] = 19000
-    _config["qstart"] = 30
-    _config["qend"] = 10
+    if CKPT is None:
+        # cnn
+        _config["seed"] = 42
+        _config["batch_size"] = 2**4
+        _config["inference_batch_size"] = 2**3
+        _config["inference_artifacts_per_batch_per_epoch"] = (
+            _config["inference_batch_size"] * 4
+        )
+        _config["validation_split"] = 0.2
+        _config["learning_rate"] = 1e-4
+        _config["epochs"] = 2**7
+        _config["window"] = 2**11
+        _config["inference_window"] = 2**11
+        _config["stride"] = 2**8
+        _config["step_freq"] = 2**6
+        _config["test_size"] = 0.1
+        # _config["features"] = 2**7
+        _config["kernel_dilation"] = 2**1
+        _config["conv_kernel_size"] = 2**3
+        _config["attn_kernel_size"] = 2**5
+        _config["heads"] = 2**4
+        _config["conv_depth"] = tuple(
+            2**n for n in (11,11,11,10,10,10,9,9,9,8,8,8,7,7,7)
+        )  # 2**3  # 2**4
+        _config["attn_depth"] = 2**1  # 2**2  # 2**4
+        _config["sidechain_modulo_l"] = 2
+        _config["sidechain_modulo_r"] = 1
+        _config["expand_factor"] = 2.0
+        _config["positional_encodings"] = True
+        _config["kernel_size"] = 7
+        _config["mesh_x"] = device_len // 1
+        _config["mesh_y"] = 1
+        _config["loss_fn"] = LossFn.LOGCOSH
+        #
+        _config["afstart"] = 100
+        _config["afend"] = 19000
+        _config["qstart"] = 30
+        _config["qend"] = 10
+    else:
+        _config = CKPT["config"]
     ###
     run.log_parameters(_config)
     if local_env.parallelism == Parallelism.PMAP:
@@ -415,12 +420,16 @@ if __name__ == "__main__":
         )  ### #UGH we hardcode 8, not sure why this worked before :-/
     )
     print("will call jit_create_train_state", rng_for_train_state.shape, onez)
-    state = jit_create_train_state(
-        rng_for_train_state,
-        fork_on_parallelism(onez, onez),
-        module,
-        tx,
-    )
+    state = None
+    if CKPT is None:
+        state = jit_create_train_state(
+            rng_for_train_state,
+            fork_on_parallelism(onez, onez),
+            module,
+            tx,
+        )
+    else:
+        state = CKPT["model"]
 
     jit_train_step = fork_on_parallelism(
         partial(
