@@ -43,7 +43,7 @@ from jax.sharding import Mesh, PartitionSpec, NamedSharding
 from jax.lax import with_sharding_constraint
 from jax.experimental import mesh_utils
 
-RESTORE = 896276
+RESTORE = None
 
 def LogCoshLoss(input, target, a=1.0, eps=1e-8):
     losses = jnp.mean((1 / a) * jnp.log(jnp.cosh(a * (input - target)) + eps), axis=-2)
@@ -436,9 +436,10 @@ if __name__ == "__main__":
 
     target = {"model": state, "config": None}
 
-    CKPT = checkpoint_manager.restore(RESTORE, target)
+    if RESTORE is not None:
+        CKPT = checkpoint_manager.restore(RESTORE, target)
 
-    state = CKPT["model"]
+        state = CKPT["model"]
 
     jit_train_step = fork_on_parallelism(
         partial(
@@ -524,7 +525,7 @@ if __name__ == "__main__":
                         ckpt = {"model": ckpt_model, "config": _config}
                         if local_env.parallelism == Parallelism.PMAP:
                             ckpt = checkpoint_walker(ckpt)
-                        CHECK_NAME = epoch * train_total + batch_ix + RESTORE
+                        CHECK_NAME = epoch * train_total + batch_ix + (RESTORE if RESTORE is not None else 0)
                         checkpoint_manager.save(CHECK_NAME, ckpt)
                         logging.warning(
                             f"saved checkpoint for epoch {epoch} in {os.listdir(checkpoint_dir)}"
