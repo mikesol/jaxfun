@@ -228,10 +228,10 @@ if __name__ == "__main__":
         else:
             jax.distributed.initialize()
 
-    checkpoint_dir = "/tmp/flax_ckpt/orbax/managed"
+    checkpoint_dir = "/tmp/flax_ckpt/flax_ckpt/orbax/managed"
 
     if os.path.exists(checkpoint_dir):
-        raise ValueError(f"clear checkpoint dir first: {checkpoint_dir}")
+        logging.warn(f"consisder clearing checkpoint dir first: {checkpoint_dir}")
     else:
         os.makedirs(checkpoint_dir)
 
