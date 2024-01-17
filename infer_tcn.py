@@ -82,7 +82,6 @@ class LossFn(Enum):
     LOGCOSH_RANGE = 3
 
 
-@nn.jit
 def do_inference(state, input):
     o, _ = state.apply_fn(
         {"params": state.params, "batch_stats": state.batch_stats},
@@ -150,10 +149,12 @@ if __name__ == "__main__":
     _config["conv_kernel_size"] = 2**3
     _config["attn_kernel_size"] = 2**5  # 2**6
     _config["heads"] = 2**2
-    _config["conv_depth"] = tuple(2**n for n in (10, 10, 9, 9, 8, 8, 7, 7))  # 2**3  # 2**4
+    _config["conv_depth"] = tuple(
+        2**n for n in (10, 10, 9, 9, 8, 8, 7, 7)
+    )  # 2**3  # 2**4
     _config["attn_depth"] = 2**3  # 2**2  # 2**4
     _config["sidechain_modulo_l"] = 2
-    _config["sidechain_modulo_r"] = 1214124 # set to high to avoid
+    _config["sidechain_modulo_r"] = 1214124  # set to high to avoid
     _config["expand_factor"] = 2.0
     _config["positional_encodings"] = True
     _config["kernel_size"] = 7
@@ -268,7 +269,9 @@ if __name__ == "__main__":
     target = {"model": state, "config": None}
     restore_args = orbax_utils.restore_args_from_target(target)
 
-    CKPT = checkpoint_manager.restore(RESTORE, target, restore_kwargs={'restore_args': restore_args})
+    CKPT = checkpoint_manager.restore(
+        RESTORE, target, restore_kwargs={"restore_args": restore_args}
+    )
 
     state = CKPT["model"]
 
@@ -284,7 +287,15 @@ if __name__ == "__main__":
     input = input_
     target = target_
 
-    o = do_inference(state, input)
+    jit_do_inference = fork_on_parallelism(
+        partial(
+            jax.jit,
+            in_shardings=(state_sharding, x_sharding),
+            out_shardings=x_sharding,
+        ),
+        jax.pmap,
+    )(do_inference)
+    o = jit_do_inference(state, input)
     o = np.squeeze(np.array(o))
     soundfile.write("/tmp/input.wav", input_, 44100)
     soundfile.write("/tmp/prediction.wav", o, 44100)
