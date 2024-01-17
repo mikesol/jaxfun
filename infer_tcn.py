@@ -39,7 +39,6 @@ import math
 from flax.training import train_state
 import optax
 import jax
-from data import make_data
 import orbax.checkpoint
 from tqdm import tqdm
 import sys
