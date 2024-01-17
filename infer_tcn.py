@@ -20,7 +20,7 @@ import yaml
 
 start_time = time.time()
 
-IS_CPU = True # local_env.parallelism == Parallelism.NONE
+IS_CPU = local_env.parallelism == Parallelism.NONE
 if IS_CPU:
     print("no gpus found")
     os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
