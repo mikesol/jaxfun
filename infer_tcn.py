@@ -297,7 +297,7 @@ if __name__ == "__main__":
     stride = 2**11
     o = jit_do_inference(state, input[:,:stride,:])
     o = np.squeeze(np.array(o))
-    size_diff = input.shape[1] - o.shape[1]
+    size_diff = stride - o.shape[1]
     print('starting inference with size_diff', size_diff)
     offset = 0
     a = []
