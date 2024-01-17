@@ -349,6 +349,7 @@ class ExperimentalTCNNetwork(nn.Module):
             depth=self.attn_depth,
             positional_encodings=self.positional_encodings,
         )(x)
+        x = nn.tanh(x)
         x = nn.Conv(
             features=1,
             kernel_init=initializers.lecun_normal(),
