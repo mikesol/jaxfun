@@ -5,3 +5,4 @@ model
 wandb
 *.wav
 audio/*.wav
+checkpoints/*

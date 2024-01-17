@@ -8,6 +8,7 @@ from fork_on_parallelism import fork_on_parallelism
 from fade_in import apply_fade_in
 from create_filtered_audio import create_biquad_coefficients
 import soundfile
+from flax.training import orbax_utils
 
 # import logging
 # logging.basicConfig(level=logging.INFO)
@@ -19,7 +20,7 @@ import yaml
 
 start_time = time.time()
 
-IS_CPU = local_env.parallelism == Parallelism.NONE
+IS_CPU = True # local_env.parallelism == Parallelism.NONE
 if IS_CPU:
     print("no gpus found")
     os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
@@ -46,7 +47,7 @@ from jax.sharding import Mesh, PartitionSpec, NamedSharding
 from jax.lax import with_sharding_constraint
 from jax.experimental import mesh_utils
 
-RESTORE = None
+RESTORE = 931823
 
 
 PRNGKey = jax.Array
@@ -113,7 +114,7 @@ if __name__ == "__main__":
         else:
             jax.distributed.initialize()
 
-    checkpoint_dir = "/tmp/flax_ckpt/flax_ckpt/orbax/managed"
+    checkpoint_dir = "./checkpoints/"
 
     orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
     options = orbax.checkpoint.CheckpointManagerOptions(max_to_keep=2, create=True)
@@ -165,18 +166,18 @@ if __name__ == "__main__":
     _config["qstart"] = 30
     _config["qend"] = 10
     ###
-    CKPT = checkpoint_manager.restore(RESTORE)
-    if ("config" in CKPT) and (len(CKPT["config"]) > 0):
-        _config = {**_config, **CKPT["config"]}
-    else:
-        logging.warning("No config found. Try ing local.")
-        if os.path.exists("cofig.yaml"):
-            with open("config.yaml", "r") as yfile:
-                _config = {**_config, **yaml.load(yfile)}
-        else:
-            logging.warning(
-                "No config file exists. Make sure to set the params manually!"
-            )
+    # CKPT = checkpoint_manager.restore(RESTORE)
+    # if ("config" in CKPT) and (len(CKPT["config"]) > 0):
+    #     _config = {**_config, **CKPT["config"]}
+    # else:
+    #     logging.warning("No config found. Try ing local.")
+    #     if os.path.exists("cofig.yaml"):
+    #         with open("config.yaml", "r") as yfile:
+    #             _config = {**_config, **yaml.load(yfile)}
+    #     else:
+    #         logging.warning(
+    #             "No config file exists. Make sure to set the params manually!"
+    #         )
 
     config = SimpleNamespace(**_config)
 
@@ -265,8 +266,9 @@ if __name__ == "__main__":
     )
 
     target = {"model": state, "config": None}
+    restore_args = orbax_utils.restore_args_from_target(target)
 
-    CKPT = checkpoint_manager.restore(RESTORE, target)
+    CKPT = checkpoint_manager.restore(RESTORE, target, restore_kwargs={'restore_args': restore_args})
 
     state = CKPT["model"]
 
@@ -274,24 +276,15 @@ if __name__ == "__main__":
 
     # ugggh
 
-    input_ = librosa.load(local_env.inference_file_source, sr=44100)
-    target_ = librosa.load(local_env.inference_file_target, sr=44100)
+    input_, _ = librosa.load(local_env.inference_file_source, sr=44100)
+    target_, _ = librosa.load(local_env.inference_file_target, sr=44100)
     input_ = jnp.expand_dims(input_, axis=0)
     input_ = jnp.expand_dims(input_, axis=-1)
-    assert len(input_.shape == 3)
-    input = maybe_replicate(input_)
-    input = maybe_device_put(input, x_sharding)
-    target = maybe_replicate(target_)
-    jit_do_inference = fork_on_parallelism(
-        partial(
-            jax.jit,
-            in_shardings=(state_sharding, x_sharding),
-            out_shardings=x_sharding,
-        ),
-        jax.pmap,
-    )(do_inference)
+    assert len(input_.shape) == 3
+    input = input_
+    target = target_
 
-    o = jit_do_inference(state, input)
+    o = do_inference(state, input)
     o = np.squeeze(np.array(o))
     soundfile.write("/tmp/input.wav", input_, 44100)
     soundfile.write("/tmp/prediction.wav", o, 44100)
