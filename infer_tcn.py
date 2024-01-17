@@ -296,7 +296,6 @@ if __name__ == "__main__":
     print("input shape", input.shape)
     stride = 2**11
     o = jit_do_inference(state, input[:,:stride,:])
-    o = np.squeeze(np.array(o))
     size_diff = stride - o.shape[1]
     print('starting inference with size_diff', size_diff)
     offset = 0
@@ -309,5 +308,5 @@ if __name__ == "__main__":
 
     o = np.concatenate(a, axis=1)
     soundfile.write("/tmp/input.wav", input_, 44100)
-    soundfile.write("/tmp/prediction.wav", o, 44100)
+    soundfile.write("/tmp/prediction.wav", jnp.squeeze(o), 44100)
     soundfile.write("/tmp/target.wav", target_, 44100)
