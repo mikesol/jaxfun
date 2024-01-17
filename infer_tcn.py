@@ -298,6 +298,7 @@ if __name__ == "__main__":
         jax.pmap,
     )(do_inference)
     # jit_do_inference = jax.jit(do_inference)
+    print('input shape', input.shape)
     o = jit_do_inference(state, input)
     o = np.squeeze(np.array(o))
     soundfile.write("/tmp/input.wav", input_, 44100)
