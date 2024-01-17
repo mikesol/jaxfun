@@ -82,6 +82,7 @@ class LossFn(Enum):
     LOGCOSH_RANGE = 3
 
 
+@nn.jit
 def do_inference(state, input):
     o, _ = state.apply_fn(
         {"params": state.params, "batch_stats": state.batch_stats},
