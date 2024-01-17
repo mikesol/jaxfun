@@ -287,14 +287,15 @@ if __name__ == "__main__":
     input = input_
     target = target_
 
-    jit_do_inference = fork_on_parallelism(
-        partial(
-            jax.jit,
-            in_shardings=(state_sharding, x_sharding),
-            out_shardings=x_sharding,
-        ),
-        jax.pmap,
-    )(do_inference)
+    # jit_do_inference = fork_on_parallelism(
+    #     partial(
+    #         jax.jit,
+    #         in_shardings=(state_sharding, x_sharding),
+    #         out_shardings=x_sharding,
+    #     ),
+    #     jax.pmap,
+    # )(do_inference)
+    jit_do_inference = jax.jit(do_inference)
     o = jit_do_inference(state, input)
     o = np.squeeze(np.array(o))
     soundfile.write("/tmp/input.wav", input_, 44100)
