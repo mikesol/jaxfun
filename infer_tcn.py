@@ -307,6 +307,9 @@ if __name__ == "__main__":
         a.append(o)
 
     o = np.concatenate(a, axis=1)
+    print('o after concat', o.shape)
+    o = jnp.squeeze(o)
+    print('o after squeeze', o.shape)
     soundfile.write("/tmp/input.wav", input_, 44100)
-    soundfile.write("/tmp/prediction.wav", jnp.squeeze(o), 44100)
+    soundfile.write("/tmp/prediction.wav", o, 44100)
     soundfile.write("/tmp/target.wav", target_, 44100)
