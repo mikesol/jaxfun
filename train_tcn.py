@@ -277,7 +277,7 @@ if __name__ == "__main__":
     _config["attn_kernel_size"] = 2**5
     _config["heads"] = 2**2
     _config["conv_depth"] = tuple(
-        (2**n for n in (10, 9, 8, 7, 6))
+        (2**n for n in (9, 9, 8, 7, 6))
     )  # 2**3  # 2**4
     _config["attn_depth"] = 2**2
     _config["sidechain_modulo_l"] = 2
