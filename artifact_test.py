@@ -11,6 +11,9 @@ checkpoint_manager = orbax.checkpoint.CheckpointManager(
 )
 # ckpt = checkpoint_manager.restore(896276)
 
-run = ExistingExperiment(api_key=local_env.comet_ml_api_key, previous_experiment="0391ef740f7e4dde8740b23844a3b682")
+run = ExistingExperiment(
+    api_key=local_env.comet_ml_api_key,
+    previous_experiment="0391ef740f7e4dde8740b23844a3b682",
+)
 p = run.params
 print(p)

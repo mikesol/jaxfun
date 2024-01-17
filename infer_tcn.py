@@ -49,7 +49,6 @@ from jax.experimental import mesh_utils
 RESTORE = None
 
 
-
 PRNGKey = jax.Array
 
 
@@ -82,6 +81,7 @@ class LossFn(Enum):
     ESR = 2
     LOGCOSH_RANGE = 3
 
+
 def do_inference(state, input):
     o, _ = state.apply_fn(
         {"params": state.params, "batch_stats": state.batch_stats},
@@ -102,7 +102,6 @@ def mesh_sharding(pspec: PartitionSpec) -> NamedSharding:
 
 
 if __name__ == "__main__":
-
     logging.basicConfig(level=logging.WARN)
     if local_env.parallelism == Parallelism.PMAP:
         if local_env.do_manual_parallelism_setup:
@@ -115,7 +114,6 @@ if __name__ == "__main__":
             jax.distributed.initialize()
 
     checkpoint_dir = "/tmp/flax_ckpt/flax_ckpt/orbax/managed"
-
 
     orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
     options = orbax.checkpoint.CheckpointManagerOptions(max_to_keep=2, create=True)
@@ -174,7 +172,9 @@ if __name__ == "__main__":
             with open("config.yaml", "r") as yfile:
                 _config = {**_config, **yaml.load(yfile)}
         else:
-            logging.warning("No config file exists. Make sure to set the params manually!")
+            logging.warning(
+                "No config file exists. Make sure to set the params manually!"
+            )
 
     config = SimpleNamespace(**_config)
 
@@ -190,7 +190,6 @@ if __name__ == "__main__":
         print(mesh)
         x_sharding = mesh_sharding(PartitionSpec("data", None))
     ###
-
 
     init_rng = jax.random.PRNGKey(config.seed)
     onez = jnp.ones([config.batch_size, config.window, 1])  # 1,
@@ -269,12 +268,9 @@ if __name__ == "__main__":
 
     state = CKPT["model"]
 
-
     del init_rng  # Must not be used anymore.
 
-
     # ugggh
-
 
     input_ = librosa.load(local_env.inference_file_source, sr=44100)
     target_ = librosa.load(local_env.inference_file_target, sr=44100)
@@ -295,6 +291,6 @@ if __name__ == "__main__":
 
     o = jit_do_inference(state, input)
     o = np.squeeze(np.array(o))
-    soundfile.write("/tmp/input.wav", input_, 44100)    
-    soundfile.write("/tmp/prediction.wav", o, 44100)    
-    soundfile.write("/tmp/target.wav", o, 44100)    
+    soundfile.write("/tmp/input.wav", input_, 44100)
+    soundfile.write("/tmp/prediction.wav", o, 44100)
+    soundfile.write("/tmp/target.wav", o, 44100)
