@@ -281,7 +281,7 @@ if __name__ == "__main__":
 
     input_, _ = librosa.load(local_env.inference_file_source, sr=44100)
     print("s1", input_.shape)
-    input_ = input_[:1024]
+    input_ = input_[:2**17]
     print("s2", input_.shape)
     target_, _ = librosa.load(local_env.inference_file_target, sr=44100)
     ##### ugggggggggh
