@@ -266,8 +266,8 @@ if __name__ == "__main__":
     _config["validation_split"] = 0.2
     _config["learning_rate"] = 1e-4
     _config["epochs"] = 2**7
-    _config["window"] = 2**12
-    _config["inference_window"] = 2**12
+    _config["window"] = 2**13
+    _config["inference_window"] = 2**13
     _config["stride"] = 2**8
     _config["step_freq"] = 2**6
     _config["test_size"] = 0.1
