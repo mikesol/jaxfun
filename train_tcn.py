@@ -277,14 +277,20 @@ if __name__ == "__main__":
     _config["heads"] = 2**2
     _config["conv_depth"] = tuple(
         (
-          2**n for n in (10,10,9,9,8,8,7,7)
-        ) 
+            2048,
+            1024,
+            512,
+            256,
+            128,
+            64,
+        )  # 2**n for n in (11,11,11,10,10,10,9,9,9,8,8,8,7,7,7)
     )  # 2**3  # 2**4
-    _config["attn_depth"] = 2**3
+    _config["attn_depth"] = 2**2
     _config["sidechain_modulo_l"] = 2
     _config["sidechain_modulo_r"] = 1
     _config["expand_factor"] = 2.0
     _config["positional_encodings"] = True
+    _config["kernel_size"] = 7
     _config["mesh_x"] = device_len // 1
     _config["mesh_y"] = 1
     _config["loss_fn"] = LossFn.LOGCOSH
