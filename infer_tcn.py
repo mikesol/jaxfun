@@ -290,10 +290,12 @@ if __name__ == "__main__":
     target = target_
     assert len(input.shape) == 3
 
+
     jit_do_inference = jax.jit(do_inference)
     # jit_do_inference = jax.jit(do_inference)
     print("input shape", input.shape)
-    o = jit_do_inference(state, input[:2**10])
+    stride = 2**13
+    o = jit_do_inference(state, input[:,:stride,:])
     o = np.squeeze(np.array(o))
     size_diff = input.shape[1] - o.shape[1]
     print('starting inference with size_diff', size_diff)
@@ -301,8 +303,8 @@ if __name__ == "__main__":
     a = []
     while offset < (44100 * 10):
         print('on second', offset / 44100)
-        o = jit_do_inference(state, input[:,offset:offset+size_diff,:])
-        offset += size_diff
+        o = jit_do_inference(state, input[:,offset:offset+stride,:])
+        offset += stride - size_diff
         a.append(o)
 
     o = np.concatenate(a, axis=1)
