@@ -280,7 +280,7 @@ if __name__ == "__main__":
     # ugggh
 
     input_, _ = librosa.load(local_env.inference_file_source, sr=44100)
-    input_ = input_[:2**17,:]
+    print(input_.shape)
     target_, _ = librosa.load(local_env.inference_file_target, sr=44100)
     input_ = jnp.expand_dims(input_, axis=0)
     ##### ugggggggggh
