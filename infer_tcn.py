@@ -275,7 +275,7 @@ if __name__ == "__main__":
 
     # ugggh
 
-    input_, _ = librosa.load(local_env.inference_file_source, sr=44100)
+    input_, _ = librosa.load(local_env.inference_file_source, sr=44100)[:1024]
     target_, _ = librosa.load(local_env.inference_file_target, sr=44100)
     input_ = jnp.expand_dims(input_, axis=0)
     input_ = jnp.expand_dims(input_, axis=-1)
