@@ -276,13 +276,13 @@ if __name__ == "__main__":
     _config["attn_kernel_size"] = 2**5
     _config["heads"] = 2**2
     _config["conv_depth"] = tuple(
-        (
-          2**n for n in (10,10,9,9,8,8,7,7)
-        ) 
+        (  
+          2**n for n in (11,10,9,9,8,8,7,7)
+        )  
     )  # 2**3  # 2**4
     _config["attn_depth"] = 2**3
     _config["sidechain_modulo_l"] = 2
-    _config["sidechain_modulo_r"] = 42424242
+    _config["sidechain_modulo_r"] = 1
     _config["expand_factor"] = 2.0
     _config["positional_encodings"] = True
     _config["mesh_x"] = device_len // 1
