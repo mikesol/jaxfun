@@ -300,6 +300,7 @@ if __name__ == "__main__":
     offset = 0
     a = []
     while offset < (44100 * 10):
+        print('on second', offset / 44100)
         o = jit_do_inference(state, input[:,offset:offset+size_diff,:])
         offset += size_diff
         a.append(o)
