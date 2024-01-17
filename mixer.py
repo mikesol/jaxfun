@@ -191,6 +191,7 @@ class MultiBiquadWithSidechain(nn.Module):
             axis=2,
         )
 
+
 class MixingBoard(nn.Module):
     channels: int
     depth: int
@@ -204,7 +205,7 @@ class MixingBoard(nn.Module):
             x = MultiBiquadWithSidechain(channels=self.channels, order=self.order)(x)
         x = nn.Dense(features=1)(x)
         return x
-        
+
 
 if __name__ == "__main__":
     # model = MultiBiquad(channels=2**8)

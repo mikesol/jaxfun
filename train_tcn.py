@@ -45,6 +45,7 @@ from jax.experimental import mesh_utils
 
 RESTORE = None
 
+
 def LogCoshLoss(input, target, a=1.0, eps=1e-8):
     losses = jnp.mean((1 / a) * jnp.log(jnp.cosh(a * (input - target)) + eps), axis=-2)
     losses = jnp.mean(losses)
@@ -276,9 +277,7 @@ if __name__ == "__main__":
     _config["attn_kernel_size"] = 2**5
     _config["heads"] = 2**2
     _config["conv_depth"] = tuple(
-        (
-          2**n for n in (11,10,9,9,8,8,7,7)
-        ) 
+        (2**n for n in (11, 10, 9, 9, 8, 8, 7, 7))
     )  # 2**3  # 2**4
     _config["attn_depth"] = 2**3
     _config["sidechain_modulo_l"] = 2
@@ -519,15 +518,17 @@ if __name__ == "__main__":
                         ckpt = {"model": ckpt_model, "config": _config}
                         if local_env.parallelism == Parallelism.PMAP:
                             ckpt = checkpoint_walker(ckpt)
-                        CHECK_NAME = epoch * train_total + batch_ix + (RESTORE if RESTORE is not None else 0)
+                        CHECK_NAME = (
+                            epoch * train_total
+                            + batch_ix
+                            + (RESTORE if RESTORE is not None else 0)
+                        )
                         checkpoint_manager.save(CHECK_NAME, ckpt)
                         logging.warning(
                             f"saved checkpoint for epoch {epoch} in {os.listdir(checkpoint_dir)}"
                         )
                         try:
-                            artifact = Artifact("checkpoint", artifact_type="model")
-                            artifact.add(os.path.join(checkpoint_dir, f"{CHECK_NAME}"))
-                            run.log_artifact(artifact)
+                            run.log_model(f'tcn-attn-{run.id}-{CHECK_NAME}', os.path.join(checkpoint_dir, f"{CHECK_NAME}"))
                         except ValueError as e:
                             logging.warning(f"checkpoint artifact did not work {e}")
                         start_time = current_time

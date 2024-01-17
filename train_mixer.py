@@ -178,7 +178,7 @@ replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
 
 def compute_loss(state, input, target, lossy_loss_loss):
     pred = state.apply_fn(
-        {"params": state.params },
+        {"params": state.params},
         input,
     )
     loss = (Loss_fn_to_loss(lossy_loss_loss))(pred, target[:, -pred.shape[1] :, :])
@@ -297,12 +297,12 @@ if __name__ == "__main__":
     proto_test_dataset, test_dataset_total = make_data(
         paths=test_files,
         window=config.window,
-        stride=config.stride, 
+        stride=config.stride,
     )
     proto_inference_dataset, inference_dataset_total = make_data(
         paths=test_files,
         window=config.inference_window,
-        stride=config.stride, 
+        stride=config.stride,
     )
     print("datasets generated")
     init_rng = jax.random.PRNGKey(config.seed)
@@ -316,9 +316,7 @@ if __name__ == "__main__":
             return arr
 
     module = MixingBoard(
-        channels=config.channels,
-        depth=config.depth,
-        order=config.order
+        channels=config.channels, depth=config.depth, order=config.order
     )
     tx = optax.adam(config.learning_rate)
 
