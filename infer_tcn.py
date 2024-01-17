@@ -281,8 +281,6 @@ if __name__ == "__main__":
 
     input_, _ = librosa.load(local_env.inference_file_source, sr=44100)
     print("s1", input_.shape)
-    input_ = input_[:2**17]
-    print("s2", input_.shape)
     target_, _ = librosa.load(local_env.inference_file_target, sr=44100)
     ##### ugggggggggh
     # input_ = jnp.concatenate([input_ for _ in range(device_len)], axis=0)
@@ -295,8 +293,18 @@ if __name__ == "__main__":
     jit_do_inference = jax.jit(do_inference)
     # jit_do_inference = jax.jit(do_inference)
     print("input shape", input.shape)
-    o = jit_do_inference(state, input)
+    print('starting inference')
+    o = jit_do_inference(state, input[:1024])
     o = np.squeeze(np.array(o))
+    size_diff = input.shape[1] - o.shape[1]
+    offset = 0
+    a = []
+    while offset < (44100 * 10):
+        o = jit_do_inference(state, input[:,offset:offset+size_diff,:])
+        offset += size_diff
+        a.append(o)
+
+    o = np.concatenate(a, axis=1)
     soundfile.write("/tmp/input.wav", input_, 44100)
     soundfile.write("/tmp/prediction.wav", o, 44100)
     soundfile.write("/tmp/target.wav", target_, 44100)
