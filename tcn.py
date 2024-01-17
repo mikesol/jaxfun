@@ -2,6 +2,7 @@ import flax.linen as nn
 import jax
 import jax.numpy as jnp
 from flax.linen import initializers
+from create_filtered_audio import create_biquad_coefficients
 import math
 from typing import Tuple
 from typing import (
@@ -24,8 +25,13 @@ Array = jax.Array
 Carry = Any
 CarryHistory = Any
 Output = Any
+import numpy as np
 
-
+def array_to_tuple(arr):
+    if isinstance(arr, np.ndarray):
+        return tuple(array_to_tuple(a) for a in arr)
+    else:
+        return arr
 class Sidechain(nn.Module):
     channels: int = 2**6
     kernel_size: int = 7
@@ -347,8 +353,17 @@ class ExperimentalTCNNetwork(nn.Module):
 
 
 if __name__ == "__main__":
+    coefficients = create_biquad_coefficients(
+        2**11 - 1,
+        44100,
+        300,
+        19000,
+        30,
+        10,
+    )
     model = ExperimentalTCNNetwork(
         # features=2**6,
+        coefficients=array_to_tuple(coefficients),
         kernel_dilation=2**1,
         conv_kernel_size=2**3,
         attn_kernel_size=2**7,
@@ -359,6 +374,6 @@ if __name__ == "__main__":
     )
     print(
         model.tabulate(
-            jax.random.key(0), jnp.ones((2**2, 2**14, 2**11)), train=False
+            jax.random.key(0), jnp.ones((2**2, 2**14, 1)), train=False
         )
     )
