@@ -286,11 +286,11 @@ if __name__ == "__main__":
     target_, _ = librosa.load(local_env.inference_file_target, sr=44100)
     ##### ugggggggggh
     # input_ = jnp.concatenate([input_ for _ in range(device_len)], axis=0)
-    assert len(input_.shape) == 3
     input = input_
     input = jnp.expand_dims(input, axis=0)
     input = jnp.expand_dims(input, axis=-1)
     target = target_
+    assert len(input.shape) == 3
 
     jit_do_inference = jax.jit(do_inference)
     # jit_do_inference = jax.jit(do_inference)
