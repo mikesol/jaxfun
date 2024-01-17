@@ -592,6 +592,7 @@ if __name__ == "__main__":
 
             o = jit_do_inference(state, input)
             o = maybe_unreplicate(o)
+            assert o.shape[-1] == 1
             # logging.info(f"shape of batch is {input.shape}")
 
             for i in range(o.shape[0]):
@@ -603,7 +604,6 @@ if __name__ == "__main__":
                     file_name=f"audio_{epoch}_{batch_ix}_{i}_prediction.wav",
                 )
                 print("audy shape", audy.shape)
-                assert audy.shape[-1] == 1
                 audy = np.squeeze(np.array(input_[i, :, :1]))
                 run.log_audio(
                     audy,
