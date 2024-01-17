@@ -284,7 +284,7 @@ if __name__ == "__main__":
     target_, _ = librosa.load(local_env.inference_file_target, sr=44100)
     input_ = jnp.expand_dims(input_, axis=0)
     ##### ugggggggggh
-    input_ = jnp.concatenate([input_ for _ in range(device_len)], axis=0)
+    # input_ = jnp.concatenate([input_ for _ in range(device_len)], axis=0)
     assert len(input_.shape) == 3
     input = input_
     target = target_
