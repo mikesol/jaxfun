@@ -349,6 +349,13 @@ class ExperimentalTCNNetwork(nn.Module):
             depth=self.attn_depth,
             positional_encodings=self.positional_encodings,
         )(x)
+        x = nn.Conv(
+            features=1,
+            kernel_init=initializers.lecun_normal(),
+            kernel_size=(1,),
+            padding=((0, 0),),
+            use_bias=False,
+        )(x)
         return x
 
 
@@ -368,8 +375,8 @@ if __name__ == "__main__":
         conv_kernel_size=2**3,
         attn_kernel_size=2**7,
         heads=2**5,
-        conv_depth=tuple(2**n for n in (11, 11, 10, 10, 9, 9, 8, 8)),  # 2**4,
-        attn_depth=2**4,
+        conv_depth=tuple(2**n for n in (11, 11)),  # 2**4,
+        attn_depth=2**2,
         expand_factor=2.0,
     )
     print(
