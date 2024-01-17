@@ -280,9 +280,12 @@ if __name__ == "__main__":
     # ugggh
 
     input_, _ = librosa.load(local_env.inference_file_source, sr=44100)
-    print(input_.shape)
+    print("s1", input_.shape)
+    input_ = input_[:1024]
+    print("s2", input_.shape)
     target_, _ = librosa.load(local_env.inference_file_target, sr=44100)
     input_ = jnp.expand_dims(input_, axis=0)
+    input_ = jnp.expand_dims(input_, axis=-1)
     ##### ugggggggggh
     # input_ = jnp.concatenate([input_ for _ in range(device_len)], axis=0)
     assert len(input_.shape) == 3
@@ -291,7 +294,7 @@ if __name__ == "__main__":
 
     jit_do_inference = jax.jit(do_inference)
     # jit_do_inference = jax.jit(do_inference)
-    print('input shape', input.shape)
+    print("input shape", input.shape)
     o = jit_do_inference(state, input)
     o = np.squeeze(np.array(o))
     soundfile.write("/tmp/input.wav", input_, 44100)
