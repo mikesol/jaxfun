@@ -114,7 +114,7 @@ if __name__ == "__main__":
         else:
             jax.distributed.initialize()
 
-    checkpoint_dir = "./checkpoints/"
+    checkpoint_dir = local_env.checkpoint_dir
 
     orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
     options = orbax.checkpoint.CheckpointManagerOptions(max_to_keep=2, create=True)
