@@ -129,6 +129,7 @@ if __name__ == "__main__":
         raise ValueError("not ")
 
     _config = {}
+    # cnn
     _config["seed"] = 42
     _config["batch_size"] = 2**4
     _config["inference_batch_size"] = 2**3
@@ -138,22 +139,23 @@ if __name__ == "__main__":
     _config["validation_split"] = 0.2
     _config["learning_rate"] = 1e-4
     _config["epochs"] = 2**7
-    _config["window"] = 2**13
-    _config["inference_window"] = 2**13
+    _config["window"] = 2**11
+    _config["inference_window"] = 2**10  # 2**11
     _config["stride"] = 2**8
     _config["step_freq"] = 2**6
     _config["test_size"] = 0.1
     # _config["features"] = 2**7
     _config["kernel_dilation"] = 2**1
     _config["conv_kernel_size"] = 2**3
-    _config["attn_kernel_size"] = 2**5
+    _config["attn_kernel_size"] = 2**5  # 2**6
     _config["heads"] = 2**2
-    _config["conv_depth"] = tuple((2**n for n in (9, 9, 8, 7, 6)))  # 2**3  # 2**4
-    _config["attn_depth"] = 2**2
+    _config["conv_depth"] = tuple(2**n for n in (10, 10, 9, 9, 8, 8, 7, 7))  # 2**3  # 2**4
+    _config["attn_depth"] = 2**3  # 2**2  # 2**4
     _config["sidechain_modulo_l"] = 2
-    _config["sidechain_modulo_r"] = 1
+    _config["sidechain_modulo_r"] = 1214124 # set to high to avoid
     _config["expand_factor"] = 2.0
     _config["positional_encodings"] = True
+    _config["kernel_size"] = 7
     _config["mesh_x"] = device_len // 1
     _config["mesh_y"] = 1
     _config["loss_fn"] = LossFn.LOGCOSH

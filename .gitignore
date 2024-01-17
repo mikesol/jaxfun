@@ -3,3 +3,5 @@ __pycache__
 local_env.py
 model
 wandb
+*.wav
+audio/*.wav
