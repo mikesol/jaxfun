@@ -604,6 +604,7 @@ if __name__ == "__main__":
                     step=batch_ix,
                     file_name=f"audio_{epoch}_{batch_ix}_{i}_prediction.wav",
                 )
+                assert audy.shape[-1] == 1
                 audy = np.squeeze(np.array(input_[i, :, :1]))
                 run.log_audio(
                     audy,
