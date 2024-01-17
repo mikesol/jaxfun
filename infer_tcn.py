@@ -279,24 +279,16 @@ if __name__ == "__main__":
 
     # ugggh
 
-    input_, _ = librosa.load(local_env.inference_file_source, sr=44100)[:1024]
+    input_, _ = librosa.load(local_env.inference_file_source, sr=44100)[:1024,:]
     target_, _ = librosa.load(local_env.inference_file_target, sr=44100)
     input_ = jnp.expand_dims(input_, axis=0)
-    input_ = jnp.expand_dims(input_, axis=-1)
     ##### ugggggggggh
     input_ = jnp.concatenate([input_ for _ in range(device_len)], axis=0)
     assert len(input_.shape) == 3
     input = input_
     target = target_
 
-    jit_do_inference = fork_on_parallelism(
-        partial(
-            jax.jit,
-            in_shardings=(state_sharding, x_sharding),
-            out_shardings=x_sharding,
-        ),
-        jax.pmap,
-    )(do_inference)
+    jit_do_inference = jax.jit(do_inference)
     # jit_do_inference = jax.jit(do_inference)
     print('input shape', input.shape)
     o = jit_do_inference(state, input)
