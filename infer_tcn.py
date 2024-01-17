@@ -49,56 +49,8 @@ from jax.experimental import mesh_utils
 RESTORE = None
 
 
-def LogCoshLoss(input, target, a=1.0, eps=1e-8):
-    losses = jnp.mean((1 / a) * jnp.log(jnp.cosh(a * (input - target)) + eps), axis=-2)
-    losses = jnp.mean(losses)
-    return losses
-
-
-def ESRLoss(input, target):
-    eps = 1e-8
-    num = jnp.sum(((target - input) ** 2), axis=1)
-    denom = jnp.sum(target**2, axis=1) + eps
-    losses = num / denom
-    losses = jnp.mean(losses)
-    return losses
-
-
-def checkpoint_walker(ckpt):
-    def _cmp(i):
-        try:
-            o = jax.device_get(i)
-            return o
-        except Exception as e:
-            return i
-
-    return jax.tree_map(_cmp, ckpt)
-
 
 PRNGKey = jax.Array
-
-
-def trim_batch(tensor, batch_size):
-    """
-    Truncates the tensor to the largest multiple of batch_size.
-
-    Parameters:
-    tensor (jax.numpy.ndarray): The input tensor with a leading batch dimension.
-    batch_size (int): The batch size to truncate to.
-
-    Returns:
-    jax.numpy.ndarray: The truncated tensor.
-    """
-    # Get the size of the leading dimension (batch dimension)
-    batch_dim = tensor.shape[0]
-
-    # Calculate the size of the truncated dimension
-    truncated_size = (batch_dim // batch_size) * batch_size
-
-    # Truncate the tensor
-    truncated_tensor = tensor[:truncated_size]
-
-    return truncated_tensor
 
 
 @struct.dataclass
@@ -129,16 +81,6 @@ class LossFn(Enum):
     LOGCOSH = 1
     ESR = 2
     LOGCOSH_RANGE = 3
-
-
-def Loss_fn_to_loss(loss_fn):
-    if loss_fn == LossFn.ESR:
-        return ESRLoss
-    if loss_fn == LossFn.LOGCOSH:
-        return LogCoshLoss
-    if loss_fn == LossFn.LOGCOSH_RANGE:
-        return lambda x, y: LogCoshLoss(apply_fade_in(x), apply_fade_in(y))
-    raise ValueError(f"What function? {loss_fn}")
 
 def do_inference(state, input):
     o, _ = state.apply_fn(
