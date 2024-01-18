@@ -1,3 +1,5 @@
+from enum import Enum
+
 class Activation(Enum):
     TANH = 1
     PRELU = 2
