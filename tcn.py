@@ -61,7 +61,7 @@ class Sidechain(nn.Module):
         weights = self.param(
             "weights",
             nn.with_partitioning(initializers.lecun_normal(), (None, "model")),
-            (self.out_channels, self.in_channels, self.kernel_size),
+            (self.in_channels, self.in_channels, self.kernel_size),
             jnp.float32,
         )
         x_ = x
@@ -90,6 +90,8 @@ class Sidechain(nn.Module):
         x = x * w
         x = jnp.sum(x, axis=1)
         x = jnp.transpose(x, (0, 2, 1))
+        if self.out_channels != self.in_channels:
+            x = nn.Conv(features=self.out_channels, kernel_size=(1,), use_bias=False)(x)
         return x
 
 
