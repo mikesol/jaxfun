@@ -45,6 +45,7 @@ from tqdm import tqdm
 import sys
 from jax.sharding import Mesh, PartitionSpec, NamedSharding
 from jax.experimental import mesh_utils
+import scipy
 
 PRNGKey = jax.Array
 
@@ -252,19 +253,25 @@ if __name__ == "__main__":
     print("input shape", input.shape)
     stride = 2**11
     o = jit_do_inference(state, input[:, :stride, :])
-    size_diff = stride - o.shape[1]
-    print("starting inference with size_diff", size_diff)
+    o_len = o.shape[1]
+    assert o_len % 2 == 0
+    half_o_len = o_len // 2
+    hann = scipy.signal.windows.hann(o_len)
+    print("starting inference with size", o_len)
     offset = 0
+    zzz = np.zeros((44100*11,))
     a = []
     while offset < (44100 * 10):
         print("on second", offset / 44100)
         o = jit_do_inference(state, input[:, offset : offset + stride, :])
-        offset += stride - size_diff
-        a.append(o)
+        o = jnp.squeeze(o)
+        o = np.array(o)
+        assert o.shape == (o_len,)
+        o = o * hann
+        zzz[offset : offset + o_len] += o
+        offset += half_o_len
 
-    o = np.concatenate(a, axis=1)
     print("o after concat", o.shape)
-    o = jnp.squeeze(o)
     print("o after squeeze", o.shape)
     soundfile.write("/tmp/input.wav", input_, 44100)
     soundfile.write("/tmp/prediction.wav", o, 44100)
