@@ -3,7 +3,7 @@ from parallelism import Parallelism
 from contextlib import nullcontext
 import logging
 import librosa
-from activation import Activation
+from activation import Activation, make_activation
 from enum import Enum
 from fork_on_parallelism import fork_on_parallelism
 from fade_in import apply_fade_in
@@ -44,7 +44,6 @@ import orbax.checkpoint
 from tqdm import tqdm
 import sys
 from jax.sharding import Mesh, PartitionSpec, NamedSharding
-from jax.lax import with_sharding_constraint
 from jax.experimental import mesh_utils
 
 RESTORE = 946991
@@ -173,18 +172,19 @@ if __name__ == "__main__":
         config.qend,
     )
     module = ExperimentalTCNNetwork(
-        # features=config.features,
         coefficients=array_to_tuple(coefficients),
         kernel_dilation=config.kernel_dilation,
         conv_kernel_size=config.conv_kernel_size,
         attn_kernel_size=config.attn_kernel_size,
         heads=config.heads,
+        activation=make_activation(config.activation),
         conv_depth=config.conv_depth,
         attn_depth=config.attn_depth,
         expand_factor=config.expand_factor,
         positional_encodings=config.positional_encodings,
         sidechain_modulo_l=config.sidechain_modulo_l,
         sidechain_modulo_r=config.sidechain_modulo_r,
+        do_last_activation=config.do_last_activation,
     )
     tx = optax.adam(config.learning_rate)
 

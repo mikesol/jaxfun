@@ -135,7 +135,7 @@ class TCN(nn.Module):
 class AttnBlock(nn.Module):
     heads: int
     expand_factor: float = 2.0
-    activation: Callable = nn.gelu
+    activation: Callable = lambda: nn.gelu
 
     @nn.compact
     def __call__(self, out):
@@ -190,7 +190,7 @@ class ConvAttnBlock(nn.Module):
     depth: int
     positional_encodings: bool = True
     expand_factor: float = 2.0
-    activation: Callable = nn.gelu
+    activation: Callable = lambda: nn.gelu
 
     @nn.compact
     def __call__(self, x):

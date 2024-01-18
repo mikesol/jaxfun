@@ -2,7 +2,7 @@ import os
 from parallelism import Parallelism
 from contextlib import nullcontext
 import logging
-from activation import Activation
+from activation import Activation, make_activation
 from enum import Enum
 from fork_on_parallelism import fork_on_parallelism
 from fade_in import apply_fade_in
@@ -26,7 +26,7 @@ if IS_CPU:
 from typing import Any
 from flax import struct
 from comet_ml import Experiment, Artifact
-from tcn import PELU, ExperimentalTCNNetwork
+from tcn import ExperimentalTCNNetwork
 from clu import metrics
 from functools import partial
 import jax.numpy as jnp
@@ -139,35 +139,6 @@ def Loss_fn_to_loss(loss_fn):
         return lambda x, y: LogCoshLoss(apply_fade_in(x), apply_fade_in(y))
     raise ValueError(f"What function? {loss_fn}")
 
-
-def make_activation(activation):
-    if activation == Activation.TANH:
-        return lambda: nn.tanh
-    if activation == Activation.PRELU:
-        return lambda: nn.PReLU
-    if activation == Activation.ELU:
-        return lambda: nn.elu
-    if activation == Activation.GELU:
-        return lambda: nn.gelu
-    if activation == Activation.LOTS_OF_PRELUS:
-        return nn.vmap(
-            nn.PReLU,
-            variable_axes={"params": 0},
-            split_rngs={"params": True},
-            in_axes=-1,
-            out_axes=-1,
-        )
-    if activation == Activation.PELU:
-        return lambda: PELU
-    if activation == Activation.LOTS_OF_PELUS:
-        return nn.vmap(
-            PELU,
-            variable_axes={"params": 0},
-            split_rngs={"params": True},
-            in_axes=-1,
-            out_axes=-1,
-        )
-    raise ValueError(f"What function? {activation}")
 
 
 def interleave_jax(input_array, trained_output):
