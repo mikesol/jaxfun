@@ -458,6 +458,8 @@ if __name__ == "__main__":
             2,
             2,
         ),
+        sidechain_modulo_l=1,
+        sidechain_modulo_r=0,
         use_batchnorm=False,
         attn_depth=0,
         expand_factor=2.0,
