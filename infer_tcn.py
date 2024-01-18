@@ -132,12 +132,6 @@ if __name__ == "__main__":
     _config = {}
     with open(local_env.config_file, "r") as f:
         in_config = yaml.safe_load(f)["config"]
-        for k, v in in_config.items():
-            if k not in _config:
-                raise ValueError(f"Unknown config key {k}")
-        for k, v in _config.items():
-            if k not in in_config:
-                raise ValueError(f"Requires key {k}")
         _config = in_config
         _config["loss_fn"] = LossFn(_config["loss_fn"])
         _config["activation"] = Activation(_config["activation"])
