@@ -46,9 +46,6 @@ import sys
 from jax.sharding import Mesh, PartitionSpec, NamedSharding
 from jax.experimental import mesh_utils
 
-RESTORE = 946991
-
-
 PRNGKey = jax.Array
 
 
@@ -230,7 +227,7 @@ if __name__ == "__main__":
     restore_args = orbax_utils.restore_args_from_target(target)
 
     CKPT = checkpoint_manager.restore(
-        RESTORE, target, restore_kwargs={"restore_args": restore_args}
+        local_env.restore, target, restore_kwargs={"restore_args": restore_args}
     )
 
     state = CKPT["model"]
