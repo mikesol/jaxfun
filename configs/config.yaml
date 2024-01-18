@@ -23,7 +23,7 @@ config:
   sidechain_modulo_r: 1
   expand_factor: 2.0
   positional_encodings: true
-  mesh_x_div: 2
+  mesh_x_div: 1
   loss_fn: 1
   afstart: 100
   afend: 19000
