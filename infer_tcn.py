@@ -254,6 +254,7 @@ if __name__ == "__main__":
     stride = 2**11
     o = jit_do_inference(state, input[:, :stride, :])
     o_len = o.shape[1]
+    print("olen", o_len)
     assert o_len % 2 == 0
     half_o_len = o_len // 2
     hann = scipy.signal.windows.hann(o_len)
