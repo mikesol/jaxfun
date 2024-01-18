@@ -50,7 +50,8 @@ def array_to_tuple(arr):
 
 
 class Sidechain(nn.Module):
-    channels: int = 2**6
+    in_channels: int = 2**6
+    out_channels: int = 2**6
     kernel_size: int = 7
     norm_factor: float = 1.0
 
@@ -60,7 +61,7 @@ class Sidechain(nn.Module):
         weights = self.param(
             "weights",
             nn.with_partitioning(initializers.lecun_normal(), (None, "model")),
-            (self.channels, self.channels, self.kernel_size),
+            (self.out_channels, self.in_channels, self.kernel_size),
             jnp.float32,
         )
         x_ = x
@@ -73,7 +74,7 @@ class Sidechain(nn.Module):
                 padding=((0, 0),),
             )
             x = jnp.transpose(
-                jnp.reshape(x, (batch_size, self.channels, self.kernel_size, -1)),
+                jnp.reshape(x, (batch_size, self.in_channels, self.kernel_size, -1)),
                 (0, 2, 1, 3),
             )
             return x
@@ -117,7 +118,8 @@ class TCN(nn.Module):
         )(x_)
         if self.with_sidechain:
             x += Sidechain(
-                channels=self.features,
+                in_channels=x_.shape[-1],
+                out_channels=self.features,
                 kernel_size=self.kernel_size,
                 norm_factor=math.sqrt(self.features),
             )(x_)
