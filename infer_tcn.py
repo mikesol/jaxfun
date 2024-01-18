@@ -3,6 +3,7 @@ from parallelism import Parallelism
 from contextlib import nullcontext
 import logging
 import librosa
+from train_tcn import Activation
 from enum import Enum
 from fork_on_parallelism import fork_on_parallelism
 from fade_in import apply_fade_in
@@ -129,56 +130,21 @@ if __name__ == "__main__":
         raise ValueError("not ")
 
     _config = {}
-    # cnn
-    _config["seed"] = 42
-    _config["batch_size"] = 2**4
-    _config["inference_batch_size"] = 2**3
-    _config["inference_artifacts_per_batch_per_epoch"] = (
-        _config["inference_batch_size"] * 4
-    )
-    _config["validation_split"] = 0.2
-    _config["learning_rate"] = 1e-4
-    _config["epochs"] = 2**7
-    _config["window"] = 2**11
-    _config["inference_window"] = 2**10  # 2**11
-    _config["stride"] = 2**8
-    _config["step_freq"] = 2**6
-    _config["test_size"] = 0.1
-    # _config["features"] = 2**7
-    _config["kernel_dilation"] = 2**1
-    _config["conv_kernel_size"] = 2**3
-    _config["attn_kernel_size"] = 2**5  # 2**6
-    _config["heads"] = 2**2
-    _config["conv_depth"] = tuple(
-        2**n for n in (10, 10, 9, 9, 8, 8, 7, 7)
-    )  # 2**3  # 2**4
-    _config["attn_depth"] = 2**3  # 2**2  # 2**4
-    _config["sidechain_modulo_l"] = 2
-    _config["sidechain_modulo_r"] = 1214124  # set to high to avoid
-    _config["expand_factor"] = 2.0
-    _config["positional_encodings"] = True
-    _config["kernel_size"] = 7
-    _config["mesh_x"] = device_len // 1
-    _config["mesh_y"] = 1
-    _config["loss_fn"] = LossFn.LOGCOSH
-    #
-    _config["afstart"] = 100
-    _config["afend"] = 19000
-    _config["qstart"] = 30
-    _config["qend"] = 10
-    ###
-    # CKPT = checkpoint_manager.restore(RESTORE)
-    # if ("config" in CKPT) and (len(CKPT["config"]) > 0):
-    #     _config = {**_config, **CKPT["config"]}
-    # else:
-    #     logging.warning("No config found. Try ing local.")
-    #     if os.path.exists("cofig.yaml"):
-    #         with open("config.yaml", "r") as yfile:
-    #             _config = {**_config, **yaml.load(yfile)}
-    #     else:
-    #         logging.warning(
-    #             "No config file exists. Make sure to set the params manually!"
-    #         )
+    with open(local_env.config_file, "r") as f:
+        in_config = yaml.safe_load(f)["config"]
+        for k, v in in_config.items():
+            if k not in _config:
+                raise ValueError(f"Unknown config key {k}")
+        for k, v in _config.items():
+            if k not in in_config:
+                raise ValueError(f"Requires key {k}")
+        _config = in_config
+        _config["loss_fn"] = LossFn(_config["loss_fn"])
+        _config["activation"] = Activation(_config["activation"])
+        _config["mesh_x"] = device_len // _config["mesh_x_div"]
+        _config["mesh_y"] = _config["mesh_x_div"]
+        _config["conv_depth"] = tuple(_config["conv_depth"])
+        del _config["mesh_x_div"]
 
     config = SimpleNamespace(**_config)
 
@@ -293,7 +259,7 @@ if __name__ == "__main__":
     jit_do_inference = jax.jit(do_inference)
     # jit_do_inference = jax.jit(do_inference)
     print("input shape", input.shape)
-    stride = 2**11
+    stride = 2**13
     o = jit_do_inference(state, input[:, :stride, :])
     size_diff = stride - o.shape[1]
     print("starting inference with size_diff", size_diff)
