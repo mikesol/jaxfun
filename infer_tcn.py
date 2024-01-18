@@ -3,7 +3,7 @@ from parallelism import Parallelism
 from contextlib import nullcontext
 import logging
 import librosa
-from train_tcn import Activation
+from activation import Activation
 from enum import Enum
 from fork_on_parallelism import fork_on_parallelism
 from fade_in import apply_fade_in

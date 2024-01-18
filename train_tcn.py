@@ -2,6 +2,7 @@ import os
 from parallelism import Parallelism
 from contextlib import nullcontext
 import logging
+from activation import Activation
 from enum import Enum
 from fork_on_parallelism import fork_on_parallelism
 from fade_in import apply_fade_in
@@ -127,16 +128,6 @@ class LossFn(Enum):
     LOGCOSH = 1
     ESR = 2
     LOGCOSH_RANGE = 3
-
-
-class Activation(Enum):
-    TANH = 1
-    PRELU = 2
-    ELU = 3
-    GELU = 4
-    LOTS_OF_PRELUS = 5
-    PELU = 6
-    LOTS_OF_PELUS = 7
 
 
 def Loss_fn_to_loss(loss_fn):
