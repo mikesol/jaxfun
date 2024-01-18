@@ -6,6 +6,7 @@ from enum import Enum
 from fork_on_parallelism import fork_on_parallelism
 from fade_in import apply_fade_in
 from create_filtered_audio import create_biquad_coefficients
+import yaml
 
 # import logging
 # logging.basicConfig(level=logging.INFO)
@@ -24,7 +25,7 @@ if IS_CPU:
 from typing import Any
 from flax import struct
 from comet_ml import Experiment, Artifact
-from tcn import TCNNetwork, ExperimentalTCNNetwork
+from tcn import PELU, ExperimentalTCNNetwork
 from clu import metrics
 from functools import partial
 import jax.numpy as jnp
@@ -128,6 +129,16 @@ class LossFn(Enum):
     LOGCOSH_RANGE = 3
 
 
+class Activation(Enum):
+    TANH = 1
+    PRELU = 2
+    ELU = 3
+    GELU = 4
+    LOTS_OF_PRELUS = 5
+    PELU = 6
+    LOTS_OF_PELUS = 7
+
+
 def Loss_fn_to_loss(loss_fn):
     if loss_fn == LossFn.ESR:
         return ESRLoss
@@ -136,6 +147,36 @@ def Loss_fn_to_loss(loss_fn):
     if loss_fn == LossFn.LOGCOSH_RANGE:
         return lambda x, y: LogCoshLoss(apply_fade_in(x), apply_fade_in(y))
     raise ValueError(f"What function? {loss_fn}")
+
+
+def make_activation(activation):
+    if activation == Activation.TANH:
+        return nn.tanh
+    if activation == Activation.PRELU:
+        return nn.PReLU
+    if activation == Activation.ELU:
+        return nn.elu
+    if activation == Activation.GELU:
+        return nn.gelu
+    if activation == Activation.LOTS_OF_PRELUS:
+        return nn.vmap(
+            nn.PReLU,
+            variable_axes={"params": 0},
+            split_rngs={"params": True},
+            in_axes=-1,
+            out_axes=-1,
+        )()
+    if activation == Activation.PELU:
+        return PELU
+    if activation == Activation.LOTS_OF_PELUS:
+        return nn.vmap(
+            PELU,
+            variable_axes={"params": 0},
+            split_rngs={"params": True},
+            in_axes=-1,
+            out_axes=-1,
+        )()
+    raise ValueError(f"What function? {activation}")
 
 
 def interleave_jax(input_array, trained_output):
@@ -254,8 +295,8 @@ if __name__ == "__main__":
         api_key=local_env.comet_ml_api_key,
         project_name="jax-tcn-attn",
     )
+    ## defaults
     _config = {}
-    # cnn
     _config["seed"] = 42
     _config["batch_size"] = 2**4
     _config["inference_batch_size"] = 2**3
@@ -275,28 +316,35 @@ if __name__ == "__main__":
     _config["conv_kernel_size"] = 2**3
     _config["attn_kernel_size"] = 2**5
     _config["heads"] = 2**2
-    _config["conv_depth"] = tuple(
-        (  
-          2**n for n in (11,10,9,9,8,8,7,7)
-        )  
-    )  # 2**3  # 2**4
+    _config["conv_depth"] = [11, 10, 9]
     _config["attn_depth"] = 2**3
+    _config["do_last_activation"] = False
     _config["sidechain_modulo_l"] = 2
     _config["sidechain_modulo_r"] = 1
     _config["expand_factor"] = 2.0
     _config["positional_encodings"] = True
-    _config["mesh_x"] = device_len // 1
-    _config["mesh_y"] = 1
+    _config["mesh_x_div"] = 1
     _config["loss_fn"] = LossFn.LOGCOSH
-    #
+    _config["activation"] = Activation.PRELU
     _config["afstart"] = 100
     _config["afend"] = 19000
     _config["qstart"] = 30
     _config["qend"] = 10
-    # else:
-    #     print("USING ckpt", CKPT.keys())
-    #     _config = CKPT["config"]
-    ###
+    with open(local_env.config_file, "r") as f:
+        in_config = yaml.safe_load(f)["config"]
+        for k, v in in_config.items():
+            if k not in _config:
+                raise ValueError(f"Unknown config key {k}")
+        for k, v in _config.items():
+            if k not in in_config:
+                raise ValueError(f"Requires key {k}")
+        _config = in_config
+        _config["loss_fn"] = LossFn(_config["loss_fn"])
+        _config["activation"] = LossFn(_config["activation"])
+        _config["mesh_x"] = device_len // _config["mesh_x_div"]
+        _config["mesh_y"] = _config["mesh_x_div"]
+        _config["conv_depth"] = tuple(_config["conv_depth"])
+        del _config["mesh_x_div"]
     run.log_parameters(_config)
     if local_env.parallelism == Parallelism.PMAP:
         run.log_parameter("run_id", sys.argv[1])
@@ -381,12 +429,14 @@ if __name__ == "__main__":
         conv_kernel_size=config.conv_kernel_size,
         attn_kernel_size=config.attn_kernel_size,
         heads=config.heads,
+        activation=make_activation(config.activation),
         conv_depth=config.conv_depth,
         attn_depth=config.attn_depth,
         expand_factor=config.expand_factor,
         positional_encodings=config.positional_encodings,
         sidechain_modulo_l=config.sidechain_modulo_l,
         sidechain_modulo_r=config.sidechain_modulo_r,
+        do_last_activation=config.do_last_activation,
     )
     tx = optax.adam(config.learning_rate)
 

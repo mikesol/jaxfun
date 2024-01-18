@@ -290,26 +290,25 @@ if __name__ == "__main__":
     target = target_
     assert len(input.shape) == 3
 
-
     jit_do_inference = jax.jit(do_inference)
     # jit_do_inference = jax.jit(do_inference)
     print("input shape", input.shape)
     stride = 2**11
-    o = jit_do_inference(state, input[:,:stride,:])
+    o = jit_do_inference(state, input[:, :stride, :])
     size_diff = stride - o.shape[1]
-    print('starting inference with size_diff', size_diff)
+    print("starting inference with size_diff", size_diff)
     offset = 0
     a = []
     while offset < (44100 * 10):
-        print('on second', offset / 44100)
-        o = jit_do_inference(state, input[:,offset:offset+stride,:])
+        print("on second", offset / 44100)
+        o = jit_do_inference(state, input[:, offset : offset + stride, :])
         offset += stride - size_diff
         a.append(o)
 
     o = np.concatenate(a, axis=1)
-    print('o after concat', o.shape)
+    print("o after concat", o.shape)
     o = jnp.squeeze(o)
-    print('o after squeeze', o.shape)
+    print("o after squeeze", o.shape)
     soundfile.write("/tmp/input.wav", input_, 44100)
     soundfile.write("/tmp/prediction.wav", o, 44100)
     soundfile.write("/tmp/target.wav", target_, 44100)

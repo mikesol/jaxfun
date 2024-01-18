@@ -27,11 +27,27 @@ CarryHistory = Any
 Output = Any
 import numpy as np
 
+
+class PELU(nn.Module):
+    @nn.compact
+    def __call__(self, x):
+        # Initialize the alpha and beta parameters
+        # These values can be adjusted based on your specific use case
+        alpha = self.param('alpha', nn.initializers.ones, (1,))
+        beta = self.param('beta', nn.initializers.ones, (1,))
+
+        # PELU activation function
+        positive = jnp.where(x > 0, x, 0)
+        negative = jnp.where(x <= 0, alpha * (jnp.exp(x / beta) - 1), 0)
+        return positive + negative
+
 def array_to_tuple(arr):
     if isinstance(arr, np.ndarray):
         return tuple(array_to_tuple(a) for a in arr)
     else:
         return arr
+
+
 class Sidechain(nn.Module):
     channels: int = 2**6
     kernel_size: int = 7
@@ -80,6 +96,7 @@ class TCN(nn.Module):
     kernel_dilation: int
     kernel_size: int
     with_sidechain: bool = True
+    activation: callable = nn.gelu
 
     @nn.compact
     def __call__(self, x, train: bool):
@@ -103,7 +120,7 @@ class TCN(nn.Module):
                 norm_factor=math.sqrt(self.features),
             )(x_)
         x = nn.BatchNorm(use_running_average=not train)(x)
-        x = nn.gelu(x)
+        x = self.activation(x)
         x_res = nn.Conv(
             features=self.features,
             kernel_size=(1,),
@@ -118,6 +135,7 @@ class TCN(nn.Module):
 class AttnBlock(nn.Module):
     heads: int
     expand_factor: float = 2.0
+    activation: Callable = nn.gelu
 
     @nn.compact
     def __call__(self, out):
@@ -138,7 +156,7 @@ class AttnBlock(nn.Module):
             ),
             use_bias=True,
         )(out)
-        out = nn.gelu(out)
+        out = self.activation(out)
         out = nn.Dense(
             features=features,
             kernel_init=nn.with_partitioning(
@@ -172,6 +190,7 @@ class ConvAttnBlock(nn.Module):
     depth: int
     positional_encodings: bool = True
     expand_factor: float = 2.0
+    activation: Callable = nn.gelu
 
     @nn.compact
     def __call__(self, x):
@@ -201,7 +220,7 @@ class ConvAttnBlock(nn.Module):
                 out_axes=-1,
                 variable_axes={"params": None},
                 split_rngs={"params": False},
-            )(heads=self.heads, expand_factor=self.expand_factor)(x)
+            )(heads=self.heads, expand_factor=self.expand_factor, activation=self.activation)(x)
         # (batch, channel, k, seq)
         x = jnp.transpose(x, (0, 2, 1, 3))
         x = nn.vmap(
@@ -328,6 +347,8 @@ class ExperimentalTCNNetwork(nn.Module):
     sidechain_modulo_r: int = 1
     expand_factor: float = 2.0
     positional_encodings: bool = True
+    do_last_activation: bool = True
+    activation: callable = nn.gelu
 
     @nn.compact
     def __call__(self, x, train: bool):
@@ -337,19 +358,22 @@ class ExperimentalTCNNetwork(nn.Module):
         for i in self.conv_depth:
             x = TCN(
                 features=i,
+                activation=self.activation,
                 kernel_dilation=self.kernel_dilation,
                 kernel_size=self.conv_kernel_size,
                 with_sidechain=i % self.sidechain_modulo_l == self.sidechain_modulo_r,
             )(x, train)
         x = ConvAttnBlock(
             features=self.conv_depth[-1],
+            activation=self.activation,
             kernel_size=self.attn_kernel_size,
             heads=self.heads,
             expand_factor=self.expand_factor,
             depth=self.attn_depth,
             positional_encodings=self.positional_encodings,
         )(x)
-        x = nn.tanh(x)
+        if self.do_last_activation:
+            x = nn.tanh(x)
         x = nn.Conv(
             features=1,
             kernel_init=initializers.lecun_normal(),
@@ -381,7 +405,5 @@ if __name__ == "__main__":
         expand_factor=2.0,
     )
     print(
-        model.tabulate(
-            jax.random.key(0), jnp.ones((2**2, 2**14, 1)), train=False
-        )
+        model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**14, 1)), train=False)
     )
