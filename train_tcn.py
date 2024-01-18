@@ -151,13 +151,13 @@ def Loss_fn_to_loss(loss_fn):
 
 def make_activation(activation):
     if activation == Activation.TANH:
-        return nn.tanh
+        return lambda _: nn.tanh
     if activation == Activation.PRELU:
-        return nn.PReLU
+        return lambda _: nn.PReLU
     if activation == Activation.ELU:
-        return nn.elu
+        return lambda _: nn.elu
     if activation == Activation.GELU:
-        return nn.gelu
+        return lambda _: nn.gelu
     if activation == Activation.LOTS_OF_PRELUS:
         return nn.vmap(
             nn.PReLU,
@@ -165,17 +165,17 @@ def make_activation(activation):
             split_rngs={"params": True},
             in_axes=-1,
             out_axes=-1,
-        )()
+        )
     if activation == Activation.PELU:
-        return PELU
+        return lambda _: PELU
     if activation == Activation.LOTS_OF_PELUS:
-        return nn.vmap(
+        return lambda _: nn.vmap(
             PELU,
             variable_axes={"params": 0},
             split_rngs={"params": True},
             in_axes=-1,
             out_axes=-1,
-        )()
+        )
     raise ValueError(f"What function? {activation}")
 
 

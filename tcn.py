@@ -120,7 +120,7 @@ class TCN(nn.Module):
                 norm_factor=math.sqrt(self.features),
             )(x_)
         x = nn.BatchNorm(use_running_average=not train)(x)
-        x = self.activation(x)
+        x = self.activation()(x)
         x_res = nn.Conv(
             features=self.features,
             kernel_size=(1,),
@@ -156,7 +156,7 @@ class AttnBlock(nn.Module):
             ),
             use_bias=True,
         )(out)
-        out = self.activation(out)
+        out = self.activation()(out)
         out = nn.Dense(
             features=features,
             kernel_init=nn.with_partitioning(
@@ -395,6 +395,13 @@ if __name__ == "__main__":
     )
     model = ExperimentalTCNNetwork(
         # features=2**6,
+        activation=nn.vmap(
+            PELU,
+            variable_axes={"params": 0},
+            split_rngs={"params": True},
+            in_axes=-1,
+            out_axes=-1,
+        ),
         coefficients=array_to_tuple(coefficients),
         kernel_dilation=2**1,
         conv_kernel_size=2**3,
