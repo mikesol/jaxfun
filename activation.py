@@ -2,6 +2,7 @@ from enum import Enum
 import flax.linen as nn
 from tcn import PELU
 
+
 class Activation(Enum):
     TANH = 1
     PRELU = 2
@@ -11,6 +12,7 @@ class Activation(Enum):
     PELU = 6
     LOTS_OF_PELUS = 7
     NADA = 8
+
 
 def make_activation(activation):
     if activation == Activation.TANH:

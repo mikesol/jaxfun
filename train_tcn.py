@@ -388,6 +388,7 @@ if __name__ == "__main__":
     module = ExperimentalTCNNetwork(
         # features=config.features,
         coefficients=array_to_tuple(coefficients),
+        use_batchnorm=config.use_batchnorm,
         kernel_dilation=config.kernel_dilation,
         conv_kernel_size=config.conv_kernel_size,
         attn_kernel_size=config.attn_kernel_size,

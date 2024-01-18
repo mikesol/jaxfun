@@ -172,6 +172,7 @@ if __name__ == "__main__":
     module = ExperimentalTCNNetwork(
         coefficients=array_to_tuple(coefficients),
         kernel_dilation=config.kernel_dilation,
+        use_batchnorm=config.use_batchnorm,
         conv_kernel_size=config.conv_kernel_size,
         attn_kernel_size=config.attn_kernel_size,
         heads=config.heads,
@@ -260,7 +261,7 @@ if __name__ == "__main__":
     hann = scipy.signal.windows.hann(o_len)
     print("starting inference with size", o_len)
     offset = 0
-    zzz = np.zeros((44100*11,))
+    zzz = np.zeros((44100 * 11,))
     a = []
     while offset < (44100 * 10):
         print("on second", offset / 44100)

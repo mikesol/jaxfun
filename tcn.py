@@ -33,13 +33,14 @@ class PELU(nn.Module):
     def __call__(self, x):
         # Initialize the alpha and beta parameters
         # These values can be adjusted based on your specific use case
-        alpha = self.param('alpha', nn.initializers.ones, (1,))
-        beta = self.param('beta', nn.initializers.ones, (1,))
+        alpha = self.param("alpha", nn.initializers.ones, (1,))
+        beta = self.param("beta", nn.initializers.ones, (1,))
 
         # PELU activation function
         positive = jnp.where(x > 0, x, 0)
         negative = jnp.where(x <= 0, alpha * (jnp.exp(x / beta) - 1), 0)
         return positive + negative
+
 
 def array_to_tuple(arr):
     if isinstance(arr, np.ndarray):
@@ -222,7 +223,13 @@ class ConvAttnBlock(nn.Module):
                 out_axes=-1,
                 variable_axes={"params": None},
                 split_rngs={"params": False},
-            )(heads=self.heads, expand_factor=self.expand_factor, activation=self.activation)(x)
+            )(
+                heads=self.heads,
+                expand_factor=self.expand_factor,
+                activation=self.activation,
+            )(
+                x
+            )
         # (batch, channel, k, seq)
         x = jnp.transpose(x, (0, 2, 1, 3))
         x = nn.vmap(
@@ -353,6 +360,7 @@ class ExperimentalTCNNetwork(nn.Module):
     positional_encodings: bool = True
     do_last_activation: bool = True
     activation: callable = nn.gelu
+    use_batchnorm: bool = True
 
     @nn.compact
     def __call__(self, x, train: bool):
@@ -362,6 +370,7 @@ class ExperimentalTCNNetwork(nn.Module):
         for i in self.conv_depth:
             x = TCN(
                 features=i,
+                use_batchnorm=self.use_batchnorm,
                 activation=self.activation,
                 kernel_dilation=self.kernel_dilation,
                 kernel_size=self.conv_kernel_size,
@@ -397,22 +406,56 @@ if __name__ == "__main__":
         30,
         10,
     )
+    # model = ExperimentalTCNNetwork(
+    #     # features=2**6,
+    #     activation=nn.vmap(
+    #         PELU,
+    #         variable_axes={"params": 0},
+    #         split_rngs={"params": True},
+    #         in_axes=-1,
+    #         out_axes=-1,
+    #     ),
+    #     coefficients=array_to_tuple(coefficients),
+    #     kernel_dilation=2**1,
+    #     conv_kernel_size=2**3,
+    #     attn_kernel_size=2**7,
+    #     heads=2**5,
+    #     conv_depth=tuple(2**n for n in (11, 11)),  # 2**4,
+    #     attn_depth=2**2,
+    #     expand_factor=2.0,
+    # )
     model = ExperimentalTCNNetwork(
         # features=2**6,
-        activation=nn.vmap(
-            PELU,
-            variable_axes={"params": 0},
-            split_rngs={"params": True},
-            in_axes=-1,
-            out_axes=-1,
-        ),
+        activation=lambda: lambda x: x,
         coefficients=array_to_tuple(coefficients),
         kernel_dilation=2**1,
-        conv_kernel_size=2**3,
+        conv_kernel_size=7,
         attn_kernel_size=2**7,
         heads=2**5,
-        conv_depth=tuple(2**n for n in (11, 11)),  # 2**4,
-        attn_depth=2**2,
+        conv_depth=(
+            1024,
+            1024,
+            512,
+            512,
+            256,
+            256,
+            128,
+            128,
+            64,
+            64,
+            32,
+            32,
+            16,
+            16,
+            8,
+            8,
+            4,
+            4,
+            2,
+            2,
+        ),
+        use_batchnorm=False,
+        attn_depth=0,
         expand_factor=2.0,
     )
     print(
