@@ -10,6 +10,7 @@ class Activation(Enum):
     LOTS_OF_PRELUS = 5
     PELU = 6
     LOTS_OF_PELUS = 7
+    NADA = 8
 
 def make_activation(activation):
     if activation == Activation.TANH:
@@ -38,4 +39,6 @@ def make_activation(activation):
             in_axes=-1,
             out_axes=-1,
         )
+    if activation == Activation.NADA:
+        return lambda: lambda x: x
     raise ValueError(f"What function? {activation}")
