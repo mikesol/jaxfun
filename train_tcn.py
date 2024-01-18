@@ -114,7 +114,8 @@ def create_train_state(rng: PRNGKey, x, module, tx) -> TrainState:
     print("creating train state", rng.shape, x.shape)
     variables = module.init(rng, x, train=False)
     params = variables["params"]
-    batch_stats = variables["batch_stats"]
+    # if we are not doing batch norm, there won't be any batch_stats
+    batch_stats = variables["batch_stats"] if "batch_stats" in variables else {}
     return TrainState.create(
         apply_fn=module.apply,
         params=params,
@@ -138,7 +139,6 @@ def Loss_fn_to_loss(loss_fn):
     if loss_fn == LossFn.LOGCOSH_RANGE:
         return lambda x, y: LogCoshLoss(apply_fade_in(x), apply_fade_in(y))
     raise ValueError(f"What function? {loss_fn}")
-
 
 
 def interleave_jax(input_array, trained_output):
@@ -274,6 +274,7 @@ if __name__ == "__main__":
     _config["step_freq"] = 2**6
     _config["test_size"] = 0.1
     # _config["features"] = 2**7
+    _config["use_batchnorm"] = True
     _config["kernel_dilation"] = 2**1
     _config["conv_kernel_size"] = 2**3
     _config["attn_kernel_size"] = 2**5

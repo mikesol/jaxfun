@@ -97,6 +97,7 @@ class TCN(nn.Module):
     kernel_size: int
     with_sidechain: bool = True
     activation: callable = nn.gelu
+    use_batchnorm: bool = True
 
     @nn.compact
     def __call__(self, x, train: bool):
@@ -119,7 +120,8 @@ class TCN(nn.Module):
                 kernel_size=self.kernel_size,
                 norm_factor=math.sqrt(self.features),
             )(x_)
-        x = nn.BatchNorm(use_running_average=not train)(x)
+        if self.use_batchnorm:
+            x = nn.BatchNorm(use_running_average=not train)(x)
         x = self.activation()(x)
         x_res = nn.Conv(
             features=self.features,
@@ -253,11 +255,13 @@ class TCNNetwork(nn.Module):
     sidechain_modulo_r: int = 1
     expand_factor: float = 2.0
     positional_encodings: bool = True
+    use_batchnorm: bool = True
 
     @nn.compact
     def __call__(self, x, train: bool):
         for i in range(self.conv_depth):
             x = TCN(
+                use_batchnorm=self.use_batchnorm,
                 features=self.features,
                 kernel_dilation=self.kernel_dilation,
                 kernel_size=self.conv_kernel_size,

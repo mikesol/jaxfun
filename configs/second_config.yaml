@@ -17,6 +17,7 @@ config:
   heads: 4
   conv_depth: [1024,512,256,128,64]
   attn_depth: 5
+  use_batchnorm: true
   do_last_activation: false
   activation: 5
   sidechain_modulo_l: 2

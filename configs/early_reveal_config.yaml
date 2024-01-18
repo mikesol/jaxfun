@@ -19,6 +19,7 @@ config:
   attn_depth: 2
   do_last_activation: true
   activation: 4
+  use_batchnorm: true
   sidechain_modulo_l: 2
   sidechain_modulo_r: 1
   expand_factor: 2.0
