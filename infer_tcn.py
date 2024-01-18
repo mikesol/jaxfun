@@ -275,5 +275,5 @@ if __name__ == "__main__":
     print("o after concat", o.shape)
     print("o after squeeze", o.shape)
     soundfile.write("/tmp/input.wav", input_, 44100)
-    soundfile.write("/tmp/prediction.wav", o, 44100)
+    soundfile.write("/tmp/prediction.wav", zzz, 44100)
     soundfile.write("/tmp/target.wav", target_, 44100)
