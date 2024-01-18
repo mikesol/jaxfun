@@ -1,6 +1,6 @@
 config:
   seed: 42
-  batch_size: 8
+  batch_size: 16
   inference_batch_size: 8
   inference_artifacts_per_batch_per_epoch: 32
   validation_split: 0.2
@@ -23,7 +23,7 @@ config:
   sidechain_modulo_r: 1
   expand_factor: 2.0
   positional_encodings: true
-  mesh_x_div: 1
+  mesh_x_div: 2
   loss_fn: 1
   afstart: 100
   afend: 19000
