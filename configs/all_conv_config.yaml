@@ -15,7 +15,7 @@ config:
   conv_kernel_size: 7
   attn_kernel_size: 32
   heads: 4
-  conv_depth: [512, 512]
+  conv_depth: [256, 256, 128, 128, 64, 64, 32, 32, 16, 16, 8, 8, 4, 4, 2, 2]
   attn_depth: 0
   use_batchnorm: false
   do_last_activation: false
