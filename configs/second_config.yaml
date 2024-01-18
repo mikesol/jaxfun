@@ -15,7 +15,7 @@ config:
   conv_kernel_size: 8
   attn_kernel_size: 32
   heads: 4
-  conv_depth: [2048,1024,512,256,128]
+  conv_depth: [2048,1024,512,256]
   attn_depth: 5
   do_last_activation: false
   activation: 7
