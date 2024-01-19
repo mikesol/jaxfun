@@ -29,7 +29,6 @@ def test_create_biquad_coefficients():
     assert np.allclose(bc[3:, 0], a[1:])
 
 
-@pytest.mark.only
 def test_biquad():
     bc = create_biquad_coefficients(127, 44100, 100, 700, 30, 10)
     i_ = np.random.randn(4, 1024, 1)

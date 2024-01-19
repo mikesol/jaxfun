@@ -3,6 +3,7 @@ from parallelism import Parallelism
 from contextlib import nullcontext
 import logging
 import librosa
+from bias_types import BiasTypes
 from activation import Activation, make_activation
 from enum import Enum
 from fork_on_parallelism import fork_on_parallelism
@@ -28,8 +29,7 @@ if IS_CPU:
 
 from typing import Any
 from flax import struct
-from comet_ml import Experiment, Artifact
-from tcn import TCNNetwork, ExperimentalTCNNetwork
+from tcn import ExperimentalTCNNetwork
 from clu import metrics
 from functools import partial
 import jax.numpy as jnp
@@ -172,7 +172,7 @@ if __name__ == "__main__":
     module = ExperimentalTCNNetwork(
         coefficients=array_to_tuple(coefficients),
         kernel_dilation=config.kernel_dilation,
-        use_batchnorm=config.use_batchnorm,
+        bias_type=BiasTypes(config.bias_type),
         conv_kernel_size=config.conv_kernel_size,
         attn_kernel_size=config.attn_kernel_size,
         heads=config.heads,

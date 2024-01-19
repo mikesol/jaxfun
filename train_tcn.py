@@ -2,8 +2,10 @@ import os
 from parallelism import Parallelism
 from contextlib import nullcontext
 import logging
+from bias_types import BiasTypes
 from activation import Activation, make_activation
 from enum import Enum
+import flax.linen as nn
 from fork_on_parallelism import fork_on_parallelism
 from fade_in import apply_fade_in
 from create_filtered_audio import create_biquad_coefficients
@@ -32,7 +34,7 @@ from functools import partial
 import jax.numpy as jnp
 import flax.jax_utils as jax_utils
 import numpy as np
-import flax.linen as nn
+import flax.linen as nns
 import math
 from flax.training import train_state
 import optax
@@ -274,7 +276,7 @@ if __name__ == "__main__":
     _config["step_freq"] = 2**6
     _config["test_size"] = 0.1
     # _config["features"] = 2**7
-    _config["use_batchnorm"] = True
+    _config["bias_type"] = BiasTypes.BATCH_NORM
     _config["kernel_dilation"] = 2**1
     _config["conv_kernel_size"] = 2**3
     _config["attn_kernel_size"] = 2**5
@@ -303,6 +305,7 @@ if __name__ == "__main__":
                 raise ValueError(f"Requires key {k}")
         _config = in_config
         _config["loss_fn"] = LossFn(_config["loss_fn"])
+        _config["bias_type"] = BiasTypes(_config["bias_type"])
         _config["activation"] = Activation(_config["activation"])
         _config["mesh_x"] = device_len // _config["mesh_x_div"]
         _config["mesh_y"] = _config["mesh_x_div"]
@@ -388,7 +391,7 @@ if __name__ == "__main__":
     module = ExperimentalTCNNetwork(
         # features=config.features,
         coefficients=array_to_tuple(coefficients),
-        use_batchnorm=config.use_batchnorm,
+        bias_type=config.bias_type,
         kernel_dilation=config.kernel_dilation,
         conv_kernel_size=config.conv_kernel_size,
         attn_kernel_size=config.attn_kernel_size,

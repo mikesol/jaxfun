@@ -2,6 +2,7 @@ import flax.linen as nn
 import jax
 import jax.numpy as jnp
 from flax.linen import initializers
+from bias_types import BiasTypes
 from create_filtered_audio import create_biquad_coefficients
 import math
 from typing import Tuple
@@ -47,6 +48,91 @@ def array_to_tuple(arr):
         return tuple(array_to_tuple(a) for a in arr)
     else:
         return arr
+
+
+class Sine(nn.Module):
+    @nn.compact
+    def __call__(self, x):
+        phase = self.param(
+            "phase",
+            nn.with_partitioning(initializers.lecun_normal(), (None, "model")),
+            (1,),
+            jnp.float32,
+        )
+        amplitude = self.param(
+            "amplitude",
+            nn.with_partitioning(initializers.lecun_normal(), (None, "model")),
+            (1,),
+            jnp.float32,
+        )
+        frequency = self.param(
+            "frequency",
+            nn.with_partitioning(initializers.lecun_normal(), (None, "model")),
+            (1,),
+            jnp.float32,
+        )
+        return amplitude * jnp.sin(2 * jnp.pi * frequency * x + phase)
+
+
+class SineMult(nn.Module):
+    xs: Array
+
+    @nn.compact
+    def __call__(self, x):
+        return x * Sine()(self.xs)
+
+
+class SineMultVmapped(nn.Module):
+    sr: int
+    seq_len: int
+
+    def setup(self):
+        self.xs = jnp.arange(self.seq_len) / self.sr
+        self.vmapped = nn.vmap(
+            SineMult,
+            in_axes=-2,
+            out_axes=-2,
+            variable_axes={"params": 0},
+            split_rngs={"params": True},
+        )(xs=self.xs)
+
+    def __call__(self, x):
+        return self.vmapped(x)
+
+
+class Sineconv(nn.Module):
+    features: int
+    sr: int
+
+    @nn.compact
+    def __call__(self, x):
+        # (b, k*c, s)
+        x_shape = x.shape
+        x = jax.lax.conv_general_dilated_patches(
+            jnp.transpose(x, (0, 2, 1)),
+            filter_shape=(x.shape[-2],),
+            window_strides=(1,),
+            padding=((x.shape[-1] - 1, x.shape[-1] - 1),),
+        )
+        assert x.shape[1] == x_shape[1] * x_shape[-1]
+        x = jnp.repeat(x, repeats=self.features, axis=-2)
+        x = SineMultVmapped(sr=self.sr, seq_len=x.shape[-2])(x)
+        x = jnp.reshape(x, (x_shape[:2], self.features, *x_shape[2:]))
+        x = jnp.sum(x, axis=-3)
+        assert x.shape == (x_shape[0], self.features, x_shape[1])
+        x = jnp.transpose(x, (0, 2, 1))
+        return x
+
+
+class SineconvNetwork(nn.Module):
+    features_list: Tuple[int]
+    sr: int
+
+    @nn.compact
+    def __call__(self, x):
+        for features in self.features_list:
+            x = Sineconv(features=features, sr=self.sr)(x)
+        return x
 
 
 class Sidechain(nn.Module):
@@ -101,7 +187,7 @@ class TCN(nn.Module):
     kernel_size: int
     with_sidechain: bool = True
     activation: callable = nn.gelu
-    use_batchnorm: bool = True
+    bias_type: BiasTypes = BiasTypes.BATCH_NORM
 
     @nn.compact
     def __call__(self, x, train: bool):
@@ -116,7 +202,7 @@ class TCN(nn.Module):
             kernel_dilation=(self.kernel_dilation if not self.with_sidechain else 1,),
             kernel_size=(self.kernel_size,),
             padding=((0, 0),),
-            use_bias=False,
+            use_bias=self.bias_type == BiasTypes.DC,
         )(x_)
         if self.with_sidechain:
             x += Sidechain(
@@ -125,7 +211,7 @@ class TCN(nn.Module):
                 kernel_size=self.kernel_size,
                 norm_factor=math.sqrt(self.features),
             )(x_)
-        if self.use_batchnorm:
+        if self.bias_type == BiasTypes.BATCH_NORM:
             x = nn.BatchNorm(use_running_average=not train)(x)
         x = self.activation()(x)
         x_res = nn.Conv(
@@ -266,13 +352,13 @@ class TCNNetwork(nn.Module):
     sidechain_modulo_r: int = 1
     expand_factor: float = 2.0
     positional_encodings: bool = True
-    use_batchnorm: bool = True
+    bias_type: BiasTypes = BiasTypes.BATCH_NORM
 
     @nn.compact
     def __call__(self, x, train: bool):
         for i in range(self.conv_depth):
             x = TCN(
-                use_batchnorm=self.use_batchnorm,
+                bias_type=self.bias_type,
                 features=self.features,
                 kernel_dilation=self.kernel_dilation,
                 kernel_size=self.conv_kernel_size,
@@ -364,7 +450,7 @@ class ExperimentalTCNNetwork(nn.Module):
     positional_encodings: bool = True
     do_last_activation: bool = True
     activation: callable = nn.gelu
-    use_batchnorm: bool = True
+    bias_type: BiasTypes = BiasTypes.BATCH_NORM
 
     @nn.compact
     def __call__(self, x, train: bool):
@@ -374,7 +460,7 @@ class ExperimentalTCNNetwork(nn.Module):
         for i in self.conv_depth:
             x = TCN(
                 features=i,
-                use_batchnorm=self.use_batchnorm,
+                bias_type=self.bias_type,
                 activation=self.activation,
                 kernel_dilation=self.kernel_dilation,
                 kernel_size=self.conv_kernel_size,
@@ -428,42 +514,44 @@ if __name__ == "__main__":
     #     attn_depth=2**2,
     #     expand_factor=2.0,
     # )
-    model = ExperimentalTCNNetwork(
-        # features=2**6,
-        activation=lambda: lambda x: x,
-        coefficients=array_to_tuple(coefficients),
-        kernel_dilation=2**1,
-        conv_kernel_size=7,
-        attn_kernel_size=2**7,
-        heads=2**5,
-        conv_depth=(
-            1024,
-            1024,
-            512,
-            512,
-            256,
-            256,
-            128,
-            128,
-            64,
-            64,
-            32,
-            32,
-            16,
-            16,
-            8,
-            8,
-            4,
-            4,
-            2,
-            2,
-        ),
-        sidechain_modulo_l=1,
-        sidechain_modulo_r=0,
-        use_batchnorm=False,
-        attn_depth=0,
-        expand_factor=2.0,
-    )
-    print(
-        model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**14, 1)), train=False)
-    )
+    # model = ExperimentalTCNNetwork(
+    #     # features=2**6,
+    #     activation=lambda: lambda x: x,
+    #     coefficients=array_to_tuple(coefficients),
+    #     kernel_dilation=2**1,
+    #     conv_kernel_size=7,
+    #     attn_kernel_size=2**7,
+    #     heads=2**5,
+    #     conv_depth=(
+    #         1024,
+    #         1024,
+    #         512,
+    #         512,
+    #         256,
+    #         256,
+    #         128,
+    #         128,
+    #         64,
+    #         64,
+    #         32,
+    #         32,
+    #         16,
+    #         16,
+    #         8,
+    #         8,
+    #         4,
+    #         4,
+    #         2,
+    #         2,
+    #     ),
+    #     sidechain_modulo_l=1,
+    #     sidechain_modulo_r=0,
+    #     bias_type=False,
+    #     attn_depth=0,
+    #     expand_factor=2.0,
+    # )
+    # print(
+    #     model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**14, 1)), train=False)
+    # )
+    model = SineconvNetwork(features_list=(20, 12, 8), sr=44100)
+    print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**14, 1))))
