@@ -326,37 +326,20 @@ if __name__ == "__main__":
     )
     print("making datasets")
     proto_train_dataset, train_dataset_total = make_data(
-        # channels=config.conv_depth[0],
-        # afstart=config.afstart,
-        # afend=config.afend,
-        # qstart=config.qstart,
-        # qend=config.qend,
         paths=train_files,
         window=config.window,
-        stride=config.stride,  # , shift=config.shift, dilation=config.dilation, features=config.features, feature_dim=-1, shuffle=True
-        # shuffle=fork_on_parallelism(True, False),
+        stride=config.stride,
     )
     proto_test_dataset, test_dataset_total = make_data(
-        # channels=config.conv_depth[0],
-        # afstart=config.afstart,
-        # afend=config.afend,
-        # qstart=config.qstart,
-        # qend=config.qend,
+
         paths=test_files,
         window=config.window,
-        stride=config.stride,  # , shift=config.shift, dilation=config.dilation, features=config.features, feature_dim=-1, shuffle=True
-        # shuffle=fork_on_parallelism(True, False),
+        stride=config.stride,
     )
     proto_inference_dataset, inference_dataset_total = make_data(
-        # channels=config.conv_depth[0],
-        # afstart=config.afstart,
-        # afend=config.afend,
-        # qstart=config.qstart,
-        # qend=config.qend,
         paths=test_files,
         window=config.inference_window,
-        stride=config.stride,  # , shift=config.shift, dilation=config.dilation, features=config.features, feature_dim=-1, shuffle=True
-        # shuffle=fork_on_parallelism(True, False),
+        stride=config.stride,
     )
     print("datasets generated")
     init_rng = jax.random.PRNGKey(config.seed)
@@ -379,7 +362,7 @@ if __name__ == "__main__":
     module = SineconvNetwork(
         features_list=config.features_list,
         sine_window=config.sine_window,
-        cropping=crop.cropping_to_function(config.cropping)
+        cropping=crop.cropping_to_function(config.cropping),
     )
     tx = optax.adam(config.learning_rate)
     sine_range = jnp.arange(config.window) / 44100
