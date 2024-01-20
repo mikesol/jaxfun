@@ -49,6 +49,7 @@ def array_to_tuple(arr):
     else:
         return arr
 
+
 class Sidechain(nn.Module):
     in_channels: int = 2**6
     out_channels: int = 2**6

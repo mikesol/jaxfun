@@ -118,8 +118,11 @@ def make_phases(features_list):
     ]
 
 
-def create_train_state(rng: PRNGKey, x, sine_range, phases, module, tx) -> TrainState:
-    print("creating train state", rng.shape, x.shape)
+def create_train_state(
+    rng: PRNGKey, x, window, features_list, module, tx
+) -> TrainState:
+    sine_range = jnp.arange(window) / 44100
+    phases = make_phases(features_list)
     variables = module.init(rng, x, sine_range=sine_range, phases=phases)
     params = variables["params"]
     return TrainState.create(
@@ -158,8 +161,9 @@ def interleave_jax(input_array, trained_output):
     return interleaved
 
 
-def train_step(state, input, target, sine_range, phases, lossy_loss_loss):
-    """Train for a single step."""
+def train_step(state, input, target, window, features_list, lossy_loss_loss):
+    sine_range = jnp.arange(window) / 44100
+    phases = make_phases(features_list)
 
     def loss_fn(params):
         pred, updates = state.apply_fn(
@@ -178,7 +182,9 @@ def _replace_metrics(state):
     return state.replace(metrics=state.metrics.empty())
 
 
-def do_inference(state, input, sine_range, phases):
+def do_inference(state, input, window, features_list):
+    sine_range = jnp.arange(window) / 44100
+    phases = make_phases(features_list)
     o, _ = state.apply_fn(
         {"params": state.params},
         input,
@@ -348,10 +354,11 @@ if __name__ == "__main__":
     module = SineconvNetwork(
         features_list=config.features_list,
         sine_window=config.sine_window,
-        cropping=lambda x,y: crop.cropping_to_function(config.cropping)(x,y,lambda a,b: a+b),
+        cropping=lambda x, y: crop.cropping_to_function(config.cropping)(
+            x, y, lambda a, b: a + b
+        ),
     )
     tx = optax.adam(config.learning_rate)
-    sine_range = jnp.arange(config.window) / 44100
 
     if local_env.parallelism == Parallelism.SHARD:
         abstract_variables = jax.eval_shape(
@@ -359,8 +366,6 @@ if __name__ == "__main__":
                 create_train_state,
                 module=module,
                 tx=tx,
-                sine_range=sine_range,
-                phases=make_phases(config.features_list),
             ),
             init_rng,
             onez,
@@ -393,7 +398,8 @@ if __name__ == "__main__":
     state = jit_create_train_state(
         rng_for_train_state,
         fork_on_parallelism(onez, onez),
-        sine_range,
+        config.window,
+        config.features_list,
         module,
         tx,
     )
@@ -474,8 +480,8 @@ if __name__ == "__main__":
                         state,
                         input,
                         target,
-                        sine_range,
-                        make_phases(config.features_list),
+                        config.window,
+                        config.features_list,
                         config.loss_fn,
                     )
 
@@ -536,8 +542,8 @@ if __name__ == "__main__":
                     state,
                     input,
                     target,
-                    sine_range,
-                    make_phases(config.features_list),
+                    config.window,
+                    config.features_list,
                     config.loss_fn,
                 )
                 loop.set_postfix(loss=loss)
@@ -575,7 +581,10 @@ if __name__ == "__main__":
             )(do_inference)
 
             o = jit_do_inference(
-                state, input, sine_range, make_phases(config.features_list)
+                state,
+                input,
+                config.window,
+                config.features_list,
             )
             o = maybe_unreplicate(o)
             assert o.shape[-1] == 1
