@@ -14,5 +14,5 @@ config:
   mesh_x_div: 1
   loss_fn: 1
   features_list: [64, 64, 32, 32]
-  sine_window: 63
+  sine_window: 31
   cropping: 1
