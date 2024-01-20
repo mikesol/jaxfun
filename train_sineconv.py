@@ -51,9 +51,7 @@ RESTORE = None
 
 
 def batchify(f, n):
-    print("FOO1", n.shape)
     to_concat = tuple([f() for _ in range(n.shape[0])])
-    print("FOO2",to_concat[0].shape)
     return jnp.concatenate(to_concat, axis=0)
 
 
@@ -118,9 +116,9 @@ class TrainState(train_state.TrainState):
     metrics: Metrics
 
 
-def make_phases(features_list):
+def make_phases(features_list, shp):
     return [
-        jnp.array(np.random.randn(1, 1, x * y))
+        batchify(lambda: jnp.array(np.random.randn(1, 1, x * y)), shp)
         for x, y in zip((1,) + features_list[:-1], features_list)
     ]
 
@@ -374,7 +372,7 @@ if __name__ == "__main__":
             init_rng,
             onez,
             batchify(lambda: sine_range, onez),
-            batchify(lambda: make_phases(config.features_list), onez),
+            make_phases(config.features_list, onez),
         )
 
         state_sharding = nn.get_sharding(abstract_variables, mesh)
@@ -405,7 +403,7 @@ if __name__ == "__main__":
         rng_for_train_state,
         fork_on_parallelism(onez, onez),
         batchify(lambda: sine_range, onez),
-        batchify(lambda: make_phases(config.features_list), onez),
+        make_phases(config.features_list, onez),
         module,
         tx,
     )
@@ -487,7 +485,7 @@ if __name__ == "__main__":
                         input,
                         target,
                         batchify(lambda: sine_range, input),
-                        batchify(lambda: make_phases(config.features_list), input),
+                        make_phases(config.features_list, input),
                         config.loss_fn,
                     )
 
@@ -549,7 +547,7 @@ if __name__ == "__main__":
                     input,
                     target,
                     batchify(lambda: sine_range, input),
-                    batchify(lambda: make_phases(config.features_list), input),
+                    make_phases(config.features_list, input),
                     config.loss_fn,
                 )
                 loop.set_postfix(loss=loss)
@@ -593,7 +591,7 @@ if __name__ == "__main__":
                 state,
                 input,
                 batchify(lambda: sine_range, input),
-                batchify(lambda: make_phases(config.features_list), input),
+                make_phases(config.features_list, input),
             )
             o = maybe_unreplicate(o)
             assert o.shape[-1] == 1
