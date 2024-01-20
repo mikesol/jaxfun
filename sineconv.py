@@ -101,6 +101,7 @@ class Sineconv(nn.Module):
         )
         conv = jnp.sum(conv, axis=2)
         conv = jnp.transpose(conv, (0, 2, 1))
+        conv = nn.tanh(conv)
         x_res = nn.Conv(
             features=self.features,
             kernel_size=(1,),
