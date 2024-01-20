@@ -1,0 +1,18 @@
+config:
+  seed: 42
+  batch_size: 8
+  inference_batch_size: 8
+  inference_artifacts_per_batch_per_epoch: 32
+  validation_split: 0.2
+  learning_rate: 0.0001
+  epochs: 128
+  window: 16384
+  inference_window: 16384
+  stride: 256
+  step_freq: 64
+  test_size: 0.1
+  mesh_x_div: 1
+  loss_fn: 1
+  features_list: [2048, 2048, 1024, 1024, 512, 512, 256, 256, 128, 128, 64, 64, 32, 32, 16, 16, 8, 8, 4, 4]
+  sine_window: 511
+  cropping: 1
