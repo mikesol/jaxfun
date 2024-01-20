@@ -51,7 +51,10 @@ RESTORE = None
 
 
 def batchify(f, n):
-    jnp.concatenate(tuple([f() for _ in range(n.shape[0])]), axis=0)
+    print("FOO1", n.shape)
+    to_concat = tuple([f() for _ in range(n.shape[0])])
+    print("FOO2",to_concat[0].shape)
+    return jnp.concatenate(to_concat, axis=0)
 
 
 def LogCoshLoss(input, target, a=1.0, eps=1e-8):
