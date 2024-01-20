@@ -44,7 +44,7 @@ class Sineconv(nn.Module):
         in_features = x.shape[2]
         final_seq_len = (seq_len - self.sine_window) + 1
         # as the convolution gets shorter, we can clip the range
-        sine_range = sine_range[:,:seq_len,:]
+        sine_range = sine_range[:, :seq_len, :]
         assert (x_.shape[0], seq_len, 1) == sine_range.shape
         all_chans = in_features * self.features
         # (b, k*c, s)
@@ -81,10 +81,15 @@ class Sineconv(nn.Module):
             sine_me,
             in_axes=-1,
             out_axes=-1,
-        )(jnp.repeat(sine_range, phases.shape[-1], axis=-1), amplitudes, frequencies, phases)
-        
+        )(
+            jnp.repeat(sine_range, phases.shape[-1], axis=-1),
+            amplitudes,
+            frequencies,
+            phases,
+        )
+
         sines = jax.lax.conv_general_dilated_patches(
-            jnp.transpose(sines, (0,2,1)),
+            jnp.transpose(sines, (0, 2, 1)),
             filter_shape=(self.sine_window,),
             window_strides=(1,),
             padding=((0, 0),),

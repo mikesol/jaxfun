@@ -386,6 +386,8 @@ if __name__ == "__main__":
                 if local_env.parallelism == Parallelism.SHARD
                 else None,
                 x_sharding,
+                x_sharding,
+                x_sharding,
             ),  # PRNG key and x
             out_shardings=state_sharding,
         ),
@@ -419,7 +421,13 @@ if __name__ == "__main__":
         partial(
             jax.jit,
             static_argnums=(5,),
-            in_shardings=(state_sharding, x_sharding, x_sharding),
+            in_shardings=(
+                state_sharding,
+                x_sharding,
+                x_sharding,
+                x_sharding,
+                x_sharding,
+            ),
             out_shardings=(state_sharding, None),
         ),
         partial(jax.pmap, static_broadcasted_argnums=(5,)),
@@ -429,7 +437,13 @@ if __name__ == "__main__":
         partial(
             jax.jit,
             static_argnums=(5,),
-            in_shardings=(state_sharding, x_sharding, x_sharding),
+            in_shardings=(
+                state_sharding,
+                x_sharding,
+                x_sharding,
+                x_sharding,
+                x_sharding,
+            ),
         ),
         partial(jax.pmap, static_broadcasted_argnums=(5,)),
     )(compute_loss)
@@ -578,7 +592,7 @@ if __name__ == "__main__":
                 partial(
                     jax.jit,
                     # static_argnums=(2, 3),
-                    in_shardings=(state_sharding, x_sharding),
+                    in_shardings=(state_sharding, x_sharding, x_sharding, x_sharding),
                     out_shardings=x_sharding,
                 ),
                 partial(
