@@ -13,6 +13,6 @@ config:
   test_size: 0.1
   mesh_x_div: 1
   loss_fn: 1
-  features_list: [2048, 2048, 1024, 1024, 512, 512, 256, 256, 128, 128, 64, 64, 32, 32, 16, 16, 8, 8, 4, 4]
-  sine_window: 511
+  features_list: [64, 64, 32, 32]
+  sine_window: 127
   cropping: 1
