@@ -44,8 +44,8 @@ class Sineconv(nn.Module):
         in_features = x.shape[2]
         final_seq_len = (seq_len - self.sine_window) + 1
         # as the convolution gets shorter, we can clip the range
-        sine_range = sine_range[:seq_len]
-        assert (seq_len,) == sine_range.shape
+        sine_range = sine_range[:,:seq_len,:]
+        assert (x_.shape[0], seq_len, 1) == sine_range.shape
         all_chans = in_features * self.features
         # (b, k*c, s)
         x = jax.lax.conv_general_dilated_patches(
@@ -59,37 +59,32 @@ class Sineconv(nn.Module):
         amplitudes = self.param(
             "amplitude",
             initializers.lecun_normal(),
-            (all_chans, 1),
+            (1, 1, all_chans),
             jnp.float32,
         )
         frequencies = self.param(
             "frequency",
             initializers.lecun_normal(),
-            (all_chans, 1),
+            (1, 1, all_chans),
             jnp.float32,
         )
         # something really high
         frequencies *= 19000.0
         phases *= 2 * jnp.pi
-        # (1, sine_range)
-        sine_expanded = jnp.expand_dims(sine_range, axis=0)
 
         # (all_chans, sine_range)
-        def sine_me(freq, amp, ph):
-            return amp * jnp.sin(freq * 2 * jnp.pi * sine_expanded + ph)
+        def sine_me(srange, freq, amp, ph):
+            return amp * jnp.sin(freq * 2 * jnp.pi * srange + ph)
 
+        # (b, seq, ch)
         sines = jax.vmap(
             sine_me,
-            in_axes=0,
-            out_axes=0,
-        )(amplitudes, frequencies, phases)
-        # for some reason this add an axis?
-        sines = jnp.squeeze(sines, axis=1)
-        # (1, all_chans, sine_range)
-        sines = jnp.expand_dims(sines, axis=0)
-        # (1, all_chans * k, sine_range)
+            in_axes=-1,
+            out_axes=-1,
+        )(jnp.repeat(sine_range, phases.shape[-1], axis=-1), amplitudes, frequencies, phases)
+        
         sines = jax.lax.conv_general_dilated_patches(
-            sines,
+            jnp.transpose(sines, (0,2,1)),
             filter_shape=(self.sine_window,),
             window_strides=(1,),
             padding=((0, 0),),
@@ -107,7 +102,8 @@ class Sineconv(nn.Module):
             feature_group_count=self.features if x_.shape[-1] > 1 else 1,
             use_bias=False,
         )(x_)
-        return self.cropping(conv, x_res)
+        cropped = self.cropping(conv, x_res)
+        return cropped
 
 
 class SineconvNetwork(nn.Module):
@@ -135,13 +131,14 @@ if __name__ == "__main__":
         sine_window=2**7 - 1,
         cropping=partial(crop.center_crop_and_f, f=lambda x, y: x + y),
     )
+    batch = 2**2
     print(
         model.tabulate(
             jax.random.key(0),
-            jnp.ones((2**2, 2**14, 1)),
-            jnp.ones((window,)),
+            jnp.ones((batch, 2**14, 1)),
+            jnp.ones((batch, window, 1)),
             [
-                jnp.ones((x * y, 1))
+                jnp.ones((batch, 1, x * y))
                 for x, y in zip((1,) + features_list[:-1], features_list)
             ],
         )

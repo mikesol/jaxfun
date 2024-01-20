@@ -50,6 +50,10 @@ from jax.experimental import mesh_utils
 RESTORE = None
 
 
+def batchify(f, n):
+    jnp.concatenate([f() for _ in range(n.shape[0])], axis=0)
+
+
 def LogCoshLoss(input, target, a=1.0, eps=1e-8):
     losses = jnp.mean((1 / a) * jnp.log(jnp.cosh(a * (input - target)) + eps), axis=-2)
     losses = jnp.mean(losses)
@@ -113,16 +117,13 @@ class TrainState(train_state.TrainState):
 
 def make_phases(features_list):
     return [
-        jnp.array(np.random.randn(x * y, 1))
+        jnp.array(np.random.randn(1, 1, x * y))
         for x, y in zip((1,) + features_list[:-1], features_list)
     ]
 
 
-def create_train_state(
-    rng: PRNGKey, x, window, features_list, module, tx
-) -> TrainState:
-    sine_range = jnp.arange(window) / 44100
-    phases = make_phases(features_list)
+def create_train_state(rng: PRNGKey, x, sine_range, phases, module, tx) -> TrainState:
+    print("creating train state", rng.shape, x.shape)
     variables = module.init(rng, x, sine_range=sine_range, phases=phases)
     params = variables["params"]
     return TrainState.create(
@@ -161,9 +162,8 @@ def interleave_jax(input_array, trained_output):
     return interleaved
 
 
-def train_step(state, input, target, window, features_list, lossy_loss_loss):
-    sine_range = jnp.arange(window) / 44100
-    phases = make_phases(features_list)
+def train_step(state, input, target, sine_range, phases, lossy_loss_loss):
+    """Train for a single step."""
 
     def loss_fn(params):
         pred = state.apply_fn(
@@ -182,9 +182,7 @@ def _replace_metrics(state):
     return state.replace(metrics=state.metrics.empty())
 
 
-def do_inference(state, input, window, features_list):
-    sine_range = jnp.arange(window) / 44100
-    phases = make_phases(features_list)
+def do_inference(state, input, sine_range, phases):
     o = state.apply_fn(
         {"params": state.params},
         input,
@@ -359,18 +357,21 @@ if __name__ == "__main__":
         ),
     )
     tx = optax.adam(config.learning_rate)
+    sine_range = jnp.expand_dims(
+        jnp.expand_dims(jnp.arange(config.window) / 44100, axis=0), axis=-1
+    )
 
     if local_env.parallelism == Parallelism.SHARD:
         abstract_variables = jax.eval_shape(
             partial(
                 create_train_state,
                 module=module,
-                window=config.window,
-                features_list=config.features_list,
                 tx=tx,
             ),
             init_rng,
             onez,
+            batchify(lambda: sine_range, onez),
+            batchify(lambda: make_phases(config.features_list), onez),
         )
 
         state_sharding = nn.get_sharding(abstract_variables, mesh)
@@ -378,7 +379,7 @@ if __name__ == "__main__":
     jit_create_train_state = fork_on_parallelism(
         partial(
             jax.jit,
-            static_argnums=(2, 3, 4, 5),
+            static_argnums=(4, 5),
             in_shardings=(
                 mesh_sharding(None)
                 if local_env.parallelism == Parallelism.SHARD
@@ -387,7 +388,7 @@ if __name__ == "__main__":
             ),  # PRNG key and x
             out_shardings=state_sharding,
         ),
-        partial(jax.pmap, static_broadcasted_argnums=(2, 3, 4, 5)),
+        partial(jax.pmap, static_broadcasted_argnums=(4, 5)),
     )(create_train_state)
     rng_for_train_state = (
         init_rng
@@ -400,8 +401,8 @@ if __name__ == "__main__":
     state = jit_create_train_state(
         rng_for_train_state,
         fork_on_parallelism(onez, onez),
-        config.window,
-        config.features_list,
+        batchify(lambda: sine_range, onez),
+        batchify(lambda: make_phases(config.features_list), onez),
         module,
         tx,
     )
@@ -416,20 +417,20 @@ if __name__ == "__main__":
     jit_train_step = fork_on_parallelism(
         partial(
             jax.jit,
-            static_argnums=(3, 4, 5),
+            static_argnums=(5,),
             in_shardings=(state_sharding, x_sharding, x_sharding),
             out_shardings=(state_sharding, None),
         ),
-        partial(jax.pmap, static_broadcasted_argnums=(3, 4, 5)),
+        partial(jax.pmap, static_broadcasted_argnums=(5,)),
     )(train_step)
 
     jit_compute_loss = fork_on_parallelism(
         partial(
             jax.jit,
-            static_argnums=(3, 4, 5),
+            static_argnums=(5,),
             in_shardings=(state_sharding, x_sharding, x_sharding),
         ),
-        partial(jax.pmap, static_broadcasted_argnums=(3, 4, 5)),
+        partial(jax.pmap, static_broadcasted_argnums=(5,)),
     )(compute_loss)
 
     del init_rng  # Must not be used anymore.
@@ -482,8 +483,8 @@ if __name__ == "__main__":
                         state,
                         input,
                         target,
-                        config.window,
-                        config.features_list,
+                        batchify(lambda: sine_range, input),
+                        batchify(lambda: make_phases(config.features_list), input),
                         config.loss_fn,
                     )
 
@@ -544,8 +545,8 @@ if __name__ == "__main__":
                     state,
                     input,
                     target,
-                    config.window,
-                    config.features_list,
+                    batchify(lambda: sine_range, input),
+                    batchify(lambda: make_phases(config.features_list), input),
                     config.loss_fn,
                 )
                 loop.set_postfix(loss=loss)
@@ -575,18 +576,21 @@ if __name__ == "__main__":
             jit_do_inference = fork_on_parallelism(
                 partial(
                     jax.jit,
-                    static_argnums=(2, 3),
+                    # static_argnums=(2, 3),
                     in_shardings=(state_sharding, x_sharding),
                     out_shardings=x_sharding,
                 ),
-                partial(jax.pmap, static_broadcasted_argnums=(2, 3)),
+                partial(
+                    jax.pmap,
+                    # static_broadcasted_argnums=(2, 3)
+                ),
             )(do_inference)
 
             o = jit_do_inference(
                 state,
                 input,
-                config.window,
-                config.features_list,
+                batchify(lambda: sine_range, input),
+                batchify(lambda: make_phases(config.features_list), input),
             )
             o = maybe_unreplicate(o)
             assert o.shape[-1] == 1
