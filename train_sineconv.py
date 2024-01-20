@@ -113,10 +113,8 @@ class TrainState(train_state.TrainState):
 
 def make_phases(features_list):
     return [
-        jnp.array(
-            np.random.randn((x * y, 1))
-            for x, y in zip((1,) + features_list[:-1], features_list)
-        )
+        jnp.array(np.random.randn((x * y, 1)))
+        for x, y in zip((1,) + features_list[:-1], features_list)
     ]
 
 
@@ -328,7 +326,6 @@ if __name__ == "__main__":
         stride=config.stride,
     )
     proto_test_dataset, test_dataset_total = make_data(
-
         paths=test_files,
         window=config.window,
         stride=config.stride,
