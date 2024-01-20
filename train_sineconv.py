@@ -348,7 +348,7 @@ if __name__ == "__main__":
     module = SineconvNetwork(
         features_list=config.features_list,
         sine_window=config.sine_window,
-        cropping=crop.cropping_to_function(config.cropping),
+        cropping=lambda x,y: crop.cropping_to_function(config.cropping)(x,y,lambda a,b: a+b),
     )
     tx = optax.adam(config.learning_rate)
     sine_range = jnp.arange(config.window) / 44100
