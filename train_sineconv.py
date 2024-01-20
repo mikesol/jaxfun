@@ -113,7 +113,7 @@ class TrainState(train_state.TrainState):
 
 def make_phases(features_list):
     return [
-        jnp.array(np.random.randn((x * y, 1)))
+        jnp.array(np.random.randn(x * y, 1))
         for x, y in zip((1,) + features_list[:-1], features_list)
     ]
 
