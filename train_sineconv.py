@@ -166,11 +166,11 @@ def train_step(state, input, target, window, features_list, lossy_loss_loss):
     phases = make_phases(features_list)
 
     def loss_fn(params):
-        pred, updates = state.apply_fn(
+        pred = state.apply_fn(
             {"params": params}, input, sine_range=sine_range, phases=phases
         )
         loss = (Loss_fn_to_loss(lossy_loss_loss))(pred, target[:, -pred.shape[1] :, :])
-        return loss, updates
+        return loss
 
     grad_fn = jax.value_and_grad(loss_fn)
     loss, grads = grad_fn(state.params)
@@ -185,7 +185,7 @@ def _replace_metrics(state):
 def do_inference(state, input, window, features_list):
     sine_range = jnp.arange(window) / 44100
     phases = make_phases(features_list)
-    o, _ = state.apply_fn(
+    o = state.apply_fn(
         {"params": state.params},
         input,
         sine_range=sine_range,
@@ -198,7 +198,7 @@ replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
 
 
 def compute_loss(state, input, target, sine_range, phases, lossy_loss_loss):
-    pred, _ = state.apply_fn(
+    pred = state.apply_fn(
         {"params": state.params}, input, sine_range=sine_range, phases=phases
     )
     loss = (Loss_fn_to_loss(lossy_loss_loss))(pred, target[:, -pred.shape[1] :, :])
