@@ -365,6 +365,8 @@ if __name__ == "__main__":
             partial(
                 create_train_state,
                 module=module,
+                window=config.window,
+                features_list=config.features_list,
                 tx=tx,
             ),
             init_rng,
