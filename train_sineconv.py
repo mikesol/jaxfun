@@ -116,9 +116,9 @@ class TrainState(train_state.TrainState):
     metrics: Metrics
 
 
-def make_phases(features_list, shp):
+def make_phases(features_list, sines_per_window, shp):
     return [
-        batchify(lambda: jnp.array(np.random.randn(1, x, y)), shp)
+        batchify(lambda: jnp.array(np.random.randn(1, x * sines_per_window, y)), shp)
         for x, y in zip((1,) + features_list[:-1], features_list)
     ]
 
@@ -360,6 +360,7 @@ if __name__ == "__main__":
 
     module = SineconvNetwork(
         features_list=config.features_list,
+        sines_per_window=config.sines_per_window,
         sine_window=config.sine_window,
         cropping=lambda x, y: crop.cropping_to_function(config.cropping)(
             x, y, lambda a, b: a + b
@@ -380,7 +381,7 @@ if __name__ == "__main__":
             init_rng,
             onez,
             batchify(lambda: sine_range, onez),
-            make_phases(config.features_list, onez),
+            make_phases(config.features_list, config.sines_per_window, onez),
         )
 
         state_sharding = nn.get_sharding(abstract_variables, mesh)
@@ -413,7 +414,7 @@ if __name__ == "__main__":
         rng_for_train_state,
         fork_on_parallelism(onez, onez),
         batchify(lambda: sine_range, onez),
-        make_phases(config.features_list, onez),
+        make_phases(config.features_list, config.sines_per_window, onez),
         module,
         tx,
     )
@@ -507,7 +508,9 @@ if __name__ == "__main__":
                         input,
                         target,
                         batchify(lambda: sine_range, input),
-                        make_phases(config.features_list, input),
+                        make_phases(
+                            config.features_list, config.sines_per_window, input
+                        ),
                         config.loss_fn,
                         config.cropping,
                     )
@@ -570,7 +573,7 @@ if __name__ == "__main__":
                     input,
                     target,
                     batchify(lambda: sine_range, input),
-                    make_phases(config.features_list, input),
+                    make_phases(config.features_list, config.sines_per_window, input),
                     config.loss_fn,
                     config.cropping,
                 )
@@ -615,7 +618,7 @@ if __name__ == "__main__":
                 state,
                 input,
                 batchify(lambda: sine_range, input),
-                make_phases(config.features_list, input),
+                make_phases(config.features_list, config.sines_per_window, input),
             )
             o = maybe_unreplicate(o)
             assert o.shape[-1] == 1

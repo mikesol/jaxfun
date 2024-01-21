@@ -16,3 +16,4 @@ config:
   features_list: [32, 32, 32, 32, 32, 32, 32, 32]
   sine_window: 63
   cropping: 1
+  sines_per_window: 1
