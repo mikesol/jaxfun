@@ -11,8 +11,8 @@ config:
   stride: 256
   step_freq: 64
   test_size: 0.1
-  mesh_x_div: 2
+  mesh_x_div: 1
   loss_fn: 1
-  features_list: [64, 64, 64, 64, 32, 32, 32, 32]
+  features_list: [32, 32, 32, 32, 32, 32, 32, 32]
   sine_window: 63
   cropping: 1
