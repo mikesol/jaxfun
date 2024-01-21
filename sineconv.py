@@ -32,25 +32,23 @@ import numpy as np
 
 class Sineblock(nn.Module):
     sine_window: int
+
     @nn.compact
-    # (batch, seq, ichan) (batch, seq, 1) (batch, ichan)
+    # (batch, ichan * k, seq) (batch, seq, 1) (batch, ichan)
     def __call__(self, x, sine_range, phases):
         # (batch, 1, ichan)
-        batch_size = x.shape[0]
-        seq_len = x.shape[1]
-        in_features = x.shape[2]
+        in_features = x.shape[1] // self.sine_window
         phases = jnp.expand_dims(phases, axis=1)
-        final_seq_len = (seq_len - self.sine_window) + 1
         amplitudes = self.param(
             "amplitude",
             initializers.lecun_normal(),
-            (1, 1, x.shape[-1]),
+            (1, 1, in_features),
             jnp.float32,
         )
         frequencies = self.param(
             "frequency",
             initializers.lecun_normal(),
-            (1, 1, x.shape[-1]),
+            (1, 1, in_features),
             jnp.float32,
         )
         # something really high
@@ -61,13 +59,14 @@ class Sineblock(nn.Module):
         def sine_me(srange, freq, amp, ph):
             return amp * jnp.sin(freq * 2 * jnp.pi * srange + ph)
 
+        sine_range = jnp.repeat(sine_range, phases.shape[-1], axis=-1)
         # (b, seq, ch)
         sines = jax.vmap(
             sine_me,
             in_axes=-1,
             out_axes=-1,
         )(
-            jnp.repeat(sine_range, phases.shape[-1], axis=-1),
+            sine_range,
             amplitudes,
             frequencies,
             phases,
@@ -85,6 +84,7 @@ class Sineblock(nn.Module):
         conv = jnp.sum(conv, axis=1)
         conv = nn.tanh(conv)
         return conv
+
 
 class Sineconv(nn.Module):
     features: int
@@ -113,12 +113,12 @@ class Sineconv(nn.Module):
         )
 
         conv = nn.vmap(
-                lambda m, ph: m(x, sine_range, ph),
-                variable_axes={"params": 0},
-                split_rngs={"params": True},
-                in_axes=2,
-                out_axes=2,
-            )(Sineblock(sine_window=self.sine_window), phases)
+            lambda m, ph: m(x, sine_range, ph),
+            variable_axes={"params": 0},
+            split_rngs={"params": True},
+            in_axes=2,
+            out_axes=2,
+        )(Sineblock(sine_window=self.sine_window), phases)
 
         x_res = nn.Conv(
             features=self.features,
@@ -162,7 +162,7 @@ if __name__ == "__main__":
             jnp.ones((batch, 2**14, 1)),
             jnp.ones((batch, window, 1)),
             [
-                jnp.ones((batch, 1, x * y))
+                jnp.ones((batch, x, y))
                 for x, y in zip((1,) + features_list[:-1], features_list)
             ],
         )
