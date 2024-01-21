@@ -118,7 +118,7 @@ class TrainState(train_state.TrainState):
 
 def make_phases(features_list, shp):
     return [
-        batchify(lambda: jnp.array(np.random.randn(1, 1, x * y)), shp)
+        batchify(lambda: jnp.array(np.random.randn(1, x, y)), shp)
         for x, y in zip((1,) + features_list[:-1], features_list)
     ]
 

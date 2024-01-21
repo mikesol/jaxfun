@@ -30,11 +30,68 @@ Output = Any
 import numpy as np
 
 
+class Sineblock(nn.Module):
+    sine_window: int
+    @nn.compact
+    # (batch, seq, ichan) (batch, seq, 1) (batch, ichan)
+    def __call__(self, x, sine_range, phases):
+        # (batch, 1, ichan)
+        batch_size = x.shape[0]
+        seq_len = x.shape[1]
+        in_features = x.shape[2]
+        phases = jnp.expand_dims(phases, axis=1)
+        final_seq_len = (seq_len - self.sine_window) + 1
+        amplitudes = self.param(
+            "amplitude",
+            initializers.lecun_normal(),
+            (1, 1, x.shape[-1]),
+            jnp.float32,
+        )
+        frequencies = self.param(
+            "frequency",
+            initializers.lecun_normal(),
+            (1, 1, x.shape[-1]),
+            jnp.float32,
+        )
+        # something really high
+        frequencies *= 19000.0
+        phases *= 2 * jnp.pi
+
+        # (batch, seq) (1, 1) (1, 1) (batch, 1) -> (batch, seq)
+        def sine_me(srange, freq, amp, ph):
+            return amp * jnp.sin(freq * 2 * jnp.pi * srange + ph)
+
+        # (b, seq, ch)
+        sines = jax.vmap(
+            sine_me,
+            in_axes=-1,
+            out_axes=-1,
+        )(
+            jnp.repeat(sine_range, phases.shape[-1], axis=-1),
+            amplitudes,
+            frequencies,
+            phases,
+        )
+        # (batch, k * chan, seq)
+        sines = jax.lax.conv_general_dilated_patches(
+            jnp.transpose(sines, (0, 2, 1)),
+            filter_shape=(self.sine_window,),
+            window_strides=(1,),
+            padding=((0, 0),),
+        )
+        # (batch, k * chan, seq)
+        conv = x * sines
+        # (batch, seq)
+        conv = jnp.sum(conv, axis=1)
+        conv = nn.tanh(conv)
+        return conv
+
 class Sineconv(nn.Module):
     features: int
     sine_window: int
     cropping: Callable
 
+    # (batch, seq, ichan) (batch, seq, 1) (batch, ichan, ochan)
     @nn.compact
     def __call__(self, x, sine_range, phases):
         assert self.sine_window % 2 == 1
@@ -54,54 +111,15 @@ class Sineconv(nn.Module):
             window_strides=(1,),
             padding=((0, 0),),
         )
-        # (1, all_chans * k, sine_range)
-        x = jnp.repeat(x, repeats=self.features, axis=1)
-        amplitudes = self.param(
-            "amplitude",
-            initializers.lecun_normal(),
-            (1, 1, all_chans),
-            jnp.float32,
-        )
-        frequencies = self.param(
-            "frequency",
-            initializers.lecun_normal(),
-            (1, 1, all_chans),
-            jnp.float32,
-        )
-        # something really high
-        frequencies *= 19000.0
-        phases *= 2 * jnp.pi
 
-        # (all_chans, sine_range)
-        def sine_me(srange, freq, amp, ph):
-            return amp * jnp.sin(freq * 2 * jnp.pi * srange + ph)
+        conv = nn.vmap(
+                lambda m, ph: m(x, sine_range, ph),
+                variable_axes={"params": 0},
+                split_rngs={"params": True},
+                in_axes=2,
+                out_axes=2,
+            )(Sineblock(sine_window=self.sine_window), phases)
 
-        # (b, seq, ch)
-        sines = jax.vmap(
-            sine_me,
-            in_axes=-1,
-            out_axes=-1,
-        )(
-            jnp.repeat(sine_range, phases.shape[-1], axis=-1),
-            amplitudes,
-            frequencies,
-            phases,
-        )
-
-        sines = jax.lax.conv_general_dilated_patches(
-            jnp.transpose(sines, (0, 2, 1)),
-            filter_shape=(self.sine_window,),
-            window_strides=(1,),
-            padding=((0, 0),),
-        )
-        conv = x * sines
-        conv = jnp.reshape(
-            conv,
-            (batch_size, self.features, in_features * self.sine_window, final_seq_len),
-        )
-        conv = jnp.sum(conv, axis=2)
-        conv = jnp.transpose(conv, (0, 2, 1))
-        conv = nn.tanh(conv)
         x_res = nn.Conv(
             features=self.features,
             kernel_size=(1,),
