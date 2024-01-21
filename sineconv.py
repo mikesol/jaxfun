@@ -56,17 +56,15 @@ class Sineblock(nn.Module):
         phases *= 2 * jnp.pi
 
         # (batch, seq) (1, 1) (1, 1) (batch, 1) -> (batch, seq)
-        def sine_me(srange, freq, amp, ph):
-            return amp * jnp.sin(freq * 2 * jnp.pi * srange + ph)
+        def sine_me(freq, amp, ph):
+            return amp * jnp.sin(freq * 2 * jnp.pi * sine_range[..., 0] + ph)
 
-        sine_range = jnp.repeat(sine_range, phases.shape[-1], axis=-1)
         # (b, seq, ch)
         sines = jax.vmap(
             sine_me,
             in_axes=-1,
             out_axes=-1,
         )(
-            sine_range,
             amplitudes,
             frequencies,
             phases,
