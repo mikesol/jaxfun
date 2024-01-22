@@ -6,6 +6,8 @@ import crop
 from bias_types import BiasTypes
 from activation import Activation, make_activation
 from enum import Enum
+from loss import LossFn, Loss_fn_to_loss, LogCoshLoss, ESRLoss
+
 import flax.linen as nn
 from fork_on_parallelism import fork_on_parallelism
 from fade_in import apply_fade_in
@@ -53,21 +55,6 @@ RESTORE = None
 def batchify(f, n):
     to_concat = tuple([f() for _ in range(n.shape[0])])
     return jnp.concatenate(to_concat, axis=0)
-
-
-def LogCoshLoss(input, target, a=1.0, eps=1e-8):
-    losses = jnp.mean((1 / a) * jnp.log(jnp.cosh(a * (input - target)) + eps), axis=-2)
-    losses = jnp.mean(losses)
-    return losses
-
-
-def ESRLoss(input, target):
-    eps = 1e-8
-    num = jnp.sum(((target - input) ** 2), axis=1)
-    denom = jnp.sum(target**2, axis=1) + eps
-    losses = num / denom
-    losses = jnp.mean(losses)
-    return losses
 
 
 def checkpoint_walker(ckpt):
@@ -134,21 +121,6 @@ def create_train_state(rng: PRNGKey, x, sine_range, phases, module, tx) -> Train
         metrics=Metrics.empty(),
     )
 
-
-class LossFn(Enum):
-    LOGCOSH = 1
-    ESR = 2
-    LOGCOSH_RANGE = 3
-
-
-def Loss_fn_to_loss(loss_fn):
-    if loss_fn == LossFn.ESR:
-        return ESRLoss
-    if loss_fn == LossFn.LOGCOSH:
-        return LogCoshLoss
-    if loss_fn == LossFn.LOGCOSH_RANGE:
-        return lambda x, y: LogCoshLoss(apply_fade_in(x), apply_fade_in(y))
-    raise ValueError(f"What function? {loss_fn}")
 
 
 def interleave_jax(input_array, trained_output):

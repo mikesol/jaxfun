@@ -11,6 +11,7 @@ from fade_in import apply_fade_in
 from create_filtered_audio import create_biquad_coefficients
 import soundfile
 from flax.training import orbax_utils
+from loss import LossFn, Loss_fn_to_loss, LogCoshLoss, ESRLoss
 
 # import logging
 # logging.basicConfig(level=logging.INFO)
@@ -74,10 +75,6 @@ def create_train_state(rng: PRNGKey, x, module, tx) -> TrainState:
     )
 
 
-class LossFn(Enum):
-    LOGCOSH = 1
-    ESR = 2
-    LOGCOSH_RANGE = 3
 
 
 def do_inference(state, input):
@@ -264,8 +261,9 @@ if __name__ == "__main__":
     zzz = np.zeros((44100 * 11,))
     a = []
     while offset < (44100 * 10):
-        print("on second", offset / 44100)
         o = jit_do_inference(state, input[:, offset : offset + stride, :])
+        loss = Loss_fn_to_loss(config.loss_fn)(o, input[:, offset : offset + stride, :])
+        print("on second", offset / 44100, loss)
         o = jnp.squeeze(o)
         o = np.array(o)
         assert o.shape == (o_len,)

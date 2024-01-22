@@ -7,7 +7,6 @@ from activation import Activation, make_activation
 from enum import Enum
 import flax.linen as nn
 from fork_on_parallelism import fork_on_parallelism
-from fade_in import apply_fade_in
 from create_filtered_audio import create_biquad_coefficients
 import yaml
 
@@ -17,7 +16,7 @@ import soundfile
 from types import SimpleNamespace
 import local_env
 import time
-
+from loss import LossFn, Loss_fn_to_loss, LogCoshLoss, ESRLoss
 start_time = time.time()
 
 IS_CPU = local_env.parallelism == Parallelism.NONE
@@ -50,19 +49,6 @@ from jax.experimental import mesh_utils
 RESTORE = None
 
 
-def LogCoshLoss(input, target, a=1.0, eps=1e-8):
-    losses = jnp.mean((1 / a) * jnp.log(jnp.cosh(a * (input - target)) + eps), axis=-2)
-    losses = jnp.mean(losses)
-    return losses
-
-
-def ESRLoss(input, target):
-    eps = 1e-8
-    num = jnp.sum(((target - input) ** 2), axis=1)
-    denom = jnp.sum(target**2, axis=1) + eps
-    losses = num / denom
-    losses = jnp.mean(losses)
-    return losses
 
 
 def checkpoint_walker(ckpt):
@@ -125,22 +111,6 @@ def create_train_state(rng: PRNGKey, x, module, tx) -> TrainState:
         batch_stats=batch_stats,
         metrics=Metrics.empty(),
     )
-
-
-class LossFn(Enum):
-    LOGCOSH = 1
-    ESR = 2
-    LOGCOSH_RANGE = 3
-
-
-def Loss_fn_to_loss(loss_fn):
-    if loss_fn == LossFn.ESR:
-        return ESRLoss
-    if loss_fn == LossFn.LOGCOSH:
-        return LogCoshLoss
-    if loss_fn == LossFn.LOGCOSH_RANGE:
-        return lambda x, y: LogCoshLoss(apply_fade_in(x), apply_fade_in(y))
-    raise ValueError(f"What function? {loss_fn}")
 
 
 def interleave_jax(input_array, trained_output):
