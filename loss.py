@@ -2,10 +2,12 @@ from enum import Enum
 import jax.numpy as jnp
 from fade_in import apply_fade_in
 
+
 class LossFn(Enum):
     LOGCOSH = 1
     ESR = 2
     LOGCOSH_RANGE = 3
+
 
 def LogCoshLoss(input, target, a=1.0, eps=1e-8):
     losses = jnp.mean((1 / a) * jnp.log(jnp.cosh(a * (input - target)) + eps), axis=-2)
@@ -20,6 +22,7 @@ def ESRLoss(input, target):
     losses = num / denom
     losses = jnp.mean(losses)
     return losses
+
 
 def Loss_fn_to_loss(loss_fn):
     if loss_fn == LossFn.ESR:

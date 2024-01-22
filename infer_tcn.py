@@ -75,8 +75,6 @@ def create_train_state(rng: PRNGKey, x, module, tx) -> TrainState:
     )
 
 
-
-
 def do_inference(state, input):
     o, _ = state.apply_fn(
         {"params": state.params, "batch_stats": state.batch_stats},
@@ -262,14 +260,16 @@ if __name__ == "__main__":
     a = []
     while offset < (44100 * 10):
         o = jit_do_inference(state, input[:, offset : offset + stride, :])
-        loss = Loss_fn_to_loss(config.loss_fn)(o, input[:, offset : offset + o.shape[1], :])
+        loss = Loss_fn_to_loss(config.loss_fn)(
+            o, input[:, offset : offset + o.shape[1], :]
+        )
         print("on second", offset / 44100, loss)
         o = jnp.squeeze(o)
         o = np.array(o)
         assert o.shape == (o_len,)
-        #o = o * hann
-        #zzz[offset : offset + o_len] += o
-        #offset += half_o_len
+        # o = o * hann
+        # zzz[offset : offset + o_len] += o
+        # offset += half_o_len
         zzz[offset : offset + o_len] += o
         offset += o_len
 

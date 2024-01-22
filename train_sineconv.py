@@ -122,7 +122,6 @@ def create_train_state(rng: PRNGKey, x, sine_range, phases, module, tx) -> Train
     )
 
 
-
 def interleave_jax(input_array, trained_output):
     input_expanded = jnp.expand_dims(input_array, axis=3)
     trained_output_expanded = jnp.expand_dims(trained_output, axis=3)
@@ -307,22 +306,13 @@ if __name__ == "__main__":
     )
     print("making datasets")
     proto_train_dataset, train_dataset_total = make_data(
-        paths=train_files,
-        window=config.window,
-        stride=config.stride,
-        naug=0
+        paths=train_files, window=config.window, stride=config.stride, naug=0
     )
     proto_test_dataset, test_dataset_total = make_data(
-        paths=test_files,
-        window=config.window,
-        stride=config.stride,        naug=0
-
+        paths=test_files, window=config.window, stride=config.stride, naug=0
     )
     proto_inference_dataset, inference_dataset_total = make_data(
-        paths=test_files,
-        window=config.inference_window,
-        stride=config.stride,        naug=0
-
+        paths=test_files, window=config.inference_window, stride=config.stride, naug=0
     )
     print("datasets generated")
     init_rng = jax.random.PRNGKey(config.seed)

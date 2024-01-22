@@ -17,6 +17,7 @@ from types import SimpleNamespace
 import local_env
 import time
 from loss import LossFn, Loss_fn_to_loss, LogCoshLoss, ESRLoss
+
 start_time = time.time()
 
 IS_CPU = local_env.parallelism == Parallelism.NONE
@@ -47,8 +48,6 @@ from jax.lax import with_sharding_constraint
 from jax.experimental import mesh_utils
 
 RESTORE = None
-
-
 
 
 def checkpoint_walker(ckpt):
@@ -589,7 +588,7 @@ if __name__ == "__main__":
 
             for i in range(o.shape[0]):
                 audy = np.squeeze(np.array(o[i]))
-                print('prediction dimension', audy.shape)
+                print("prediction dimension", audy.shape)
                 run.log_audio(
                     audy,
                     sample_rate=44100,
