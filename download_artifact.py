@@ -4,10 +4,10 @@ import local_env
 experiment = ExistingExperiment(
     api_key=local_env.comet_ml_api_key,
     project_name="jax-tcn-attn",
-    previous_experiment="7c2a0a329fb744099d0855682c603d97",
+    previous_experiment="966f353bf95b43828662eb0c5c8f2b05",
 )
 logged_artifact = experiment.get_artifact(
-    "checkpoint", "mikesol", version_or_alias="718.0.0"
+    "checkpoint", "mikesol", version_or_alias="916.0.0"
 )
 
 # Download the artifact:
