@@ -313,6 +313,7 @@ if __name__ == "__main__":
         # afend=config.afend,
         # qstart=config.qstart,
         # qend=config.qend,
+        naug=0,
         paths=train_files,
         window=config.window,
         stride=config.stride,  # , shift=config.shift, dilation=config.dilation, features=config.features, feature_dim=-1, shuffle=True
