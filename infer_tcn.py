@@ -269,9 +269,11 @@ if __name__ == "__main__":
         o = jnp.squeeze(o)
         o = np.array(o)
         assert o.shape == (o_len,)
-        o = o * hann
+        #o = o * hann
+        #zzz[offset : offset + o_len] += o
+        #offset += half_o_len
         zzz[offset : offset + o_len] += o
-        offset += half_o_len
+        offset += o_len
 
     print("o after concat", o.shape)
     print("o after squeeze", o.shape)
