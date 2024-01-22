@@ -310,16 +310,19 @@ if __name__ == "__main__":
         paths=train_files,
         window=config.window,
         stride=config.stride,
+        naug=0
     )
     proto_test_dataset, test_dataset_total = make_data(
         paths=test_files,
         window=config.window,
-        stride=config.stride,
+        stride=config.stride,        naug=0
+
     )
     proto_inference_dataset, inference_dataset_total = make_data(
         paths=test_files,
         window=config.inference_window,
-        stride=config.stride,
+        stride=config.stride,        naug=0
+
     )
     print("datasets generated")
     init_rng = jax.random.PRNGKey(config.seed)
