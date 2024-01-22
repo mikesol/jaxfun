@@ -252,7 +252,7 @@ if __name__ == "__main__":
     jit_do_inference = jax.jit(do_inference)
     # jit_do_inference = jax.jit(do_inference)
     print("input shape", input.shape)
-    stride = 2**11 + 1
+    stride = config.window + 1
     o = jit_do_inference(state, input[:, :stride, :])
     o_len = o.shape[1]
     print("olen", o_len)
