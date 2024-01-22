@@ -262,7 +262,7 @@ if __name__ == "__main__":
     a = []
     while offset < (44100 * 10):
         o = jit_do_inference(state, input[:, offset : offset + stride, :])
-        loss = Loss_fn_to_loss(config.loss_fn)(o, input[:, offset : offset + stride, :])
+        loss = Loss_fn_to_loss(config.loss_fn)(o, input[:, offset : offset + o.shape[1], :])
         print("on second", offset / 44100, loss)
         o = jnp.squeeze(o)
         o = np.array(o)
