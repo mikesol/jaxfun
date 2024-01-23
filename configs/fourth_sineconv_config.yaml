@@ -15,5 +15,6 @@ config:
   loss_fn: 1
   features_list: [64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64]
   sine_window: 31
+  do_last_skip: true
   cropping: 1
   sines_per_window: 64
