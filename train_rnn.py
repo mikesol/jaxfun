@@ -318,11 +318,11 @@ if __name__ == "__main__":
     onez = jnp.ones(
         [
             config.batch_size,
-            config.window * 2,
+            config.window,
             1,
         ]
     )
-    par_onez = maybe_replicate(jnp.ones([config.batch_size, config.window * 2, 1]))
+    par_onez = maybe_replicate(jnp.ones([config.batch_size, config.window, 1]))
 
     module = nn.RNN(
         StackedRNNCellWithAttn(
