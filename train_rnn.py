@@ -1,5 +1,5 @@
 import os
-from rnn import StackedRNNCellWithAttn, LSTMCell, StackedRNNCell
+from rnn import LSTM, LSTMCell
 from parallelism import Parallelism
 from contextlib import nullcontext
 import logging
@@ -335,15 +335,14 @@ if __name__ == "__main__":
     #         cell=LSTMCell,
     #     )
     # )
-    module = nn.RNN(
-        StackedRNNCell(
-            features=config.features,
-            levels=config.levels,
-            skip=True,
-            only_last=True,
-            projection=1,
-            cell=LSTMCell,
-        )
+    module = LSTM(
+        features=config.features,
+        levels=config.levels,
+        skip=True,
+        do_last_skip=True,
+        only_last=True,
+        projection=1,
+        cell=LSTMCell,
     )
 
     tx = optax.adam(config.learning_rate)

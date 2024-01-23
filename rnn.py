@@ -159,6 +159,7 @@ class StackedRNNCell(nn.Module):
     param_dtype: Dtype = jnp.float32
     carry_init: nn.initializers.Initializer = nn.initializers.zeros_init()
     levels: int = 1
+    do_last_skip: int = False
     projection: Optional[int] = None
     only_last: bool = True
 
@@ -171,6 +172,17 @@ class StackedRNNCell(nn.Module):
             dtype=self.dtype,
             param_dtype=self.param_dtype,
         )
+        if self.do_last_skip:
+            self.last_skip = nn.Dense(
+                features=self.projection
+                if self.projection is not None
+                else self.features,
+                use_bias=True,
+                kernel_init=self.dense_init,
+                bias_init=self.bias_init,
+                dtype=self.dtype,
+                param_dtype=self.param_dtype,
+            )
         self.vmap = nn.vmap(
             self.cell,
             variable_axes={"params": 0},
@@ -202,6 +214,8 @@ class StackedRNNCell(nn.Module):
 
         if self.only_last:
             out = out[..., -1, :]
+        if self.do_last_skip:
+            out += self.last_skip(inputs[:, 0, :] if self.only_last else inputs)
         if self.projection is not None:
             out = self.proj_dense(out)
 
@@ -426,6 +440,8 @@ class LSTM(nn.Module):
     cell: Callable[..., Any] = None
     skip: bool = False
     levels: int = 1
+    only_last: bool = True
+    do_last_skip: bool = False
     projection: Optional[int] = None
 
     def setup(self):
@@ -438,6 +454,8 @@ class LSTM(nn.Module):
             features=self.features,
             levels=self.levels,
             skip=self.skip,
+            do_last_skip=self.do_last_skip,
+            only_last=self.only_last,
             projection=self.projection,
             cell=self._cell,
         )
@@ -449,15 +467,17 @@ class LSTM(nn.Module):
 
 
 if __name__ == "__main__":
-    # model = LSTM(
-    #     features=2**8,
-    #     levels=2**5,
-    #     skip=True,
-    #     projection=1,
-    #     name="lstm",
-    #     cell=partial(LSTMCell, combinator=ComplexLSTMCombinator),
-    # )
-    # print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**8, 1))))
+    model = LSTM(
+        features=2**8,
+        levels=2**5,
+        skip=True,
+        projection=1,
+        only_last=False,
+        do_last_skip=True,
+        name="lstm",
+        cell=partial(LSTMCell, combinator=ComplexLSTMCombinator),
+    )
+    print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**8, 1))))
     # model = nn.RNN(
     #     Transformeresque(
     #         to_wrap=partial(
@@ -474,15 +494,26 @@ if __name__ == "__main__":
     # )
     # print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**8, 1))))
 
-    model = nn.RNN(
-        StackedRNNCellWithAttn(
-            features=2**7,
-            levels=2**5,
-            attn_levels=2**2,
-            skip=True,
-            only_last=False,
-            cell=LSTMCell,
-        )
-    )
+    # model = nn.RNN(
+    #     StackedRNNCellWithAttn(
+    #         features=2**7,
+    #         levels=2**5,
+    #         attn_levels=2**2,
+    #         skip=True,
+    #         only_last=False,
+    #         cell=LSTMCell,
+    #     )
+    # )
+    # model = nn.RNN(
+    #     StackedRNNCell(
+    #         features=2**7,
+    #         levels=2**5,
+    #         do_last_skip=True,
+    #         skip=True,
+    #         only_last=True,
+    #         projection=1,
+    #         cell=LSTMCell,
+    #     )
+    # )
 
-    print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**8, 1))))
+    # print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**8, 1))))
