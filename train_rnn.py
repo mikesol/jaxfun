@@ -1,5 +1,5 @@
 import os
-from rnn import StackedRNNCellWithAttn, LSTMCell
+from rnn import StackedRNNCellWithAttn, LSTMCell, StackedRNNCell
 from parallelism import Parallelism
 from contextlib import nullcontext
 import logging
@@ -324,14 +324,23 @@ if __name__ == "__main__":
     )
     par_onez = maybe_replicate(jnp.ones([config.batch_size, config.window, 1]))
 
+    # module = nn.RNN(
+    #     StackedRNNCellWithAttn(
+    #         features=config.features,
+    #         levels=config.levels,
+    #         attn_levels=config.attn_levels,
+    #         skip=True,
+    #         only_last=True,
+    #         projection=1,
+    #         cell=LSTMCell,
+    #     )
+    # )
     module = nn.RNN(
-        StackedRNNCellWithAttn(
+        StackedRNNCell(
             features=config.features,
             levels=config.levels,
-            attn_levels=config.attn_levels,
             skip=True,
-            only_last=True,
-            projection=1,
+            only_last=False,
             cell=LSTMCell,
         )
     )
