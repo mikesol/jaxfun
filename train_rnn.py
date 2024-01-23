@@ -149,7 +149,6 @@ def train_step(state, input, target, lossy_loss_loss):
             {"params": params},
             input,
         )
-        # print("PRED_SHAPE", pred.shape, target.shape)
         assert pred.shape == target.shape
         loss = (Loss_fn_to_loss(LossFn(lossy_loss_loss)))(pred, target)
         return loss
@@ -259,7 +258,7 @@ if __name__ == "__main__":
     _config["stride"] = 2**8
     _config["step_freq"] = 50
     _config["test_size"] = 0.1
-    _config["features"] = 2**10
+    _config["features"] = 2**11
     _config["levels"] = 2**4
     _config["attn_levels"] = 2**1
     _config["heads"] = 2**0
