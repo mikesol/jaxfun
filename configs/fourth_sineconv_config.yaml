@@ -16,5 +16,5 @@ config:
   features_list: [64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64]
   sine_window: 31
   do_last_skip: true
-  cropping: 1
+  cropping: 2
   sines_per_window: 64
