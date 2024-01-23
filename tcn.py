@@ -364,11 +364,13 @@ class ExperimentalTCNNetwork(nn.Module):
     expand_factor: float = 2.0
     positional_encodings: bool = True
     do_last_activation: bool = True
+    do_last_skip: bool = False
     activation: callable = nn.gelu
     bias_type: BiasTypes = BiasTypes.BATCH_NORM
 
     @nn.compact
     def __call__(self, x, train: bool):
+        x_ = x
         mb = MultiBiquad(coefficients=jnp.array(self.coefficients))(x)
         x = jnp.concatenate([x, mb], axis=-1)
         x = jax.lax.stop_gradient(x)
@@ -392,6 +394,15 @@ class ExperimentalTCNNetwork(nn.Module):
         )(x)
         if self.do_last_activation:
             x = nn.tanh(x)
+        if self.do_last_skip:
+            x_ = nn.Conv(
+                features=x.shape[-1],
+                kernel_init=initializers.lecun_normal(),
+                kernel_size=(x_.shape[-2] - x.shape[-2] + 1,),
+                padding=((0, 0),),
+                use_bias=False,
+            )(x_)
+            x += x_
         x = nn.Conv(
             features=1,
             kernel_init=initializers.lecun_normal(),
@@ -437,6 +448,7 @@ if __name__ == "__main__":
         conv_kernel_size=7,
         attn_kernel_size=2**7,
         heads=2**5,
+        do_last_skip=True,
         conv_depth=(
             1024,
             1024,

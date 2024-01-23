@@ -260,6 +260,7 @@ if __name__ == "__main__":
         2**n for n in [11, 11, 10, 10, 9, 9, 8, 8, 7, 7, 6, 6, 5, 5, 4, 4, 3, 3]
     )
     _config["sine_window"] = 2**8 - 1
+    _config["do_last_skip"] = False
     _config["sines_per_window"] = 2**5
     _config["cropping"] = crop.Cropping.CAUSAL
     _config["mesh_x_div"] = 1

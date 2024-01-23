@@ -255,6 +255,7 @@ if __name__ == "__main__":
     _config["do_last_activation"] = False
     _config["sidechain_modulo_l"] = 2
     _config["sidechain_modulo_r"] = 1
+    _config["do_last_skip"] = False
     _config["expand_factor"] = 2.0
     _config["positional_encodings"] = True
     _config["mesh_x_div"] = 1

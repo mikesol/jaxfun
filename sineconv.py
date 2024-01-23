@@ -160,9 +160,11 @@ class SineconvNetwork(nn.Module):
     sine_window: int
     sines_per_window: int
     cropping: Callable
+    do_last_skip: bool = False
 
     @nn.compact
     def __call__(self, x, sine_range, phases):
+        x_ = x
         for i, features in enumerate(self.features_list):
             x = Sineconv(
                 features=features,
@@ -170,6 +172,16 @@ class SineconvNetwork(nn.Module):
                 sines_per_window=self.sines_per_window,
                 cropping=self.cropping,
             )(x=x, sine_range=sine_range, phases=phases[i])
+        if self.do_last_skip:
+            x_ = nn.Conv(
+                features=x.shape[-1],
+                kernel_init=initializers.lecun_normal(),
+                kernel_size=(x_.shape[-2] - x.shape[-2] + 1,),
+                padding=((0, 0),),
+                use_bias=False,
+            )(x_)
+            x += x_
+
         x = nn.Conv(features=1, kernel_size=(1,))(x)
         return x
 
@@ -184,6 +196,7 @@ if __name__ == "__main__":
         features_list=features_list,
         sine_window=2**7 - 1,
         sines_per_window=sines_per_window,
+        do_last_skip=True,
         cropping=partial(crop.center_crop_and_f, f=lambda x, y: x + y),
     )
     batch = 2**2
