@@ -23,6 +23,7 @@ config:
   sidechain_modulo_l: 2
   sidechain_modulo_r: 1
   expand_factor: 2.0
+  do_last_skip: true
   positional_encodings: true
   mesh_x_div: 1
   loss_fn: 1
