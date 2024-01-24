@@ -202,8 +202,6 @@ class StackedRNNCell(nn.Module):
 
     def __call__(self, carry, inputs):
         c, h = carry
-        print('input', inputs.shape, c.shape, h.shape)
-        inputs = jnp.expand_dims(inputs, axis=-2)
         # make the inputs match the size of the hidden state
         inputs = self.scale_up_inputs(inputs)
         inputs = jax.lax.concatenate(
@@ -226,7 +224,7 @@ class StackedRNNCell(nn.Module):
     def initialize_carry(
         self, rng: PRNGKey, input_shape: Tuple[int, ...]
     ) -> Tuple[Array, Array]:
-        batch_dims = input_shape[:-1]
+        batch_dims = input_shape[:-2]
         key1, key2 = random.split(rng)
         levels = self.levels
         mem_shape = batch_dims + (
@@ -259,7 +257,6 @@ class StackedRNNCellWithAttn(nn.Module):
     @nn.compact
     def __call__(self, carry, inputs):
         c, h = carry
-        inputs = jnp.expand_dims(inputs, axis=-2)
         inputs = nn.Dense(
             features=self.features,
             use_bias=True,
@@ -463,6 +460,7 @@ class LSTM(nn.Module):
         self.rnn = nn.RNN(self.stack)
 
     def __call__(self, x):
+        x = jnp.expand_dims(x, axis=1)
         x = self.rnn(x)
         return x
 
@@ -473,7 +471,7 @@ if __name__ == "__main__":
         levels=2**5,
         skip=True,
         projection=1,
-        only_last=False,
+        only_last=True,
         do_last_skip=True,
         name="lstm",
         cell=partial(LSTMCell, combinator=ComplexLSTMCombinator),
