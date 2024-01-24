@@ -202,6 +202,7 @@ class StackedRNNCell(nn.Module):
 
     def __call__(self, carry, inputs):
         c, h = carry
+        print('input', inputs.shape, c.shape, h.shape)
         inputs = jnp.expand_dims(inputs, axis=-2)
         # make the inputs match the size of the hidden state
         inputs = self.scale_up_inputs(inputs)
