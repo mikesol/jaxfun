@@ -149,6 +149,12 @@ def remove_last_entry_of_second_last_dim(tensor):
     return tensor[tuple(slices)]
 
 
+def switch_last_two(i):
+    return jnp.transpose(
+        i, tuple(x for x in range(i.ndim - 2)) + (i.ndim - 1, i.ndim - 2)
+    )
+
+
 class StackedRNNCell(nn.Module):
     features: int
     cell: Callable[..., Any] = LSTMCell
@@ -158,24 +164,52 @@ class StackedRNNCell(nn.Module):
     dtype: Optional[Dtype] = None
     param_dtype: Dtype = jnp.float32
     carry_init: nn.initializers.Initializer = nn.initializers.zeros_init()
-    levels: int = 1
     is_filter_bank: bool = False
-    do_last_skip: int = False
+    do_last_skip: bool = False
+    dense_across_stack: bool = True
     projection: Optional[int] = None
     only_last: bool = True
     cell_preprocessing: Callable = lambda x: x
 
-    def setup(self):
-        self.scale_up_inputs = nn.Dense(
+    @nn.compact
+    def __call__(self, carry, inputs):
+        c, h = carry
+        # make the inputs match the size of the hidden state
+        inputs = nn.Dense(
             features=self.features,
             use_bias=True,
             kernel_init=self.dense_init,
             bias_init=self.bias_init,
             dtype=self.dtype,
             param_dtype=self.param_dtype,
-        )
+        )(inputs)
+        # in filter bank mode, we treat carry and hidden as outputs
+        # of stacked filters. otherwise, we treat them as outputs of a single
+        # system that feeds into the next layer of the system.
+        if not self.is_filter_bank:
+
+            def _f(ii, hh):
+                return jax.lax.concatenate(
+                    [ii[..., :1, :], remove_last_entry_of_second_last_dim(hh)],
+                    dimension=ii.ndim - 2,
+                )
+
+            ff = _f
+            for _ in range(len(c.shape) - 3):
+                ff = jax.vmap(ff, in_axes=1, out_axes=1)
+            inputs = ff(inputs, h)
+        carry, out = nn.vmap(
+            self.cell,
+            variable_axes={"params": 0},
+            split_rngs={"params": True},
+            in_axes=2,
+            out_axes=2,
+        )(features=self.features)((c, h), inputs)
+
+        if self.only_last:
+            out = out[..., -1, :]
         if self.do_last_skip:
-            self.last_skip = nn.Dense(
+            out += nn.Dense(
                 features=self.projection
                 if self.projection is not None
                 else self.features,
@@ -184,51 +218,28 @@ class StackedRNNCell(nn.Module):
                 bias_init=self.bias_init,
                 dtype=self.dtype,
                 param_dtype=self.param_dtype,
+            )(inputs[:, 0, :] if self.only_last else inputs)
+        if self.dense_across_stack:
+            out = switch_last_two(
+                nn.Dense(
+                    features=out.shape[-2],
+                    use_bias=True,
+                    kernel_init=self.dense_init,
+                    bias_init=self.bias_init,
+                    dtype=self.dtype,
+                    param_dtype=self.param_dtype,
+                )(switch_last_two(out))
             )
-        self.vmap = nn.vmap(
-            self.cell,
-            variable_axes={"params": 0},
-            split_rngs={"params": True},
-            in_axes=2,
-            out_axes=2,
-        )(features=self.features)
+
         if self.projection is not None:
-            self.proj_dense = nn.Dense(
+            out = nn.Dense(
                 features=self.projection,
                 use_bias=True,
                 kernel_init=self.dense_init,
                 bias_init=self.bias_init,
                 dtype=self.dtype,
                 param_dtype=self.param_dtype,
-            )
-
-    def __call__(self, carry, inputs):
-        c, h = carry
-        # make the inputs match the size of the hidden state
-        inputs = self.scale_up_inputs(inputs)
-        # in filter bank mode, we treat carry and hidden as outputs
-        # of stacked filters. otherwise, we treat them as outputs of a single
-        # system that feeds into the next layer of the system.
-        if not self.is_filter_bank:
-            def _f(ii, hh):
-                return jax.lax.concatenate(
-                    [ii, remove_last_entry_of_second_last_dim(hh)],
-                    dimension=ii.ndim - 2,
-                )
-            ff = _f
-            for i in range(len(c.shape) - 3):
-                inputs = jnp.repeat(inputs, repeats=h.shape[1+i], axis=1 + i)
-                ff = jax.vmap(ff, in_axes=1, out_axes=1)
-            inputs = ff(inputs, h)
-
-        carry, out = self.vmap((c, h), inputs)
-
-        if self.only_last:
-            out = out[..., -1, :]
-        if self.do_last_skip:
-            out += self.last_skip(inputs[:, 0, :] if self.only_last else inputs)
-        if self.projection is not None:
-            out = self.proj_dense(out)
+            )(out)
 
         return carry, out
 
@@ -236,13 +247,8 @@ class StackedRNNCell(nn.Module):
     def initialize_carry(
         self, rng: PRNGKey, input_shape: Tuple[int, ...]
     ) -> Tuple[Array, Array]:
-        batch_dims = input_shape[:1]
         key1, key2 = random.split(rng)
-        levels = self.levels
-        mem_shape = batch_dims + (
-            *(levels for _ in range(len(input_shape) - 2)),
-            self.features,
-        )
+        mem_shape = input_shape[:-1] + (self.features,)
         c = self.carry_init(key1, mem_shape, self.param_dtype)
         h = self.carry_init(key2, mem_shape, self.param_dtype)
         return (c, h)
@@ -473,6 +479,7 @@ class LSTM(nn.Module):
 
     def __call__(self, x):
         x = jnp.expand_dims(x, axis=1)
+        x = jnp.repeat(x, repeats=self.levels, axis=1)
         x = self.rnn(x)
         return x
 
@@ -495,20 +502,20 @@ class LSTMWithFilterBanks(nn.Module):
         )
         self.stack = StackedRNNCell(
             features=self.features,
-            levels=self.levels,
             skip=self.skip,
             is_filter_bank=False,
-            do_last_skip=self.do_last_skip,
+            # do_last_skip=self.do_last_skip,
+            dense_across_stack=True,
             only_last=self.only_last,
             projection=self.projection,
             cell_preprocessing=lambda x: jnp.expand_dims(x, axis=-2),
             cell=partial(
                 StackedRNNCell,
                 features=self.features,
-                levels=self.banks,
                 skip=self.skip,
                 do_last_skip=False,
                 is_filter_bank=True,
+                dense_across_stack=True,
                 only_last=False,
                 projection=None,
                 cell=self._cell,
@@ -519,7 +526,11 @@ class LSTMWithFilterBanks(nn.Module):
     def __call__(self, x):
         x = jnp.expand_dims(x, axis=1)
         x = jnp.expand_dims(x, axis=1)
+        x = jnp.repeat(x, repeats=self.levels, axis=2)
+        x = jnp.repeat(x, repeats=self.banks, axis=1)
         x = self.rnn(x)
+        x = jnp.sum(x, axis=1)
+        x = jnp.transpose(x, (0,2,1))
         return x
 
 
@@ -546,7 +557,7 @@ if __name__ == "__main__":
         name="lstm",
         cell=partial(LSTMCell, combinator=ComplexLSTMCombinator),
     )
-    print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**8, 1))))
+    print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**10, 1))))
     # model = nn.RNN(
     #     Transformeresque(
     #         to_wrap=partial(
