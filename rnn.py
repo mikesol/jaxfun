@@ -159,6 +159,7 @@ class StackedRNNCell(nn.Module):
     param_dtype: Dtype = jnp.float32
     carry_init: nn.initializers.Initializer = nn.initializers.zeros_init()
     levels: int = 1
+    is_filter_bank: False
     do_last_skip: int = False
     projection: Optional[int] = None
     only_last: bool = True
@@ -204,10 +205,14 @@ class StackedRNNCell(nn.Module):
         c, h = carry
         # make the inputs match the size of the hidden state
         inputs = self.scale_up_inputs(inputs)
-        inputs = jax.lax.concatenate(
-            [inputs, remove_last_entry_of_second_last_dim(h)],
-            dimension=inputs.ndim - 2,
-        )
+        # in filter bank mode, we treat carry and hidden as outputs
+        # of stacked filters. otherwise, we treat them as outputs of a single
+        # system that feeds into the next layer of the system.
+        if not self.is_filter_bank:
+            inputs = jax.lax.concatenate(
+                [inputs, remove_last_entry_of_second_last_dim(h)],
+                dimension=inputs.ndim - 2,
+            )
 
         carry, out = self.vmap((c, h), inputs)
 
@@ -465,10 +470,63 @@ class LSTM(nn.Module):
         return x
 
 
+class LSTMWithFilterBanks(nn.Module):
+    features: int
+    cell: Callable[..., Any] = None
+    skip: bool = False
+    levels: int = 1
+    banks: int = 1
+    only_last: bool = True
+    do_last_skip: bool = False
+    projection: Optional[int] = None
+
+    def setup(self):
+        self._cell = (
+            partial(LSTMCell, features=self.features)
+            if self.cell == None
+            else self.cell
+        )
+        self.stack = StackedRNNCell(
+            features=self.features,
+            levels=self.levels,
+            skip=self.skip,
+            do_last_skip=self.do_last_skip,
+            only_last=self.only_last,
+            projection=self.projection,
+            cell=StackedRNNCell(
+                features=self.features,
+                levels=self.banks,
+                skip=self.skip,
+                do_last_skip=False,
+                only_last=False,
+                projection=None,
+                cell=self._cell,
+            ),
+        )
+        self.rnn = nn.RNN(self.stack)
+
+    def __call__(self, x):
+        x = jnp.expand_dims(x, axis=1)
+        x = self.rnn(x)
+        return x
+
+
 if __name__ == "__main__":
-    model = LSTM(
+    # model = LSTM(
+    #     features=2**8,
+    #     levels=2**5,
+    #     skip=True,
+    #     projection=1,
+    #     only_last=True,
+    #     do_last_skip=True,
+    #     name="lstm",
+    #     cell=partial(LSTMCell, combinator=ComplexLSTMCombinator),
+    # )
+    # print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**8, 1))))
+    model = LSTMWithFilterBanks(
         features=2**8,
-        levels=2**5,
+        levels=2**3,
+        banks=2**5,
         skip=True,
         projection=1,
         only_last=True,
