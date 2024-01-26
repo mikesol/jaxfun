@@ -29,7 +29,7 @@ if IS_CPU:
 
 from typing import Any
 from flax import struct
-from comet_ml import OfflineExperiment, Artifact
+from comet_ml import Experiment, Artifact
 from clu import metrics
 from rnn import LSTMDrivingSines
 from functools import partial
@@ -222,7 +222,7 @@ if __name__ == "__main__":
     if (device_len != 1) and (device_len % 2 == 1):
         raise ValueError("not ")
 
-    run = OfflineExperiment(
+    run = Experiment(
         api_key=local_env.comet_ml_api_key,
         project_name="jax-sine-conv",
     )
