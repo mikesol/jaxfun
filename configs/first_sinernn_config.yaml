@@ -14,6 +14,7 @@ config:
   mesh_x_div: 1
   loss_fn: 1
   #
+  seed_sine: 531
   features: 1024
   skip: False
   levels: 8
