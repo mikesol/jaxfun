@@ -163,7 +163,6 @@ class Sine(nn.Module):
             )
             return (nu, np), np * jnp.reshape(_af[..., 0], (bs, 1, 1))
 
-
         def _vmapped(_af, ip, iu):
             scanned = jax.lax.scan(_to_scan, (iu, ip), jnp.transpose(_af, (1, 0, 2)))[1]
             scanned = jnp.squeeze(scanned, axis=-1)
@@ -599,7 +598,7 @@ class LSTMDrivingSines(nn.Module):
         x = Sine()(x, expand(initial_positions), expand(initial_up_down))
         x = jnp.squeeze(x, axis=-1)
         x = nn.Dense(features=1)(x)
-        ## 
+        ##
         x_ = jnp.expand_dims(x_, axis=1)
         x_ = jnp.repeat(x_, repeats=self.end_levels, axis=1)
         x += nn.RNN(
@@ -616,6 +615,116 @@ class LSTMDrivingSines(nn.Module):
                 ),
             )
         )(x_)
+        return x
+
+
+class StackedRNNSine(StackedRNNCell):
+    features: int
+    skip: bool = False
+    levels: int = 1
+    end_features: int = 8
+    end_levels: int = 4
+    sr: int = 44100
+    cell: Callable[..., Any] = None
+
+    @nn.compact
+    def __call__(self, carry, x):
+        c, h, p, u = carry
+        (c, h), x = StackedRNNCell(
+            features=self.features,
+            skip=self.skip,
+            do_last_skip=False,
+            only_last=True,
+            projection=None,
+            cell=(
+                partial(nn.OptimizedLSTMCell, features=self.features)
+                if self.cell == None
+                else self.cell
+            ),
+        )((c, h), x)
+        x = jnp.reshape(x, (*x.shape[:-1], x.shape[-1] // 2, 2))
+        sr = self.sr
+        half_sr = sr / 2.0
+
+        def _vmapped(_af, ip, iu):
+            nu, np = advance_sine(ip, 1.0 / sr, iu, half_sr * _af[..., 1])
+            return (_af[..., 0] * np, np, nu)
+
+        x, p, u = jax.vmap(
+            _vmapped,
+            in_axes=1,
+            out_axes=1,
+        )(x, p, u)
+
+        return (c, h, p, u), x
+
+    @nn.nowrap
+    def initialize_carry(
+        self, rng: PRNGKey, input_shape: Tuple[int, ...]
+    ) -> Tuple[Array, Array]:
+        batch_dim = input_shape[0]
+        new_carry_init = (batch_dim, self.features // 2)
+        key1, key2 = random.split(rng)
+        c, h = StackedRNNCell.initialize_carry(self, key2, input_shape)
+        key1, key2 = random.split(key1)
+        p = self.carry_init(key1, new_carry_init, self.param_dtype)
+        u = self.carry_init(key2, new_carry_init, self.param_dtype) > 0.0
+        return (c, h, p, u)
+
+
+class LSTMDrivingSines2(nn.Module):
+    """
+    The original implementation runs into nans after the first iteration.
+    This tries to keep stuff under control by interleaving the sine in the stack.
+    """
+
+    features: int
+    skip: bool = False
+    levels: int = 1
+    end_features: int = 8
+    end_levels: int = 4
+    cell: Callable[..., Any] = None
+
+    @nn.compact
+    def __call__(self, x):
+        x_ = x
+        x = jnp.expand_dims(x, axis=1)
+        x = jnp.repeat(x, repeats=self.levels, axis=1)
+        x = nn.RNN(
+            StackedRNNSine(
+                features=self.features,
+                skip=self.skip,
+                do_last_skip=False,
+                only_last=True,
+                projection=None,
+                cell=(
+                    partial(nn.OptimizedLSTMCell, features=self.features)
+                    if self.cell == None
+                    else self.cell
+                ),
+            )
+        )(x)
+        x = jnp.transpose(x, (0, 2, 1))
+        x = nn.Dense(features=1)(x)
+        ##
+        x_ = jnp.expand_dims(x_, axis=1)
+        x_ = jnp.repeat(x_, repeats=self.end_levels, axis=1)
+        x_ = nn.RNN(
+            StackedRNNCell(
+                features=self.end_features,
+                skip=self.skip,
+                do_last_skip=False,
+                only_last=True,
+                projection=1,
+                cell=(
+                    partial(nn.OptimizedLSTMCell, features=self.features)
+                    if self.cell == None
+                    else self.cell
+                ),
+            )
+        )(x_)
+        x_ = jnp.transpose(x_, (0, 2, 1))
+        x += x_
         return x
 
 
@@ -644,7 +753,7 @@ if __name__ == "__main__":
     # )
     # print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**10, 1))))
     features = 2**8
-    model = LSTMDrivingSines(
+    model = LSTMDrivingSines2(
         features=features,
         levels=2**5,
         skip=True,
@@ -654,14 +763,7 @@ if __name__ == "__main__":
     batch = 2**2
     seq = 2**10
     key = jax.random.PRNGKey(42)
-    print(
-        model.tabulate(
-            jax.random.key(0),
-            jnp.ones((batch, seq, 1)),
-            jnp.ones((batch, features // 2)),
-            jax.random.normal(key, (batch, features // 2)) > 0,
-        )
-    )
+    print(model.tabulate(jax.random.key(0), jnp.ones((batch, seq, 1))))
 
     # model = nn.RNN(
     #     Transformeresque(

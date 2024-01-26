@@ -4,8 +4,6 @@ from contextlib import nullcontext
 import logging
 import crop
 from bias_types import BiasTypes
-from activation import Activation, make_activation
-from enum import Enum
 from loss import LossFn, Loss_fn_to_loss, LogCoshLoss, ESRLoss
 
 import flax.linen as nn
@@ -31,7 +29,7 @@ from typing import Any
 from flax import struct
 from comet_ml import OfflineExperiment, Artifact
 from clu import metrics
-from rnn import LSTMDrivingSines
+from rnn import LSTMDrivingSines2
 from functools import partial
 import jax.numpy as jnp
 import flax.jax_utils as jax_utils
@@ -98,8 +96,8 @@ class TrainState(train_state.TrainState):
     metrics: Metrics
 
 
-def create_train_state(rng: PRNGKey, x, initial_positions, initial_up_down, module, tx) -> TrainState:
-    variables = module.init(rng, x, initial_positions=initial_positions, initial_up_down=initial_up_down)
+def create_train_state(rng: PRNGKey, x, module, tx) -> TrainState:
+    variables = module.init(rng, x)
     params = variables["params"]
     return TrainState.create(
         apply_fn=module.apply,
@@ -121,17 +119,14 @@ def interleave_jax(input_array, trained_output):
     return interleaved
 
 
-def train_step(
-    state, input, target, initial_positions, initial_up_down, lossy_loss_loss
-):
+def train_step(state, input, target, lossy_loss_loss):
     """Train for a single step."""
 
     def loss_fn(params):
-        pred = state.apply_fn(
-            {"params": params}, input, initial_positions=initial_positions, initial_up_down=initial_up_down
-        )
+        pred = state.apply_fn({"params": params}, input)
         loss = Loss_fn_to_loss(lossy_loss_loss)(
-            pred, target, 
+            pred,
+            target,
         )
         return loss
 
@@ -145,27 +140,19 @@ def _replace_metrics(state):
     return state.replace(metrics=state.metrics.empty())
 
 
-def do_inference(state, input, initial_positions, initial_up_down):
-    o = state.apply_fn(
-        {"params": state.params},
-        input,
-        initial_positions=initial_positions,
-        initial_up_down=initial_up_down,
-    )
+def do_inference(state, input):
+    o = state.apply_fn({"params": state.params}, input)
     return o
 
 
 replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
 
 
-def compute_loss(
-    state, input, target, initial_positions, initial_up_down, lossy_loss_loss
-):
-    pred = state.apply_fn(
-        {"params": state.params}, input, initial_positions=initial_positions, initial_up_down=initial_up_down
-    )
+def compute_loss(state, input, target, lossy_loss_loss):
+    pred = state.apply_fn({"params": state.params}, input)
     loss = Loss_fn_to_loss(lossy_loss_loss)(
-        pred, target, 
+        pred,
+        target,
     )
     return loss
 
@@ -311,7 +298,7 @@ if __name__ == "__main__":
         else:
             return arr
 
-    module = LSTMDrivingSines(
+    module = LSTMDrivingSines2(
         features=config.features,
         skip=config.skip,
         levels=config.levels,
@@ -338,18 +325,16 @@ if __name__ == "__main__":
     jit_create_train_state = fork_on_parallelism(
         partial(
             jax.jit,
-            static_argnums=(4, 5),
+            static_argnums=(2, 3),
             in_shardings=(
                 mesh_sharding(None)
                 if local_env.parallelism == Parallelism.SHARD
                 else None,
                 x_sharding,
-                x_sharding,
-                x_sharding,
             ),  # PRNG key and x
             out_shardings=state_sharding,
         ),
-        partial(jax.pmap, static_broadcasted_argnums=(4, 5)),
+        partial(jax.pmap, static_broadcasted_argnums=(2, 3)),
     )(create_train_state)
     rng_for_train_state = (
         init_rng
@@ -377,32 +362,28 @@ if __name__ == "__main__":
     jit_train_step = fork_on_parallelism(
         partial(
             jax.jit,
-            static_argnums=(5,),
+            static_argnums=(3,),
             in_shardings=(
                 state_sharding,
-                x_sharding,
-                x_sharding,
                 x_sharding,
                 x_sharding,
             ),
             out_shardings=(state_sharding, None),
         ),
-        partial(jax.pmap, static_broadcasted_argnums=(5,)),
+        partial(jax.pmap, static_broadcasted_argnums=(3,)),
     )(train_step)
 
     jit_compute_loss = fork_on_parallelism(
         partial(
             jax.jit,
-            static_argnums=(5,),
+            static_argnums=(3,),
             in_shardings=(
                 state_sharding,
                 x_sharding,
                 x_sharding,
-                x_sharding,
-                x_sharding,
             ),
         ),
-        partial(jax.pmap, static_broadcasted_argnums=(5,)),
+        partial(jax.pmap, static_broadcasted_argnums=(3,)),
     )(compute_loss)
 
     del init_rng  # Must not be used anymore.
@@ -450,31 +431,17 @@ if __name__ == "__main__":
                 target = trim_batch(jnp.array(batch["target"]), config.batch_size)
                 assert target.shape[1] == config.window
                 target = maybe_replicate(target)
-                new_key, subkey = jax.random.split(sine_rng)
-                del sine_rng
-                initial_values = jax.random.uniform(subkey, (input.shape[0], config.features // 2), minval=-0.9999, maxval=0.9999)
-                del subkey
-                sine_rng = new_key
-                new_key, subkey = jax.random.split(sine_rng)
-                del sine_rng
-                up_downs = (
-                    jax.random.normal(subkey, (input.shape[0], config.features // 2)) > 0.0
-                )
-                del subkey
-                sine_rng = new_key
                 with fork_on_parallelism(mesh, nullcontext()):
                     state, loss = jit_train_step(
                         state,
                         input,
                         target,
-                        initial_values,
-                        up_downs,
                         config.loss_fn,
                     )
 
                     state = add_losses_to_metrics(state=state, loss=loss)
 
-                if batch_ix % 16 == 0: # config.step_freq == 0:
+                if batch_ix % 16 == 0:  # config.step_freq == 0:
                     metrics = maybe_unreplicate(state.metrics).compute()
                     run.log_metrics({"train_loss": metrics["loss"]}, step=batch_ix)
                     loop.set_postfix(loss=metrics["loss"])
@@ -525,25 +492,11 @@ if __name__ == "__main__":
                 target = maybe_replicate(
                     trim_batch(jnp.array(batch["target"]), config.batch_size)
                 )
-                new_key, subkey = jax.random.split(sine_rng)
-                del sine_rng
-                initial_values = jax.random.uniform(subkey, (input.shape[0], config.features // 2), minval=-0.9999, maxval=0.9999)
-                del subkey
-                sine_rng = new_key
-                new_key, subkey = jax.random.split(sine_rng)
-                del sine_rng
-                up_downs = (
-                    jax.random.normal(subkey, (input.shape[0], config.features // 2)) > 0.0
-                )
-                del subkey
-                sine_rng = new_key
 
                 loss = jit_compute_loss(
                     state,
                     input,
                     target,
-                    initial_values,
-                    up_downs,
                     config.loss_fn,
                 )
                 state = add_losses_to_metrics(state=state, loss=loss)
@@ -572,30 +525,13 @@ if __name__ == "__main__":
             jit_do_inference = fork_on_parallelism(
                 partial(
                     jax.jit,
-                    # static_argnums=(2, 3),
-                    in_shardings=(state_sharding, x_sharding, x_sharding, x_sharding),
+                    in_shardings=(state_sharding, x_sharding),
                     out_shardings=x_sharding,
                 ),
-                partial(
-                    jax.pmap,
-                    # static_broadcasted_argnums=(2, 3)
-                ),
+                jax.pmap,
             )(do_inference)
 
-            new_key, subkey = jax.random.split(sine_rng)
-            del sine_rng
-            initial_values = jax.random.uniform(subkey, (input.shape[0], config.features // 2), minval=-0.9999, maxval=0.9999)
-            del subkey
-            sine_rng = new_key
-            new_key, subkey = jax.random.split(sine_rng)
-            del sine_rng
-            up_downs = (
-                jax.random.normal(subkey, (input.shape[0], config.features // 2)) > 0.0
-            )
-            del subkey
-            sine_rng = new_key
-
-            o = jit_do_inference(state, input, initial_values, up_downs)
+            o = jit_do_inference(state, input)
             o = maybe_unreplicate(o)
             assert o.shape[-1] == 1
             # logging.info(f"shape of batch is {input.shape}")
