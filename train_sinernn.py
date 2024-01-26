@@ -29,7 +29,7 @@ if IS_CPU:
 
 from typing import Any
 from flax import struct
-from comet_ml import Experiment, Artifact
+from comet_ml import OfflineExperiment, Artifact
 from clu import metrics
 from rnn import LSTMDrivingSines
 from functools import partial
@@ -99,7 +99,6 @@ class TrainState(train_state.TrainState):
 
 
 def create_train_state(rng: PRNGKey, x, initial_positions, initial_up_down, module, tx) -> TrainState:
-    print("creating train state", rng.shape, x.shape)
     variables = module.init(rng, x, initial_positions=initial_positions, initial_up_down=initial_up_down)
     params = variables["params"]
     return TrainState.create(
@@ -223,7 +222,7 @@ if __name__ == "__main__":
     if (device_len != 1) and (device_len % 2 == 1):
         raise ValueError("not ")
 
-    run = Experiment(
+    run = OfflineExperiment(
         api_key=local_env.comet_ml_api_key,
         project_name="jax-sine-conv",
     )
@@ -453,7 +452,7 @@ if __name__ == "__main__":
                 target = maybe_replicate(target)
                 new_key, subkey = jax.random.split(sine_rng)
                 del sine_rng
-                initial_values = jax.random.normal(subkey, (input.shape[0], config.features // 2))
+                initial_values = jax.random.uniform(subkey, (input.shape[0], config.features // 2), minval=-0.9999, maxval=0.9999)
                 del subkey
                 sine_rng = new_key
                 new_key, subkey = jax.random.split(sine_rng)
@@ -528,7 +527,7 @@ if __name__ == "__main__":
                 )
                 new_key, subkey = jax.random.split(sine_rng)
                 del sine_rng
-                initial_values = jax.random.normal(subkey, (input.shape[0], config.features // 2))
+                initial_values = jax.random.uniform(subkey, (input.shape[0], config.features // 2), minval=-0.9999, maxval=0.9999)
                 del subkey
                 sine_rng = new_key
                 new_key, subkey = jax.random.split(sine_rng)
@@ -587,7 +586,7 @@ if __name__ == "__main__":
 
             new_key, subkey = jax.random.split(sine_rng)
             del sine_rng
-            initial_values = jax.random.normal(subkey, (input.shape[0], config.features // 2))
+            initial_values = jax.random.uniform(subkey, (input.shape[0], config.features // 2), minval=-0.9999, maxval=0.9999)
             del subkey
             sine_rng = new_key
             new_key, subkey = jax.random.split(sine_rng)
