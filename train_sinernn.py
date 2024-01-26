@@ -289,8 +289,6 @@ if __name__ == "__main__":
     init_rng = jax.random.PRNGKey(config.seed)
     sine_rng = jax.random.PRNGKey(config.seed_sine)
     starter_input = jnp.ones([config.batch_size, config.window, 1])
-    starter_initial_values = jnp.ones([config.batch_size, config.features // 2])
-    starter_up_down = jnp.ones([config.batch_size, config.features // 2]) > 0.0
 
     def array_to_tuple(arr):
         if isinstance(arr, np.ndarray):
@@ -316,8 +314,6 @@ if __name__ == "__main__":
             ),
             init_rng,
             starter_input,
-            starter_initial_values,
-            starter_up_down,
         )
 
         state_sharding = nn.get_sharding(abstract_variables, mesh)
@@ -346,8 +342,6 @@ if __name__ == "__main__":
     state = jit_create_train_state(
         rng_for_train_state,
         starter_input,
-        starter_initial_values,
-        starter_up_down,
         module,
         tx,
     )
