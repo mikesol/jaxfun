@@ -303,8 +303,8 @@ if __name__ == "__main__":
     init_rng = jax.random.PRNGKey(config.seed)
     sine_rng = jax.random.PRNGKey(config.seed_sine)
     starter_input = jnp.ones([config.batch_size, config.window, 1])
-    starter_initial_values = jnp.ones([config.batch_size, config.features])
-    starter_up_down = jnp.ones([config.batch_size, config.features]) > 0.0
+    starter_initial_values = jnp.ones([config.batch_size, config.features // 2])
+    starter_up_down = jnp.ones([config.batch_size, config.features // 2]) > 0.0
 
     def array_to_tuple(arr):
         if isinstance(arr, np.ndarray):
@@ -453,13 +453,13 @@ if __name__ == "__main__":
                 target = maybe_replicate(target)
                 new_key, subkey = jax.random.split(sine_rng)
                 del sine_rng
-                initial_values = jax.random.normal(subkey, (input.shape[0], config.features))
+                initial_values = jax.random.normal(subkey, (input.shape[0], config.features // 2))
                 del subkey
                 sine_rng = new_key
                 new_key, subkey = jax.random.split(sine_rng)
                 del sine_rng
                 up_downs = (
-                    jax.random.normal(subkey, (input.shape[0], config.features)) > 0.0
+                    jax.random.normal(subkey, (input.shape[0], config.features // 2)) > 0.0
                 )
                 del subkey
                 sine_rng = new_key
@@ -529,13 +529,13 @@ if __name__ == "__main__":
                 )
                 new_key, subkey = jax.random.split(sine_rng)
                 del sine_rng
-                initial_values = jax.random.normal(subkey, (input.shape[0], config.features))
+                initial_values = jax.random.normal(subkey, (input.shape[0], config.features // 2))
                 del subkey
                 sine_rng = new_key
                 new_key, subkey = jax.random.split(sine_rng)
                 del sine_rng
                 up_downs = (
-                    jax.random.normal(subkey, (input.shape[0], config.features)) > 0.0
+                    jax.random.normal(subkey, (input.shape[0], config.features // 2)) > 0.0
                 )
                 del subkey
                 sine_rng = new_key
@@ -589,13 +589,13 @@ if __name__ == "__main__":
 
             new_key, subkey = jax.random.split(sine_rng)
             del sine_rng
-            initial_values = jax.random.normal(subkey, (input.shape[0], config.features))
+            initial_values = jax.random.normal(subkey, (input.shape[0], config.features // 2))
             del subkey
             sine_rng = new_key
             new_key, subkey = jax.random.split(sine_rng)
             del sine_rng
             up_downs = (
-                jax.random.normal(subkey, (input.shape[0], config.features)) > 0.0
+                jax.random.normal(subkey, (input.shape[0], config.features // 2)) > 0.0
             )
             del subkey
             sine_rng = new_key
