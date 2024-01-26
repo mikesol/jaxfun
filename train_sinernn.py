@@ -98,9 +98,9 @@ class TrainState(train_state.TrainState):
     metrics: Metrics
 
 
-def create_train_state(rng: PRNGKey, x, sine_range, phases, module, tx) -> TrainState:
+def create_train_state(rng: PRNGKey, x, initial_positions, initial_up_down, module, tx) -> TrainState:
     print("creating train state", rng.shape, x.shape)
-    variables = module.init(rng, x, sine_range=sine_range, phases=phases)
+    variables = module.init(rng, x, initial_positions=initial_positions, initial_up_down=initial_up_down)
     params = variables["params"]
     return TrainState.create(
         apply_fn=module.apply,
@@ -123,13 +123,13 @@ def interleave_jax(input_array, trained_output):
 
 
 def train_step(
-    state, input, target, sine_range, phases, lossy_loss_loss, croppy_crop_crop
+    state, input, target, initial_positions, initial_up_down, lossy_loss_loss, croppy_crop_crop
 ):
     """Train for a single step."""
 
     def loss_fn(params):
         pred = state.apply_fn(
-            {"params": params}, input, sine_range=sine_range, phases=phases
+            {"params": params}, input, initial_positions=initial_positions, initial_up_down=initial_up_down
         )
         loss = crop.cropping_to_function(croppy_crop_crop)(
             pred, target, Loss_fn_to_loss(lossy_loss_loss)
@@ -146,12 +146,12 @@ def _replace_metrics(state):
     return state.replace(metrics=state.metrics.empty())
 
 
-def do_inference(state, input, sine_range, phases):
+def do_inference(state, input, initial_positions, initial_up_down):
     o = state.apply_fn(
         {"params": state.params},
         input,
-        sine_range=sine_range,
-        phases=phases,
+        initial_positions=initial_positions,
+        initial_up_down=initial_up_down,
     )
     return o
 
@@ -160,10 +160,10 @@ replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
 
 
 def compute_loss(
-    state, input, target, sine_range, phases, lossy_loss_loss, croppy_crop_crop
+    state, input, target, initial_positions, initial_up_down, lossy_loss_loss, croppy_crop_crop
 ):
     pred = state.apply_fn(
-        {"params": state.params}, input, sine_range=sine_range, phases=phases
+        {"params": state.params}, input, initial_positions=initial_positions, initial_up_down=initial_up_down
     )
     loss = crop.cropping_to_function(croppy_crop_crop)(
         pred, target, Loss_fn_to_loss(lossy_loss_loss)
@@ -303,7 +303,7 @@ if __name__ == "__main__":
     init_rng = jax.random.PRNGKey(config.seed)
     sine_rng = jax.random.PRNGKey(config.seed_sine)
     starter_input = jnp.ones([config.batch_size, config.window, 1])
-    starter_phases = jnp.ones([config.batch_size, config.features])
+    starter_initial_values = jnp.ones([config.batch_size, config.features])
     starter_up_down = jnp.ones([config.batch_size, config.features]) > 0.0
 
     def array_to_tuple(arr):
@@ -320,9 +320,6 @@ if __name__ == "__main__":
         end_levels=config.end_levels,
     )
     tx = optax.adam(config.learning_rate)
-    sine_range = jnp.expand_dims(
-        jnp.expand_dims(jnp.arange(config.window) / 44100, axis=0), axis=-1
-    )
 
     if local_env.parallelism == Parallelism.SHARD:
         abstract_variables = jax.eval_shape(
@@ -333,7 +330,7 @@ if __name__ == "__main__":
             ),
             init_rng,
             starter_input,
-            starter_phases,
+            starter_initial_values,
             starter_up_down,
         )
 
@@ -365,7 +362,7 @@ if __name__ == "__main__":
     state = jit_create_train_state(
         rng_for_train_state,
         starter_input,
-        starter_phases,
+        starter_initial_values,
         starter_up_down,
         module,
         tx,
@@ -456,7 +453,7 @@ if __name__ == "__main__":
                 target = maybe_replicate(target)
                 new_key, subkey = jax.random.split(sine_rng)
                 del sine_rng
-                phases = jax.random.normal(subkey, (input.shape[0], config.features))
+                initial_values = jax.random.normal(subkey, (input.shape[0], config.features))
                 del subkey
                 sine_rng = new_key
                 new_key, subkey = jax.random.split(sine_rng)
@@ -471,7 +468,7 @@ if __name__ == "__main__":
                         state,
                         input,
                         target,
-                        phases,
+                        initial_values,
                         up_downs,
                         config.loss_fn,
                         config.cropping,
@@ -532,7 +529,7 @@ if __name__ == "__main__":
                 )
                 new_key, subkey = jax.random.split(sine_rng)
                 del sine_rng
-                phases = jax.random.normal(subkey, (input.shape[0], config.features))
+                initial_values = jax.random.normal(subkey, (input.shape[0], config.features))
                 del subkey
                 sine_rng = new_key
                 new_key, subkey = jax.random.split(sine_rng)
@@ -547,7 +544,7 @@ if __name__ == "__main__":
                     state,
                     input,
                     target,
-                    phases,
+                    initial_values,
                     up_downs,
                     config.loss_fn,
                     config.cropping,
@@ -592,7 +589,7 @@ if __name__ == "__main__":
 
             new_key, subkey = jax.random.split(sine_rng)
             del sine_rng
-            phases = jax.random.normal(subkey, (input.shape[0], config.features))
+            initial_values = jax.random.normal(subkey, (input.shape[0], config.features))
             del subkey
             sine_rng = new_key
             new_key, subkey = jax.random.split(sine_rng)
@@ -603,7 +600,7 @@ if __name__ == "__main__":
             del subkey
             sine_rng = new_key
 
-            o = jit_do_inference(state, input, phases, up_downs)
+            o = jit_do_inference(state, input, initial_values, up_downs)
             o = maybe_unreplicate(o)
             assert o.shape[-1] == 1
             # logging.info(f"shape of batch is {input.shape}")
