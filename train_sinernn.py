@@ -263,8 +263,6 @@ if __name__ == "__main__":
         _config["loss_fn"] = LossFn(_config["loss_fn"])
         _config["mesh_x"] = device_len // _config["mesh_x_div"]
         _config["mesh_y"] = _config["mesh_x_div"]
-        _config["features_list"] = tuple(_config["features_list"])
-        _config["cropping"] = crop.Cropping(_config["cropping"])
         del _config["mesh_x_div"]
     run.log_parameters(_config)
     if local_env.parallelism == Parallelism.PMAP:
