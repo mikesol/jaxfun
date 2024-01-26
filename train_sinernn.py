@@ -123,7 +123,7 @@ def interleave_jax(input_array, trained_output):
 
 
 def train_step(
-    state, input, target, initial_positions, initial_up_down, lossy_loss_loss, croppy_crop_crop
+    state, input, target, initial_positions, initial_up_down, lossy_loss_loss
 ):
     """Train for a single step."""
 
@@ -131,8 +131,8 @@ def train_step(
         pred = state.apply_fn(
             {"params": params}, input, initial_positions=initial_positions, initial_up_down=initial_up_down
         )
-        loss = crop.cropping_to_function(croppy_crop_crop)(
-            pred, target, Loss_fn_to_loss(lossy_loss_loss)
+        loss = Loss_fn_to_loss(lossy_loss_loss)(
+            pred, target, 
         )
         return loss
 
@@ -160,13 +160,13 @@ replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
 
 
 def compute_loss(
-    state, input, target, initial_positions, initial_up_down, lossy_loss_loss, croppy_crop_crop
+    state, input, target, initial_positions, initial_up_down, lossy_loss_loss
 ):
     pred = state.apply_fn(
         {"params": state.params}, input, initial_positions=initial_positions, initial_up_down=initial_up_down
     )
-    loss = crop.cropping_to_function(croppy_crop_crop)(
-        pred, target, Loss_fn_to_loss(lossy_loss_loss)
+    loss = Loss_fn_to_loss(lossy_loss_loss)(
+        pred, target, 
     )
     return loss
 
@@ -378,7 +378,7 @@ if __name__ == "__main__":
     jit_train_step = fork_on_parallelism(
         partial(
             jax.jit,
-            static_argnums=(5, 6),
+            static_argnums=(5,),
             in_shardings=(
                 state_sharding,
                 x_sharding,
@@ -388,13 +388,13 @@ if __name__ == "__main__":
             ),
             out_shardings=(state_sharding, None),
         ),
-        partial(jax.pmap, static_broadcasted_argnums=(5, 6)),
+        partial(jax.pmap, static_broadcasted_argnums=(5,)),
     )(train_step)
 
     jit_compute_loss = fork_on_parallelism(
         partial(
             jax.jit,
-            static_argnums=(5, 6),
+            static_argnums=(5,),
             in_shardings=(
                 state_sharding,
                 x_sharding,
@@ -403,7 +403,7 @@ if __name__ == "__main__":
                 x_sharding,
             ),
         ),
-        partial(jax.pmap, static_broadcasted_argnums=(5, 6)),
+        partial(jax.pmap, static_broadcasted_argnums=(5,)),
     )(compute_loss)
 
     del init_rng  # Must not be used anymore.
@@ -471,7 +471,6 @@ if __name__ == "__main__":
                         initial_values,
                         up_downs,
                         config.loss_fn,
-                        config.cropping,
                     )
 
                     state = add_losses_to_metrics(state=state, loss=loss)
@@ -547,7 +546,6 @@ if __name__ == "__main__":
                     initial_values,
                     up_downs,
                     config.loss_fn,
-                    config.cropping,
                 )
                 if batch_ix % config.step_freq == 0:
                     loop.set_postfix(loss=loss)
