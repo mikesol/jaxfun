@@ -17,6 +17,6 @@ config:
   seed_sine: 531
   features: 1024
   skip: False
-  levels: 8
+  levels: 16
   end_features: 64
   end_levels: 8
