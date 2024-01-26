@@ -7,6 +7,7 @@ from typing import (
     TypeVar,
 )
 import math
+from sine import advance_sine
 from functools import partial
 import jax
 from jax import numpy as jnp
@@ -142,7 +143,43 @@ class LSTMCell(nn.Module):
         return 1
 
 
-def remove_last_entry_of_second_last_dim(tensor):
+class Sine(nn.Module):
+    carry_init: nn.initializers.Initializer = nn.initializers.zeros_init()
+    sr: int = 44100
+
+    @nn.compact
+    # is there a purely analytic way to do this?
+    # the rising/falling thing is probably differentiable, but not sure how
+    # (batch, seq, chan, 2)  (batch, 1, chan)
+    def __call__(self, af, initial_positions, initial_up_down):
+        sr = self.sr
+        half_sr = sr / 2.0
+
+        def _to_scan(pupp, _af):
+            pu, pp = pupp
+            bs = _af.shape[0]
+            nu, np = advance_sine(
+                pp, 1.0 / sr, pu, half_sr * jnp.reshape(_af[..., 1], (bs, 1, 1))
+            )
+            return (nu, np), np * jnp.reshape(_af[..., 0], (bs, 1, 1))
+
+
+        def _vmapped(_af, ip, iu):
+            scanned = jax.lax.scan(_to_scan, (iu, ip), jnp.transpose(_af, (1, 0, 2)))[1]
+            scanned = jnp.squeeze(scanned, axis=-1)
+            return jnp.transpose(
+                scanned,
+                (1, 0, 2),
+            )
+
+        return jax.vmap(
+            _vmapped,
+            in_axes=2,
+            out_axes=2,
+        )(af, initial_positions, initial_up_down)
+
+
+def remove_last_entry_of_second_last_dim(tensor):  #
     num_dims = tensor.ndim
     slices = [slice(None)] * num_dims
     slices[-2] = slice(None, -1)
@@ -460,27 +497,24 @@ class LSTM(nn.Module):
     do_last_skip: bool = False
     projection: Optional[int] = None
 
-    def setup(self):
-        self._cell = (
-            partial(LSTMCell, features=self.features)
-            if self.cell == None
-            else self.cell
-        )
-        self.stack = StackedRNNCell(
-            features=self.features,
-            levels=self.levels,
-            skip=self.skip,
-            do_last_skip=self.do_last_skip,
-            only_last=self.only_last,
-            projection=self.projection,
-            cell=self._cell,
-        )
-        self.rnn = nn.RNN(self.stack)
-
+    @nn.compact
     def __call__(self, x):
         x = jnp.expand_dims(x, axis=1)
         x = jnp.repeat(x, repeats=self.levels, axis=1)
-        x = self.rnn(x)
+        x = nn.RNN(
+            StackedRNNCell(
+                features=self.features,
+                skip=self.skip,
+                do_last_skip=self.do_last_skip,
+                only_last=self.only_last,
+                projection=self.projection,
+                cell=(
+                    partial(nn.OptimizedLSTMCell, features=self.features)
+                    if self.cell == None
+                    else self.cell
+                ),
+            )
+        )(x)
         return x
 
 
@@ -494,43 +528,94 @@ class LSTMWithFilterBanks(nn.Module):
     do_last_skip: bool = False
     projection: Optional[int] = None
 
-    def setup(self):
-        self._cell = (
-            partial(LSTMCell, features=self.features)
-            if self.cell == None
-            else self.cell
-        )
-        self.stack = StackedRNNCell(
-            features=self.features,
-            skip=self.skip,
-            is_filter_bank=False,
-            # do_last_skip=self.do_last_skip,
-            dense_across_stack=True,
-            only_last=self.only_last,
-            projection=self.projection,
-            cell_preprocessing=lambda x: jnp.expand_dims(x, axis=-2),
-            cell=partial(
-                StackedRNNCell,
-                features=self.features,
-                skip=self.skip,
-                do_last_skip=False,
-                is_filter_bank=True,
-                dense_across_stack=True,
-                only_last=False,
-                projection=None,
-                cell=self._cell,
-            ),
-        )
-        self.rnn = nn.RNN(self.stack)
-
+    @nn.compact
     def __call__(self, x):
         x = jnp.expand_dims(x, axis=1)
         x = jnp.expand_dims(x, axis=1)
         x = jnp.repeat(x, repeats=self.levels, axis=2)
         x = jnp.repeat(x, repeats=self.banks, axis=1)
-        x = self.rnn(x)
+        x = nn.RNN(
+            StackedRNNCell(
+                features=self.features,
+                skip=self.skip,
+                is_filter_bank=False,
+                # do_last_skip=self.do_last_skip,
+                dense_across_stack=True,
+                only_last=self.only_last,
+                projection=self.projection,
+                cell_preprocessing=lambda x: jnp.expand_dims(x, axis=-2),
+                cell=partial(
+                    StackedRNNCell,
+                    features=self.features,
+                    skip=self.skip,
+                    do_last_skip=False,
+                    is_filter_bank=True,
+                    dense_across_stack=True,
+                    only_last=False,
+                    projection=None,
+                    cell=(
+                        partial(nn.OptimizedLSTMCell, features=self.features)
+                        if self.cell == None
+                        else self.cell
+                    ),
+                ),
+            )
+        )(x)
         x = jnp.sum(x, axis=1)
-        x = jnp.transpose(x, (0,2,1))
+        x = jnp.transpose(x, (0, 2, 1))
+        return x
+
+
+class LSTMDrivingSines(nn.Module):
+    features: int
+    skip: bool = False
+    levels: int = 1
+    end_features: int = 8
+    end_levels: int = 4
+    cell: Callable[..., Any] = None
+
+    @nn.compact
+    def __call__(self, x, initial_positions, initial_up_down):
+        x_ = x
+        x = jnp.expand_dims(x, axis=1)
+        x = jnp.repeat(x, repeats=self.levels, axis=1)
+        x = nn.RNN(
+            StackedRNNCell(
+                features=self.features,
+                skip=self.skip,
+                do_last_skip=False,
+                only_last=True,
+                projection=None,
+                cell=(
+                    partial(nn.OptimizedLSTMCell, features=self.features)
+                    if self.cell == None
+                    else self.cell
+                ),
+            )
+        )(x)
+        x = jnp.transpose(x, (0, 2, 1))
+        x = jnp.reshape(x, (*x.shape[:-1], x.shape[-1] // 2, 2))
+        expand = lambda y: jnp.expand_dims((jnp.expand_dims(y, axis=-1)), axis=1)
+        x = Sine()(x, expand(initial_positions), expand(initial_up_down))
+        x = jnp.squeeze(x, axis=-1)
+        x = nn.Dense(features=1)(x)
+        ## 
+        x_ = jnp.expand_dims(x_, axis=1)
+        x_ = jnp.repeat(x_, repeats=self.end_levels, axis=1)
+        x += nn.RNN(
+            StackedRNNCell(
+                features=self.end_features,
+                skip=self.skip,
+                do_last_skip=False,
+                only_last=True,
+                projection=1,
+                cell=(
+                    partial(nn.OptimizedLSTMCell, features=self.features)
+                    if self.cell == None
+                    else self.cell
+                ),
+            )
+        )(x_)
         return x
 
 
@@ -546,18 +631,38 @@ if __name__ == "__main__":
     #     cell=partial(LSTMCell, combinator=ComplexLSTMCombinator),
     # )
     # print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**8, 1))))
-    model = LSTMWithFilterBanks(
-        features=2**8,
-        levels=2**3,
-        banks=2**5,
+    # model = LSTMWithFilterBanks(
+    #     features=2**8,
+    #     levels=2**3,
+    #     banks=2**5,
+    #     skip=True,
+    #     projection=1,
+    #     only_last=True,
+    #     do_last_skip=True,
+    #     name="lstm",
+    #     cell=partial(LSTMCell, combinator=ComplexLSTMCombinator),
+    # )
+    # print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**10, 1))))
+    features = 2**8
+    model = LSTMDrivingSines(
+        features=features,
+        levels=2**5,
         skip=True,
-        projection=1,
-        only_last=True,
-        do_last_skip=True,
         name="lstm",
         cell=partial(LSTMCell, combinator=ComplexLSTMCombinator),
     )
-    print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**10, 1))))
+    batch = 2**2
+    seq = 2**10
+    key = jax.random.PRNGKey(42)
+    print(
+        model.tabulate(
+            jax.random.key(0),
+            jnp.ones((batch, seq, 1)),
+            jnp.ones((batch, features // 2)),
+            jax.random.normal(key, (batch, features // 2)) > 0,
+        )
+    )
+
     # model = nn.RNN(
     #     Transformeresque(
     #         to_wrap=partial(
