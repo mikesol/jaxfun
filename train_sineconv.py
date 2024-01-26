@@ -544,8 +544,6 @@ if __name__ == "__main__":
                     config.loss_fn,
                     config.cropping,
                 )
-                if batch_ix % config.step_freq == 0:
-                    loop.set_postfix(loss=loss)
                 state = add_losses_to_metrics(state=state, loss=loss)
         metrics = maybe_unreplicate(state.metrics).compute()
         run.log_metrics({"val_loss": metrics["loss"]}, step=batch_ix)

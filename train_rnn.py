@@ -483,8 +483,6 @@ if __name__ == "__main__":
                     trim_batch(jnp.array(batch["target"]), config.batch_size)
                 )
                 loss = jit_compute_loss(state, input, target, config.loss_fn.value)
-                if batch_ix % config.step_freq == 0:
-                    loop.set_postfix(loss=loss)
                 state = add_losses_to_metrics(state=state, loss=loss)
         metrics = maybe_unreplicate(state.metrics).compute()
         run.log_metrics({"val_loss": metrics["loss"]}, step=batch_ix)
