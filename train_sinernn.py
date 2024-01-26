@@ -29,7 +29,7 @@ if IS_CPU:
 
 from typing import Any
 from flax import struct
-from comet_ml import Experiment, Artifact
+from comet_ml import OfflineExperiment, Artifact
 from clu import metrics
 from rnn import LSTMDrivingSines
 from functools import partial
@@ -222,7 +222,7 @@ if __name__ == "__main__":
     if (device_len != 1) and (device_len % 2 == 1):
         raise ValueError("not ")
 
-    run = Experiment(
+    run = OfflineExperiment(
         api_key=local_env.comet_ml_api_key,
         project_name="jax-sine-conv",
     )
@@ -474,7 +474,7 @@ if __name__ == "__main__":
 
                     state = add_losses_to_metrics(state=state, loss=loss)
 
-                if batch_ix % config.step_freq == 0:
+                if batch_ix % 1 == 0: # config.step_freq == 0:
                     metrics = maybe_unreplicate(state.metrics).compute()
                     run.log_metrics({"train_loss": metrics["loss"]}, step=batch_ix)
                     loop.set_postfix(loss=metrics["loss"])
