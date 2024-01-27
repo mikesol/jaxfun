@@ -647,7 +647,7 @@ class StackedRNNSine(StackedRNNCell):
         half_sr = sr / 2.0
 
         def _vmapped(_af, ip, iu):
-            nu, np = advance_sine(ip, 1.0 / sr, iu, half_sr * _af[..., 1])
+            nu, np = advance_sine(nn.tanh(ip), 1.0 / sr, iu, half_sr * _af[..., 1])
             return (_af[..., 0] * np, np, nu)
 
         x, p, u = jax.vmap(
