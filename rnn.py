@@ -671,8 +671,8 @@ class StackedRNNSine(StackedRNNCell):
         key3, key4 = random.split(key2)
         p = self.carry_init(key1, new_carry_init, self.param_dtype)
         # u is the derivative, which can be quite a lot if the frequency is high
-        u = self.carry_init(key3, new_carry_init, self.param_dtype) * 10000.0
-        ct = nn.zeros_init()(key4, new_carry_init, self.param_dtype)
+        u = self.carry_init(key3, new_carry_init, self.param_dtype)
+        ct = self.carry_init(key4, new_carry_init, self.param_dtype)
         return (c, h, p, u, ct)
 
 
