@@ -649,13 +649,13 @@ class StackedRNNSine(StackedRNNCell):
         def _vmapped(_af, ct, ip, iu):
             nu, np = advance_sine2(ip, ct, dt, iu, _af[..., 1], _af[..., 0])
             np = nn.tanh(np)
-            return (np, np, nu, ct + dt)
+            return (np, ct + dt, np, nu)
 
-        x, p, u, ct = jax.vmap(
+        x, ct, p, u = jax.vmap(
             _vmapped,
             in_axes=1,
             out_axes=1,
-        )(x, p, u, ct)
+        )(x, ct, p, u)
 
         return (c, h, p, u, ct), x
 
