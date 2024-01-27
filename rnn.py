@@ -645,10 +645,9 @@ class StackedRNNSine(StackedRNNCell):
         x = jnp.reshape(x, (*x.shape[:-1], x.shape[-1] // 2, 2))
         sr = self.sr
         half_sr = sr / 2.0
-
+        dt = 1.0 / sr
         def _vmapped(_af, ct, ip, iu):
-            dt = 1.0 / sr
-            nu, np = advance_sine2(nn.tanh(ip), ct, dt, iu, half_sr * _af[..., 1], _af[..., 0])
+            nu, np = advance_sine2(ip, ct, dt, iu, _af[..., 1], _af[..., 0])
             np = nn.tanh(np)
             return (np, np, nu, ct + dt)
 
