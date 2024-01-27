@@ -672,6 +672,7 @@ class StackedRNNSine(StackedRNNCell):
         p = self.carry_init(key1, new_carry_init, self.param_dtype)
         # u is the derivative, which can be quite a lot if the frequency is high
         u = self.carry_init(key3, new_carry_init, self.param_dtype)
+        # vary current time slightly to regularize phase
         ct = self.carry_init(key4, new_carry_init, self.param_dtype)
         return (c, h, p, u, ct)
 
