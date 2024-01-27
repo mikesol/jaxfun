@@ -7,7 +7,7 @@ from typing import (
     TypeVar,
 )
 import math
-from sine import advance_sine
+from sine import advance_sine, advance_sine2
 from functools import partial
 import jax
 from jax import numpy as jnp
@@ -629,7 +629,7 @@ class StackedRNNSine(StackedRNNCell):
 
     @nn.compact
     def __call__(self, carry, x):
-        c, h, p, u = carry
+        c, h, p, u, ct = carry
         (c, h), x = StackedRNNCell(
             features=self.features,
             skip=self.skip,
@@ -646,17 +646,18 @@ class StackedRNNSine(StackedRNNCell):
         sr = self.sr
         half_sr = sr / 2.0
 
-        def _vmapped(_af, ip, iu):
-            nu, np = advance_sine(nn.tanh(ip), 1.0 / sr, iu, half_sr * _af[..., 1])
-            return (_af[..., 0] * np, np, nu)
+        def _vmapped(_af, ct, ip, iu):
+            dt = 1.0 / sr
+            nu, np = advance_sine2(ip, ct, dt, iu, half_sr * _af[..., 1], _af[..., 0])
+            return (np, np, nu, ct + dt)
 
-        x, p, u = jax.vmap(
+        x, p, u, ct = jax.vmap(
             _vmapped,
             in_axes=1,
             out_axes=1,
-        )(x, p, u)
+        )(x, p, u, ct)
 
-        return (c, h, p, u), x
+        return (c, h, p, u, ct), x
 
     @nn.nowrap
     def initialize_carry(
@@ -667,9 +668,12 @@ class StackedRNNSine(StackedRNNCell):
         key1, key2 = random.split(rng)
         c, h = StackedRNNCell.initialize_carry(self, key2, input_shape)
         key1, key2 = random.split(key1)
+        key3, key4 = random.split(key2)
         p = self.carry_init(key1, new_carry_init, self.param_dtype)
-        u = self.carry_init(key2, new_carry_init, self.param_dtype) > 0.0
-        return (c, h, p, u)
+        # u is the derivative, which can be quite a lot if the frequency is high
+        u = self.carry_init(key3, new_carry_init, self.param_dtype) * 10000.0
+        ct = nn.zeros_init()(key4, new_carry_init, self.param_dtype)
+        return (c, h, p, u, ct)
 
 
 class LSTMDrivingSines2(nn.Module):

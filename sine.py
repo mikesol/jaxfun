@@ -10,6 +10,12 @@ def advance_sine(prev_pos, delta_t, in_arcsin_range, freq):
     return new_in_arcsin_range, next_pos
 
 
+def advance_sine2(prev_pos, cur_t, d_t, prev_slope, freq, amp):
+    cur_slope = amp * freq * 2.0 * jnp.pi * jnp.cos(cur_t * freq * 2.0 * jnp.pi)
+    avg_slope = (prev_slope + cur_slope) / 2.0
+    next_pos = prev_pos + avg_slope * d_t
+    return cur_slope, next_pos
+
 if __name__ == "__main__":
     in_arcsin_range = True
     prev_pos = 0.0
