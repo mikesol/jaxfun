@@ -19,4 +19,4 @@ config:
   skip: False
   levels: 16
   end_features: 64
-  end_levels: 8
+  end_levels: 16
