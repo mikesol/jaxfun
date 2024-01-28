@@ -6,6 +6,7 @@ import torch
 
 # Example Usage
 
+
 def test_fir_filter_hp():
     signal = np.random.randn(8, 256).astype(np.float32)
     taps = fir_filter.create_fir_filter(
@@ -21,6 +22,7 @@ def test_fir_filter_hp():
     )
     # just to make sure it's not all zeros
     assert np.any(np.abs(filtered_signal) > 0.0)
+
 
 def test_fir_filter_fd():
     signal = np.random.randn(8, 256).astype(np.float32)
@@ -38,7 +40,7 @@ def test_fir_filter_fd():
     # just to make sure it's not all zeros
     assert np.any(np.abs(filtered_signal) > 0.0)
 
-@pytest.mark.only
+
 def test_fir_filter_aw():
     signal = np.random.randn(8, 256).astype(np.float32)
     taps = fir_filter.create_fir_filter(

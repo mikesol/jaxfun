@@ -61,7 +61,6 @@ def test_idft():
     assert np.allclose(z_imag, z_imag_ref, atol=1e-3)
 
 
-# @pytest.mark.only
 def test_stft():
     for sizes in [
         (128, 64),
@@ -76,5 +75,5 @@ def test_stft():
         params = stft.init_stft_params(*sizes)
         z_real, z_imag = stft.stft(params, x)
         z_real_ref, z_imag_ref = stft_ref.STFT(*sizes, None)(torch.from_numpy(x))
-        assert np.allclose(z_real, z_real_ref, atol=1e-3)
-        assert np.allclose(z_imag, z_imag_ref, atol=1e-3)
+        assert np.allclose(z_real, np.squeeze(z_real_ref), atol=1e-3)
+        assert np.allclose(z_imag, np.squeeze(z_imag_ref), atol=1e-3)

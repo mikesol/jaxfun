@@ -224,8 +224,8 @@ def stft(params, input_signal, center=True, pad_mode="reflect"):
 
     def last_reshape(x):
         x = jnp.reshape(x, (-1, batch_size, x.shape[1], x.shape[2]))
-        x = jnp.sum(x, axis=0, keepdims=True)
-        x = jnp.transpose(x, (1, 0, 3, 2))
+        x = jnp.sum(x, axis=0)
+        x = jnp.transpose(x, (0, 2, 1))
         return x
 
     real, imag = last_reshape(real), last_reshape(imag)
