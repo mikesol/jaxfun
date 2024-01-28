@@ -150,6 +150,21 @@ def irdft(params, x_real, x_imag):
     return z_real
 
 
+# from librosa
+def pad_center(data, *, size, axis: int = -1):
+    n = data.shape[axis]
+
+    lpad = int((size - n) // 2)
+
+    lengths = [(0, 0)] * data.ndim
+    lengths[axis] = (lpad, int(size - n - lpad))
+
+    if lpad < 0:
+        raise ValueError(f"Target size ({size:d}) must be at least input size ({n:d})")
+
+    return jnp.pad(data, lengths)
+
+
 def init_stft_params(n_fft, hop_length=None, win_length=None, window_type="hann"):
     if win_length is None:
         win_length = n_fft
@@ -159,7 +174,7 @@ def init_stft_params(n_fft, hop_length=None, win_length=None, window_type="hann"
 
     # Window function
     fft_window = jnp.array(librosa.filters.get_window(window_type, win_length))
-    fft_window = librosa.util.pad_center(fft_window, size=n_fft)
+    fft_window = pad_center(fft_window, size=n_fft)
 
     # DFT matrix
     def dft_matrix(n):

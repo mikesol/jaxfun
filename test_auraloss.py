@@ -38,7 +38,6 @@ def test_stft_loss():
     assert np.allclose(loss, loss_ref)
 
 
-@pytest.mark.only
 def test_multi_resolution_stft_loss():
     fft_sizes = [1024, 2048, 512]
     hop_sizes = [120, 240, 50]
