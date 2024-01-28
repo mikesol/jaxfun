@@ -3,7 +3,6 @@ import pytest
 import numpy as np
 
 
-@pytest.mark.only
 def test_reshape():
     batch = 4
     in_chan = 7

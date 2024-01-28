@@ -25,8 +25,8 @@ def test_create_biquad_coefficients():
     bc = create_biquad_coefficients(127, 44100, 100, 700, 30, 10)
     assert bc.shape == (5, 127)
     b, a = signal.iirpeak(100, 30, 44100)
-    assert np.allclose(bc[:3, 0], b)
-    assert np.allclose(bc[3:, 0], a[1:])
+    assert np.allclose(np.flip(bc[:3, 0]), b)
+    assert np.allclose(-1 * bc[3:, 0], a[1:])
 
 
 def test_biquad():

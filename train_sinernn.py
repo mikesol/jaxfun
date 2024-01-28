@@ -383,7 +383,7 @@ if __name__ == "__main__":
     del init_rng  # Must not be used anymore.
     for epoch in range(config.epochs):
         # ugggh
-        epoch_is_0 = False # epoch == 0
+        epoch_is_0 = False  # epoch == 0
         to_take_in_0_epoch = 104
         train_dataset = (
             proto_train_dataset
