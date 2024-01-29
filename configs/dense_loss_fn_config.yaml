@@ -12,7 +12,7 @@ config:
   step_freq: 64
   test_size: 0.1
   kernel_dilation: 2
-  conv_kernel_size: 8
+  conv_kernel_size: 9
   attn_kernel_size: 32
   do_last_skip: true
   heads: 4
