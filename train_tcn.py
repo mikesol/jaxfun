@@ -9,6 +9,7 @@ import flax.linen as nn
 from fork_on_parallelism import fork_on_parallelism
 from create_filtered_audio import create_biquad_coefficients
 import yaml
+import gc
 
 # import logging
 # logging.basicConfig(level=logging.INFO)
@@ -499,7 +500,7 @@ if __name__ == "__main__":
                     state = replace_metrics(state)
                     current_time = time.time()
                     elapsed_time = current_time - start_time
-                    if elapsed_time >= 3600:
+                    if elapsed_time >= (3600 * 4):
                         # checkpoint
                         ckpt_model = state
                         # needs to use underscore config
@@ -523,6 +524,8 @@ if __name__ == "__main__":
                         except ValueError as e:
                             logging.warning(f"checkpoint artifact did not work {e}")
                         start_time = current_time
+                        del ckpt
+                        gc.collect()
         test_dataset.set_epoch(epoch)
         with tqdm(
             enumerate(
