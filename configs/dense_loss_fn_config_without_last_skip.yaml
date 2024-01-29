@@ -1,0 +1,33 @@
+config:
+  seed: 42
+  batch_size: 8
+  inference_batch_size: 8
+  inference_artifacts_per_batch_per_epoch: 32
+  validation_split: 0.2
+  learning_rate: 0.0001
+  epochs: 128
+  window: 2048
+  inference_window: 2048
+  stride: 256
+  step_freq: 64
+  test_size: 0.1
+  kernel_dilation: 2
+  conv_kernel_size: 9
+  attn_kernel_size: 32
+  do_last_skip: false
+  heads: 4
+  conv_depth: [1024, 1024, 1024, 1024, 1024, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64]
+  attn_depth: 8
+  bias_type: 3
+  do_last_activation: false
+  activation: 5
+  sidechain_modulo_l: 1
+  sidechain_modulo_r: 0
+  expand_factor: 2.0
+  positional_encodings: true
+  mesh_x_div: 1
+  loss_fn: 6
+  afstart: 100
+  afend: 19000
+  qstart: 30
+  qend: 10
