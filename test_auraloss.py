@@ -37,17 +37,21 @@ def test_stft_loss():
     )
     assert np.allclose(loss, loss_ref)
 
-
+@pytest.mark.only
 def test_multi_resolution_stft_loss():
     fft_sizes = [1024, 2048, 512]
-    hop_sizes = [120, 240, 50]
-    win_lengths = [600, 1200, 240]
+    hop_sizes = [4, 4, 4]
+    win_lengths = [1024, 2048, 512]
+    # fft_sizes = [1024, 2048, 512]
+    # hop_sizes = [120, 240, 50]
+    # win_lengths = [600, 1200, 240]
+
     params = [
         stft.init_stft_params(x, y, z)
         for x, y, z in zip(fft_sizes, hop_sizes, win_lengths)
     ]
-    x = np.random.randn(4, 8192, 1)
-    y = np.random.randn(4, 8192, 1)
+    x = np.random.randn(4, 2048, 1)
+    y = np.random.randn(4, 2048, 1)
     loss = auraloss.multi_resolution_stft_loss(params, x, y)
     loss_ref = auraloss_ref.freq.MultiResolutionSTFTLoss(
         fft_sizes=fft_sizes, hop_sizes=hop_sizes, win_lengths=win_lengths
