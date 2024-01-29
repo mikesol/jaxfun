@@ -15,7 +15,7 @@ config:
   loss_fn: 4
   #
   seed_sine: 531
-  features: 2048
+  features: 1024
   skip: True
   levels: 32
   end_features: 64
