@@ -191,7 +191,6 @@ def mesh_sharding(pspec: PartitionSpec) -> NamedSharding:
 
 
 if __name__ == "__main__":
-    test_checkpointing_early = True
     from get_files import FILES
 
     logging.basicConfig(level=logging.WARN)
@@ -500,35 +499,35 @@ if __name__ == "__main__":
                     state = replace_metrics(state)
                     current_time = time.time()
                     elapsed_time = current_time - start_time
-                    if (elapsed_time >= (3600 * 4)) or test_checkpointing_early:
-                        # we test checkpointing early just to make sure it
-                        # works so there aren't any nasty surprises
-                        test_checkpointing_early = False
-                        # checkpoint
-                        ckpt_model = state
-                        # needs to use underscore config
-                        # becuase otherwise it doesn't serialize correctly
-                        ckpt = {"model": ckpt_model, "config": _config}
-                        if local_env.parallelism == Parallelism.PMAP:
-                            ckpt = checkpoint_walker(ckpt)
-                        CHECK_NAME = (
-                            epoch * train_total
-                            + batch_ix
-                            + (RESTORE if RESTORE is not None else 0)
-                        )
-                        checkpoint_manager.save(CHECK_NAME, ckpt)
-                        logging.warning(
-                            f"saved checkpoint for epoch {epoch} in {os.listdir(checkpoint_dir)}"
-                        )
-                        try:
-                            artifact = Artifact("checkpoint", artifact_type="model")
-                            artifact.add(os.path.join(checkpoint_dir, f"{CHECK_NAME}"))
-                            run.log_artifact(artifact)
-                        except ValueError as e:
-                            logging.warning(f"checkpoint artifact did not work {e}")
-                        start_time = current_time
-                        # hack suggested on https://github.com/google/flax/discussions/1690
-                        print(state.params)
+        # temporarily move checkpoint to after the first epoch as it crashes otherwise
+        if True:
+            # we test checkpointing early just to make sure it
+            # works so there aren't any nasty surprises
+            # checkpoint
+            ckpt_model = state
+            # needs to use underscore config
+            # becuase otherwise it doesn't serialize correctly
+            ckpt = {"model": ckpt_model, "config": _config}
+            if local_env.parallelism == Parallelism.PMAP:
+                ckpt = checkpoint_walker(ckpt)
+            CHECK_NAME = (
+                epoch * train_total
+                + batch_ix
+                + (RESTORE if RESTORE is not None else 0)
+            )
+            checkpoint_manager.save(CHECK_NAME, ckpt)
+            logging.warning(
+                f"saved checkpoint for epoch {epoch} in {os.listdir(checkpoint_dir)}"
+            )
+            try:
+                artifact = Artifact("checkpoint", artifact_type="model")
+                artifact.add(os.path.join(checkpoint_dir, f"{CHECK_NAME}"))
+                run.log_artifact(artifact)
+            except ValueError as e:
+                logging.warning(f"checkpoint artifact did not work {e}")
+            start_time = current_time
+            # hack suggested on https://github.com/google/flax/discussions/1690
+            print(state.params)
         test_dataset.set_epoch(epoch)
         with tqdm(
             enumerate(
