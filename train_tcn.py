@@ -9,7 +9,6 @@ import flax.linen as nn
 from fork_on_parallelism import fork_on_parallelism
 from create_filtered_audio import create_biquad_coefficients
 import yaml
-import gc
 
 # import logging
 # logging.basicConfig(level=logging.INFO)
@@ -524,8 +523,8 @@ if __name__ == "__main__":
                         except ValueError as e:
                             logging.warning(f"checkpoint artifact did not work {e}")
                         start_time = current_time
-                        del ckpt
-                        gc.collect()
+                        # hack suggested on https://github.com/google/flax/discussions/1690
+                        print(state.params)
         test_dataset.set_epoch(epoch)
         with tqdm(
             enumerate(
