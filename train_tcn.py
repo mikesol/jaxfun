@@ -191,6 +191,7 @@ def mesh_sharding(pspec: PartitionSpec) -> NamedSharding:
 
 
 if __name__ == "__main__":
+    test_checkpointing_early = True
     from get_files import FILES
 
     logging.basicConfig(level=logging.WARN)
@@ -492,7 +493,10 @@ if __name__ == "__main__":
 
                     state = add_losses_to_metrics(state=state, loss=loss)
 
-                if batch_ix % config.step_freq == 0:
+                if (batch_ix % config.step_freq == 0) or test_checkpointing_early:
+                    # we test checkpointing early just to make sure it
+                    # works so there aren't any nasty surprises
+                    test_checkpointing_early = False
                     metrics = maybe_unreplicate(state.metrics).compute()
                     run.log_metrics({"train_loss": metrics["loss"]}, step=batch_ix)
                     loop.set_postfix(loss=metrics["loss"])
