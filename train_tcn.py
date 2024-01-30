@@ -510,9 +510,11 @@ if __name__ == "__main__":
             ckpt = {"model": ckpt_model, "config": _config}
             if local_env.parallelism == Parallelism.PMAP:
                 ckpt = checkpoint_walker(ckpt)
+            
             CHECK_NAME = (
                 epoch * train_total
-                + batch_ix
+                # uncomment when we move back
+                # + batch_ix
                 + (RESTORE if RESTORE is not None else 0)
             )
             checkpoint_manager.save(CHECK_NAME, ckpt)
