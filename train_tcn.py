@@ -493,17 +493,17 @@ if __name__ == "__main__":
 
                     state = add_losses_to_metrics(state=state, loss=loss)
 
-                if (batch_ix % config.step_freq == 0) or test_checkpointing_early:
-                    # we test checkpointing early just to make sure it
-                    # works so there aren't any nasty surprises
-                    test_checkpointing_early = False
+                if (batch_ix % config.step_freq == 0):
                     metrics = maybe_unreplicate(state.metrics).compute()
                     run.log_metrics({"train_loss": metrics["loss"]}, step=batch_ix)
                     loop.set_postfix(loss=metrics["loss"])
                     state = replace_metrics(state)
                     current_time = time.time()
                     elapsed_time = current_time - start_time
-                    if elapsed_time >= (3600 * 4):
+                    if (elapsed_time >= (3600 * 4)) or test_checkpointing_early:
+                        # we test checkpointing early just to make sure it
+                        # works so there aren't any nasty surprises
+                        test_checkpointing_early = False
                         # checkpoint
                         ckpt_model = state
                         # needs to use underscore config
