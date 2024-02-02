@@ -692,6 +692,7 @@ class LSTMDrivingSines2(nn.Module):
     levels: int = 1
     end_features: int = 8
     end_levels: int = 4
+    dense_across_stack: bool = True
     cell: Callable[..., Any] = None
 
     @nn.compact
@@ -706,6 +707,7 @@ class LSTMDrivingSines2(nn.Module):
                 do_last_skip=False,
                 only_last=True,
                 projection=None,
+                dense_across_stack=self.dense_across_stack,
                 cell=(
                     partial(nn.OptimizedLSTMCell, features=self.features)
                     if self.cell == None

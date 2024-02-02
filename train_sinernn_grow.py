@@ -305,6 +305,7 @@ if __name__ == "__main__":
         levels=config.levels,
         end_features=config.end_features,
         end_levels=config.end_levels,
+        dense_across_stack=config.dense_across_stack,
     )
     tx = optax.adam(config.learning_rate)
 
