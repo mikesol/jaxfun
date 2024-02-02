@@ -388,6 +388,7 @@ if __name__ == "__main__":
     window_to_use = config.window_start // config.window_growth
     for epoch in range(config.epochs):
         window_to_use *= config.window_growth
+        window_to_use = min(window_to_use, config.window)
         # ugggh
         epoch_is_0 = False  # epoch == 0
         to_take_in_0_epoch = 104
