@@ -68,6 +68,7 @@ def LongMultiResolutionSTFTLoss(x, y):
     ]
     return auraloss.multi_resolution_stft_loss(params, x, y)
 
+
 def ReallyDenseSTFTLoss(x, y):
     div_factor = 2
     fft_sizes = [1024, 2048, 512]

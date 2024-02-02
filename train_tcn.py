@@ -446,7 +446,7 @@ if __name__ == "__main__":
     for epoch in range(config.epochs):
         # ugggh
         # commenting out for now
-        epoch_is_0 = False # epoch == 0
+        epoch_is_0 = False  # epoch == 0
         to_take_in_0_epoch = 104
         train_dataset = (
             proto_train_dataset
@@ -493,7 +493,7 @@ if __name__ == "__main__":
 
                     state = add_losses_to_metrics(state=state, loss=loss)
 
-                if (batch_ix % config.step_freq == 0):
+                if batch_ix % config.step_freq == 0:
                     metrics = maybe_unreplicate(state.metrics).compute()
                     run.log_metrics({"train_loss": metrics["loss"]}, step=batch_ix)
                     loop.set_postfix(loss=metrics["loss"])
@@ -511,7 +511,7 @@ if __name__ == "__main__":
             ckpt = {"model": ckpt_model, "config": _config}
             if local_env.parallelism == Parallelism.PMAP:
                 ckpt = checkpoint_walker(ckpt)
-            
+
             CHECK_NAME = (
                 epoch * train_total
                 # uncomment when we move back

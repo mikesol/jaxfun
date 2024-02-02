@@ -58,18 +58,31 @@ class Metrics(metrics.Collection):
 
 class TrainState(train_state.TrainState):
     metrics: Metrics
+    batch_stats: Any
 
 
 def create_train_state(rng: PRNGKey, x, module, tx) -> TrainState:
     print("creating train state", rng.shape, x.shape)
-    variables = module.init(rng, x)
+    variables = module.init(rng, x, train=False)
     params = variables["params"]
+    batch_stats = variables["batch_stats"]
     return TrainState.create(
         apply_fn=module.apply,
         params=params,
         tx=tx,
+        batch_stats=batch_stats,
         metrics=Metrics.empty(),
     )
+
+
+def do_inference(state, input):
+    o, _ = state.apply_fn(
+        {"params": state.params, "batch_stats": state.batch_stats},
+        input,
+        train=False,
+        mutable=["batch_stats"],
+    )
+    return o
 
 
 maybe_replicate = fork_on_parallelism(lambda x: x, jax_utils.replicate)
@@ -79,41 +92,6 @@ maybe_device_put = fork_on_parallelism(jax.device_put, lambda x, _: x)
 
 def mesh_sharding(pspec: PartitionSpec) -> NamedSharding:
     return NamedSharding(mesh, pspec)
-
-
-def find_near_zero_weights(params, near_zero_weights, epsilon=1e-6, prefix=""):
-    for layer_name, weights in params.items():
-        if type(weights) == type({}):
-            find_near_zero_weights(
-                weights,
-                near_zero_weights,
-                epsilon=epsilon,
-                prefix=os.path.join(prefix, layer_name),
-            )
-            continue
-        # Assuming weights are stored in NumPy arrays
-        near_zero_count = (np.abs(weights) < epsilon).sum()
-        total_count = weights.size
-        near_zero_weights[os.path.join(prefix, layer_name)] = (
-            near_zero_count,
-            total_count,
-        )
-
-    return near_zero_weights
-
-
-def total_weights(params, epsilon=1e-6, prefix=""):
-    total = 0
-    for layer_name, weights in params.items():
-        if type(weights) == type({}):
-            total += total_weights(
-                weights, epsilon=epsilon, prefix=os.path.join(prefix, layer_name)
-            )
-            continue
-        # Assuming weights are stored in NumPy arrays
-        total += weights.size
-
-    return total
 
 
 if __name__ == "__main__":
@@ -147,9 +125,11 @@ if __name__ == "__main__":
     with open(local_env.config_file, "r") as f:
         in_config = yaml.safe_load(f)["config"]
         _config = in_config
-        # _config["loss_fn"] = LossFn(_config["loss_fn"])
+        _config["loss_fn"] = LossFn(_config["loss_fn"])
+        _config["activation"] = Activation(_config["activation"])
         _config["mesh_x"] = device_len // _config["mesh_x_div"]
         _config["mesh_y"] = _config["mesh_x_div"]
+        _config["conv_depth"] = tuple(_config["conv_depth"])
         del _config["mesh_x_div"]
 
     config = SimpleNamespace(**_config)
@@ -170,6 +150,20 @@ if __name__ == "__main__":
     init_rng = jax.random.PRNGKey(config.seed)
     onez = jnp.ones([config.batch_size, config.window, 1])  # 1,
 
+    def array_to_tuple(arr):
+        if isinstance(arr, np.ndarray):
+            return tuple(array_to_tuple(a) for a in arr)
+        else:
+            return arr
+
+    coefficients = create_biquad_coefficients(
+        config.conv_depth[0] - 1,
+        44100,
+        config.afstart,
+        config.afend,
+        config.qstart,
+        config.qend,
+    )
     module = LSTMDrivingSines2(
         features=config.features,
         skip=config.skip,
@@ -217,7 +211,7 @@ if __name__ == "__main__":
         tx,
     )
 
-    target = {"model": state, "config": _config}
+    target = {"model": state, "config": None}
     restore_args = orbax_utils.restore_args_from_target(target)
 
     CKPT = checkpoint_manager.restore(
@@ -228,10 +222,57 @@ if __name__ == "__main__":
 
     del init_rng  # Must not be used anymore.
 
-    nz_weights = find_near_zero_weights(state.params, {}, epsilon=1e-6)
-    for layer, (near_zero, total) in nz_weights.items():
-        print(
-            f"Layer {layer}: {near_zero} out of {total} weights are near zero (below epsilon)"
-        )
+    # ugggh
 
-    print(total_weights(params=state.params))
+    input_, _ = librosa.load(local_env.inference_file_source, sr=44100)
+    print("s1", input_.shape)
+    target_, _ = librosa.load(local_env.inference_file_target, sr=44100)
+    ##### ugggggggggh
+    # input_ = jnp.concatenate([input_ for _ in range(device_len)], axis=0)
+    input = input_
+    input = jnp.expand_dims(input, axis=0)
+    input = jnp.expand_dims(input, axis=-1)
+    target = target_
+    assert len(input.shape) == 3
+
+    jit_do_inference = fork_on_parallelism(
+                partial(
+                    jax.jit,
+                    in_shardings=(state_sharding, x_sharding),
+                    out_shardings=x_sharding,
+                ),
+                jax.pmap,
+            )(do_inference)
+    # jit_do_inference = jax.jit(do_inference)
+    print("input shape", input.shape)
+    stride = config.window + 1
+    o = jit_do_inference(state, input[:, :stride, :])
+    o_len = o.shape[1]
+    print("olen", o_len)
+    assert o_len % 2 == 0
+    half_o_len = o_len // 2
+    hann = scipy.signal.windows.hann(o_len)
+    print("starting inference with size", o_len)
+    offset = 0
+    zzz = np.zeros((44100 * 11,))
+    a = []
+    while offset < (44100 * 10):
+        o = jit_do_inference(state, input[:, offset : offset + stride, :])
+        loss = Loss_fn_to_loss(config.loss_fn)(
+            o, input[:, offset : offset + o.shape[1], :]
+        )
+        print("on second", offset / 44100, loss)
+        o = jnp.squeeze(o)
+        o = np.array(o)
+        assert o.shape == (o_len,)
+        # o = o * hann
+        # zzz[offset : offset + o_len] += o
+        # offset += half_o_len
+        zzz[offset : offset + o_len] += o
+        offset += o_len
+
+    print("o after concat", o.shape)
+    print("o after squeeze", o.shape)
+    soundfile.write("/tmp/input.wav", input_, 44100)
+    soundfile.write("/tmp/prediction.wav", zzz, 44100)
+    soundfile.write("/tmp/target.wav", target_, 44100)
