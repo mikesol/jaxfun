@@ -263,9 +263,9 @@ if __name__ == "__main__":
         o = jnp.squeeze(o)
         o = np.array(o)
         assert o.shape == (o_len,)
-        # o = o * hann
-        # zzz[offset : offset + o_len] += o
-        # offset += half_o_len
+        o = o * hann
+        zzz[offset : offset + o_len] += o
+        offset += half_o_len
         zzz[offset : offset + o_len] += o
         offset += o_len
 
