@@ -242,6 +242,21 @@ class StackedRNNCell(nn.Module):
             out_axes=2,
         )(features=self.features)((c, h), inputs)
 
+        if self.dense_across_stack:
+            # the stack should be batch, feature
+            assert len(out.shape) == 3
+            stack_size = out.shape[-2]
+            out = switch_last_two(
+                nn.Dense(
+                    features=stack_size,
+                    use_bias=True,
+                    kernel_init=self.dense_init,
+                    bias_init=self.bias_init,
+                    dtype=self.dtype,
+                    param_dtype=self.param_dtype,
+                )(switch_last_two(out))
+            )
+
         if self.only_last:
             out = out[..., -1, :]
         if self.do_last_skip:
@@ -255,18 +270,6 @@ class StackedRNNCell(nn.Module):
                 dtype=self.dtype,
                 param_dtype=self.param_dtype,
             )(inputs[:, 0, :] if self.only_last else inputs)
-        if self.dense_across_stack:
-            out = switch_last_two(
-                nn.Dense(
-                    features=out.shape[-2],
-                    use_bias=True,
-                    kernel_init=self.dense_init,
-                    bias_init=self.bias_init,
-                    dtype=self.dtype,
-                    param_dtype=self.param_dtype,
-                )(switch_last_two(out))
-            )
-
         if self.projection is not None:
             out = nn.Dense(
                 features=self.projection,

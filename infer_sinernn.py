@@ -58,29 +58,24 @@ class Metrics(metrics.Collection):
 
 class TrainState(train_state.TrainState):
     metrics: Metrics
-    batch_stats: Any
 
 
 def create_train_state(rng: PRNGKey, x, module, tx) -> TrainState:
     print("creating train state", rng.shape, x.shape)
-    variables = module.init(rng, x, train=False)
+    variables = module.init(rng, x)
     params = variables["params"]
-    batch_stats = variables["batch_stats"]
     return TrainState.create(
         apply_fn=module.apply,
         params=params,
         tx=tx,
-        batch_stats=batch_stats,
         metrics=Metrics.empty(),
     )
 
 
 def do_inference(state, input):
     o, _ = state.apply_fn(
-        {"params": state.params, "batch_stats": state.batch_stats},
+        {"params": state.params},
         input,
-        train=False,
-        mutable=["batch_stats"],
     )
     return o
 
@@ -154,14 +149,6 @@ if __name__ == "__main__":
         else:
             return arr
 
-    coefficients = create_biquad_coefficients(
-        config.conv_depth[0] - 1,
-        44100,
-        config.afstart,
-        config.afend,
-        config.qstart,
-        config.qend,
-    )
     module = LSTMDrivingSines2(
         features=config.features,
         skip=config.skip,
@@ -209,7 +196,9 @@ if __name__ == "__main__":
         tx,
     )
 
-    target = {"model": state, "config": None}
+    __config = {**_config}
+    __config["loss_fn"] = _config["loss_fn"].value
+    target = {"model": state, "config": __config}
     restore_args = orbax_utils.restore_args_from_target(target)
 
     CKPT = checkpoint_manager.restore(
