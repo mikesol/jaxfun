@@ -1,0 +1,25 @@
+config:
+  seed: 42
+  batch_size: 8
+  inference_batch_size: 8
+  inference_artifacts_per_batch_per_epoch: 32
+  validation_split: 0.2
+  learning_rate: 0.0001
+  epochs: 128
+  window: 2048
+  window_growth: 2
+  window_start: 32
+  inference_window: 2048
+  stride: 256
+  step_freq: 64
+  test_size: 0.1
+  mesh_x_div: 1
+  loss_fn: 1
+  dense_across_stack: true
+  #
+  seed_sine: 531
+  features: 512
+  skip: False
+  levels: 16
+  end_features: 64
+  end_levels: 16
