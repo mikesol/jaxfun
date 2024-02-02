@@ -126,10 +126,8 @@ if __name__ == "__main__":
         in_config = yaml.safe_load(f)["config"]
         _config = in_config
         _config["loss_fn"] = LossFn(_config["loss_fn"])
-        _config["activation"] = Activation(_config["activation"])
         _config["mesh_x"] = device_len // _config["mesh_x_div"]
         _config["mesh_y"] = _config["mesh_x_div"]
-        _config["conv_depth"] = tuple(_config["conv_depth"])
         del _config["mesh_x_div"]
 
     config = SimpleNamespace(**_config)
@@ -236,13 +234,13 @@ if __name__ == "__main__":
     assert len(input.shape) == 3
 
     jit_do_inference = fork_on_parallelism(
-                partial(
-                    jax.jit,
-                    in_shardings=(state_sharding, x_sharding),
-                    out_shardings=x_sharding,
-                ),
-                jax.pmap,
-            )(do_inference)
+        partial(
+            jax.jit,
+            in_shardings=(state_sharding, x_sharding),
+            out_shardings=x_sharding,
+        ),
+        jax.pmap,
+    )(do_inference)
     # jit_do_inference = jax.jit(do_inference)
     print("input shape", input.shape)
     stride = config.window + 1
