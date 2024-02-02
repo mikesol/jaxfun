@@ -211,7 +211,7 @@ if __name__ == "__main__":
 
     run = Experiment(
         api_key=local_env.comet_ml_api_key,
-        project_name="jax-sine-rnn",
+        project_name="jax-sine-rnn-grow",
     )
     ## defaults
     _config = {}
