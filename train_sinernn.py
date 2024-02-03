@@ -218,6 +218,7 @@ if __name__ == "__main__":
     _config["seed"] = 42
     _config["seed_sine"] = 531
     _config["dense_across_stack"] = True
+    _config["use_previous_derivative"] = True
     _config["batch_size"] = 2**4
     _config["inference_batch_size"] = 2**3
     _config["inference_artifacts_per_batch_per_epoch"] = (
