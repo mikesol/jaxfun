@@ -690,7 +690,7 @@ class LSTMDrivingSines2(nn.Module):
 
     features: int
     skip: bool = False
-    use_previous_derivative = True
+    use_previous_derivative: bool = True
     levels: int = 1
     end_features: int = 8
     end_levels: int = 4
