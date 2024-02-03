@@ -623,6 +623,7 @@ class LSTMDrivingSines(nn.Module):
 
 class StackedRNNSine(StackedRNNCell):
     features: int
+    use_previous_derivative: bool = True
     skip: bool = False
     levels: int = 1
     end_features: int = 8
@@ -651,7 +652,7 @@ class StackedRNNSine(StackedRNNCell):
         dt = 1.0 / sr
 
         def _vmapped(_af, ct, ip, iu):
-            nu, np = advance_sine2(ip, ct, dt, iu, half_sr * _af[..., 1], _af[..., 0])
+            nu, np = advance_sine2(ip, ct, dt, iu, half_sr * _af[..., 1], _af[..., 0], self.use_previous_derivative)
             np = nn.tanh(np)
             return (np, ct + dt, np, nu)
 
@@ -689,6 +690,7 @@ class LSTMDrivingSines2(nn.Module):
 
     features: int
     skip: bool = False
+    use_previous_derivative = True
     levels: int = 1
     end_features: int = 8
     end_levels: int = 4
@@ -705,6 +707,7 @@ class LSTMDrivingSines2(nn.Module):
                 features=self.features,
                 skip=self.skip,
                 do_last_skip=False,
+                use_previous_derivative=self.use_previous_derivative,
                 only_last=True,
                 projection=None,
                 dense_across_stack=self.dense_across_stack,
