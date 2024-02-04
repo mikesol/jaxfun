@@ -2,6 +2,7 @@ import os
 from parallelism import Parallelism
 from contextlib import nullcontext
 import logging
+from activation import Activation
 import crop
 from bias_types import BiasTypes
 from loss import LossFn, Loss_fn_to_loss, LogCoshLoss, ESRLoss
@@ -217,7 +218,8 @@ if __name__ == "__main__":
     _config = {}
     _config["seed"] = 42
     _config["seed_sine"] = 531
-    _config["dense_across_stack"] = True
+    _config["dense_across_stack"] = 1
+    _config["dense_across_stack_activation"] = Activation.LOTS_OF_PRELUS
     _config["batch_size"] = 2**4
     _config["inference_batch_size"] = 2**3
     _config["inference_artifacts_per_batch_per_epoch"] = (
@@ -250,6 +252,7 @@ if __name__ == "__main__":
                 raise ValueError(f"Requires key {k}")
         _config = in_config
         _config["loss_fn"] = LossFn(_config["loss_fn"])
+        _config["dense_across_stack_activation"] = Activation(_config["dense_across_stack_activation"])
         _config["mesh_x"] = device_len // _config["mesh_x_div"]
         _config["mesh_y"] = _config["mesh_x_div"]
         del _config["mesh_x_div"]
