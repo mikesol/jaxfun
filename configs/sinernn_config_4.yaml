@@ -8,7 +8,7 @@ config:
   epochs: 128
   window: 2048
   inference_window: 2048
-  dense_across_stack: 2
+  dense_across_stack: 1
   dense_across_stack_activation: 5
   use_previous_derivative: false
   stride: 256
