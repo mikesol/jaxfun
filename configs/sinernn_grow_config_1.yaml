@@ -15,7 +15,9 @@ config:
   test_size: 0.1
   mesh_x_div: 1
   loss_fn: 1
-  dense_across_stack: true
+  dense_across_stack: 2
+  dense_across_stack_activation: 5
+  use_previous_derivative: false
   #
   seed_sine: 531
   features: 512
