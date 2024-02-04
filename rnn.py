@@ -6,6 +6,7 @@ from typing import (
     Tuple,
     TypeVar,
 )
+from activation import Activation, make_activation
 import math
 from sine import advance_sine, advance_sine2
 from functools import partial
@@ -202,7 +203,8 @@ class StackedRNNCell(nn.Module):
     carry_init: nn.initializers.Initializer = nn.initializers.zeros_init()
     is_filter_bank: bool = False
     do_last_skip: bool = False
-    dense_across_stack: bool = True
+    dense_across_stack: int = 1
+    dense_across_stack_activation: Activation = Activation.LOTS_OF_PRELUS
     projection: Optional[int] = None
     only_last: bool = True
     cell_preprocessing: Callable = lambda x: x
@@ -242,19 +244,21 @@ class StackedRNNCell(nn.Module):
             out_axes=2,
         )(features=self.features)((c, h), inputs)
 
-        if self.dense_across_stack:
+        for i in range(self.dense_across_stack):
             # the stack should be batch, feature
             assert len(out.shape) == 3
             stack_size = out.shape[-2]
             out = switch_last_two(
-                nn.Dense(
-                    features=stack_size,
-                    use_bias=True,
-                    kernel_init=self.dense_init,
-                    bias_init=self.bias_init,
-                    dtype=self.dtype,
-                    param_dtype=self.param_dtype,
-                )(switch_last_two(out))
+                make_activation(self.dense_across_stack_activation)()(
+                    nn.Dense(
+                        features=stack_size,
+                        use_bias=True,
+                        kernel_init=self.dense_init,
+                        bias_init=self.bias_init,
+                        dtype=self.dtype,
+                        param_dtype=self.param_dtype,
+                    )(switch_last_two(out))
+                )
             )
 
         if self.only_last:
@@ -542,7 +546,7 @@ class LSTMWithFilterBanks(nn.Module):
                 skip=self.skip,
                 is_filter_bank=False,
                 # do_last_skip=self.do_last_skip,
-                dense_across_stack=True,
+                dense_across_stack=1,
                 only_last=self.only_last,
                 projection=self.projection,
                 cell_preprocessing=lambda x: jnp.expand_dims(x, axis=-2),
@@ -552,7 +556,7 @@ class LSTMWithFilterBanks(nn.Module):
                     skip=self.skip,
                     do_last_skip=False,
                     is_filter_bank=True,
-                    dense_across_stack=True,
+                    dense_across_stack=1,
                     only_last=False,
                     projection=None,
                     cell=(
@@ -628,6 +632,8 @@ class StackedRNNSine(StackedRNNCell):
     levels: int = 1
     end_features: int = 8
     end_levels: int = 4
+    dense_across_stack: int = 1
+    dense_across_stack_activation: Activation = Activation.LOTS_OF_PRELUS
     sr: int = 44100
     cell: Callable[..., Any] = None
 
@@ -636,6 +642,8 @@ class StackedRNNSine(StackedRNNCell):
         c, h, p, u, ct = carry
         (c, h), x = StackedRNNCell(
             features=self.features,
+            dense_across_stack=self.dense_across_stack,
+            dense_across_stack_activation=self.dense_across_stack_activation,
             skip=self.skip,
             do_last_skip=False,
             only_last=True,
@@ -652,7 +660,15 @@ class StackedRNNSine(StackedRNNCell):
         dt = 1.0 / sr
 
         def _vmapped(_af, ct, ip, iu):
-            nu, np = advance_sine2(ip, ct, dt, iu, half_sr * _af[..., 1], _af[..., 0], self.use_previous_derivative)
+            nu, np = advance_sine2(
+                ip,
+                ct,
+                dt,
+                iu,
+                half_sr * _af[..., 1],
+                _af[..., 0],
+                self.use_previous_derivative,
+            )
             np = nn.tanh(np)
             return (np, ct + dt, np, nu)
 
@@ -694,7 +710,8 @@ class LSTMDrivingSines2(nn.Module):
     levels: int = 1
     end_features: int = 8
     end_levels: int = 4
-    dense_across_stack: bool = True
+    dense_across_stack: int = 1
+    dense_across_stack_activation: Activation = Activation.LOTS_OF_PRELUS
     cell: Callable[..., Any] = None
 
     @nn.compact
@@ -711,6 +728,7 @@ class LSTMDrivingSines2(nn.Module):
                 only_last=True,
                 projection=None,
                 dense_across_stack=self.dense_across_stack,
+                dense_across_stack_activation=self.dense_across_stack_activation,
                 cell=(
                     partial(nn.OptimizedLSTMCell, features=self.features)
                     if self.cell == None

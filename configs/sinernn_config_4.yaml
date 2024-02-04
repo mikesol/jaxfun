@@ -8,15 +8,16 @@ config:
   epochs: 128
   window: 2048
   inference_window: 2048
+  dense_across_stack: 1
+  dense_across_stack_activation: 8
   stride: 256
   step_freq: 64
   test_size: 0.1
   mesh_x_div: 1
-  loss_fn: 2
-  dense_across_stack: true
+  loss_fn: 4
   #
   seed_sine: 531
-  features: 512
+  features: 256
   skip: False
   levels: 16
   end_features: 64

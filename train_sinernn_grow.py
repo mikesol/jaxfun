@@ -386,6 +386,7 @@ if __name__ == "__main__":
 
     del init_rng  # Must not be used anymore.
     window_to_use = config.window_start // config.window_growth
+    counter = 0
     for epoch in range(config.epochs):
         window_to_use *= config.window_growth
         window_to_use = min(window_to_use, config.window)
@@ -443,7 +444,8 @@ if __name__ == "__main__":
 
                 if batch_ix % config.step_freq == 0:
                     metrics = maybe_unreplicate(state.metrics).compute()
-                    run.log_metrics({"train_loss": metrics["loss"]}, step=batch_ix)
+                    run.log_metrics({"train_loss": metrics["loss"]}, step=counter)
+                    counter += 1
                     loop.set_postfix(loss=metrics["loss"])
                     state = replace_metrics(state)
                     current_time = time.time()
@@ -501,7 +503,7 @@ if __name__ == "__main__":
                 )
                 state = add_losses_to_metrics(state=state, loss=loss)
         metrics = maybe_unreplicate(state.metrics).compute()
-        run.log_metrics({"val_loss": metrics["loss"]}, step=batch_ix)
+        run.log_metrics({"val_loss": metrics["loss"]}, step=epoch)
         state = replace_metrics(state)
         # inference
         inference_dataset.set_epoch(epoch)
