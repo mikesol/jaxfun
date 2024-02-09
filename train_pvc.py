@@ -458,6 +458,7 @@ if __name__ == "__main__":
     )(compute_loss)
 
     del init_rng  # Must not be used anymore.
+    step_ctr = 0
     for epoch in range(config.epochs):
         # ugggh
         # commenting out for now
@@ -512,7 +513,8 @@ if __name__ == "__main__":
 
                 if batch_ix % config.step_freq == 0:
                     metrics = maybe_unreplicate(state.metrics).compute()
-                    run.log_metrics({"train_loss": metrics["loss"]}, step=batch_ix)
+                    run.log_metrics({"train_loss": metrics["loss"]}, step=step_ctr)
+                    step_ctr += 1
                     loop.set_postfix(loss=metrics["loss"])
                     state = replace_metrics(state)
                     current_time = time.time()
@@ -576,7 +578,7 @@ if __name__ == "__main__":
                 )
                 state = add_losses_to_metrics(state=state, loss=loss)
         metrics = maybe_unreplicate(state.metrics).compute()
-        run.log_metrics({"val_loss": metrics["loss"]}, step=batch_ix)
+        run.log_metrics({"val_loss": metrics["loss"]}, step=epoch)
         state = replace_metrics(state)
         # inference
         inference_dataset.set_epoch(epoch)
@@ -617,20 +619,20 @@ if __name__ == "__main__":
                 run.log_audio(
                     audy,
                     sample_rate=44100,
-                    step=batch_ix,
+                    step=epoch,
                     file_name=f"audio_{epoch}_{batch_ix}_{i}_prediction.wav",
                 )
                 audy = np.squeeze(np.array(input_[i, :, :1]))
                 run.log_audio(
                     audy,
                     sample_rate=44100,
-                    step=batch_ix,
+                    step=epoch,
                     file_name=f"audio_{epoch}_{batch_ix}_{i}_input.wav",
                 )
                 audy = np.squeeze(np.array(target_[i]))
                 run.log_audio(
                     audy,
                     sample_rate=44100,
-                    step=batch_ix,
+                    step=epoch,
                     file_name=f"audio_{epoch}_{batch_ix}_{i}_target.wav",
                 )
