@@ -148,6 +148,39 @@ class PositionalEncoding(nn.Module):
         return x
 
 
+def do_conversion(obj, ipt):
+    bitreverse_indices = pvc.precompute_bitreverse_indices(obj.fft_size // 2)
+    c = pvc.precompute_cfkt_constants(obj.fft_size // 2)
+    ws = pvc.precompute_rfkt_constants(obj.fft_size // 2)
+    patches = pvc.make_pvc_patches(ipt, obj.hop_size, obj.window_size)
+    window = jnp.ones((obj.window_size,))
+    window = pvc.koonce_sinc(window, obj.fft_size, obj.window_size)
+    window = pvc.koonce_normalization(window)
+    folded = pvc.fold_pvc_patches(
+        patches, window, obj.fft_size, obj.hop_size, obj.window_size
+    )
+    fktd = jax.vmap(
+        jax.vmap(
+            partial(pvc.rfkt, bitreverse_indices=bitreverse_indices, c=c, ws=ws),
+            in_axes=0,
+        ),
+        in_axes=0,
+    )(folded)
+    fkt_batch = fktd.shape[0]
+    fkt_seq = fktd.shape[1]
+    fkt_chan = fktd.shape[2]
+    fktd = jnp.reshape(fktd, (fkt_batch, fkt_seq, fkt_chan // 2, 2))
+    f_r = fktd[..., 0]
+    f_i = fktd[..., 1]
+    c_r, c_i = pvc.convert_stft_to_amp_and_freq_using_0_phase(
+        f_r, f_i, obj.hop_size, obj.sample_rate
+    )
+    converted = jnp.reshape(
+        jnp.stack((c_r, c_i), axis=-1), (fkt_batch, fkt_seq, fkt_chan)
+    )
+    return converted
+
+
 class PVC(nn.Module):
     fft_size: int
     hop_size: int
@@ -162,41 +195,15 @@ class PVC(nn.Module):
 
     @nn.compact
     def __call__(self, ipt, train: bool):
-        bitreverse_indices = pvc.precompute_bitreverse_indices(self.fft_size // 2)
-        c = pvc.precompute_cfkt_constants(self.fft_size // 2)
-        ws = pvc.precompute_rfkt_constants(self.fft_size // 2)
-        patches = pvc.make_pvc_patches(ipt, self.hop_size, self.window_size)
-        window = jnp.ones((self.window_size,))
-        window = pvc.koonce_sinc(window, self.fft_size, self.window_size)
-        window = pvc.koonce_normalization(window)
-        folded = pvc.fold_pvc_patches(
-            patches, window, self.fft_size, self.hop_size, self.window_size
+        converted_batch = ipt.shape[0]
+        converted_seq = ipt.shape[1]
+        converted_chan = ipt.shape[2]
+        converted_a, converted_f = normalize_amps(ipt[:, :, ::2]), normalize_freqs(
+            ipt[:, :, 1::2], self.sample_rate
         )
-        fktd = jax.vmap(
-            jax.vmap(
-                partial(pvc.rfkt, bitreverse_indices=bitreverse_indices, c=c, ws=ws),
-                in_axes=0,
-            ),
-            in_axes=0,
-        )(folded)
-        fkt_batch = fktd.shape[0]
-        fkt_seq = fktd.shape[1]
-        fkt_chan = fktd.shape[2]
-        fktd = jnp.reshape(fktd, (fkt_batch, fkt_seq, fkt_chan // 2, 2))
-        f_r = fktd[..., 0]
-        f_i = fktd[..., 1]
-        c_r, c_i = pvc.convert_stft_to_amp_and_freq_using_0_phase(
-            f_r, f_i, self.hop_size, self.sample_rate
-        )
-        converted = jnp.reshape(
-            jnp.stack((c_r, c_i), axis=-1), (fkt_batch, fkt_seq, fkt_chan)
-        )
-        converted_a, converted_f = normalize_amps(
-            converted[:, :, ::2]
-        ), normalize_freqs(converted[:, :, 1::2], self.sample_rate)
         converted = jnp.reshape(
             jnp.stack((converted_a, converted_f), axis=-1),
-            (fkt_batch, fkt_seq, fkt_chan),
+            (converted_batch, converted_seq, converted_chan),
         )
         # XLC should figure this out anyway
         # but just in case...
