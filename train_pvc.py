@@ -37,7 +37,7 @@ if IS_CPU:
 
 from typing import Any
 from flax import struct
-from comet_ml import OfflineExperiment, Artifact
+from comet_ml import Experiment, Artifact
 from pvc import PVC, do_conversion, normalize, denormalize
 from fouriax.pvc import noscbank
 from clu import metrics
@@ -257,7 +257,7 @@ if __name__ == "__main__":
     if (device_len != 1) and (device_len % 2 == 1):
         raise ValueError("not ")
 
-    run = OfflineExperiment(
+    run = Experiment(
         api_key=local_env.comet_ml_api_key,
         project_name="jax-tcn-attn",
     )
