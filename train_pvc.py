@@ -37,8 +37,8 @@ if IS_CPU:
 
 from typing import Any
 from flax import struct
-from comet_ml import Experiment, Artifact
-from pvc import PVC, do_conversion
+from comet_ml import OfflineExperiment, Artifact
+from pvc import PVC, do_conversion, normalize, denormalize
 from fouriax.pvc import noscbank
 from clu import metrics
 from functools import partial
@@ -108,8 +108,9 @@ class TrainState(train_state.TrainState):
     batch_stats: Any
 
 
-def create_train_state(rng: PRNGKey, x, module, tx) -> TrainState:
+def create_train_state(rng: PRNGKey, x, module, tx, conversion_config) -> TrainState:
     print("creating train state", rng.shape, x.shape)
+    x = normalize(do_conversion(conversion_config, x), conversion_config.sample_rate)
     variables = module.init(rng, x, train=False)
     params = variables["params"]
     # if we are not doing batch norm, there won't be any batch_stats
@@ -138,9 +139,8 @@ def interleave_jax(input_array, trained_output):
 def train_step(state, input, target, conversion_config):
     """Train for a single step."""
 
-    input = do_conversion(conversion_config, input)
-    target = do_conversion(conversion_config, target)
-
+    input = normalize(do_conversion(conversion_config, input), conversion_config.sample_rate)
+    target = normalize(do_conversion(conversion_config, target), conversion_config.sample_rate)
     def loss_fn(params):
         pred, updates = state.apply_fn(
             {"params": params, "batch_stats": state.batch_stats},
@@ -149,7 +149,7 @@ def train_step(state, input, target, conversion_config):
             mutable=["batch_stats"],
         )
         reach_back = min(pred.shape[1], target.shape[1]) // 2
-        loss = optax.l2_loss(pred[:, -reach_back:, :], target[:, -reach_back:, :])
+        loss = optax.l2_loss(pred[:, -reach_back:, :], target[:, -reach_back:, :]).mean()
         return loss, updates
 
     grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
@@ -172,8 +172,8 @@ def do_inference(state, input, conversion_config):
     )
     p_inc = 1.0 / conversion_config.sample_rate
     i_inv = 1.0 / conversion_config.hop_length
-    lastval = np.zeros((o.shape[0], conversion_config.fft_bins))
-    index = np.zeros((o.shape[0], conversion_config.fft_bins))
+    lastval = np.zeros((o.shape[0], o.shape[-1] // 2))
+    index = np.zeros((o.shape[0], o.shape[-1] // 2))
 
     o = jnp.vmap(
         partial(
@@ -191,8 +191,8 @@ replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
 
 
 def compute_loss(state, input, target, conversion_config):
-    input = do_conversion(conversion_config, input)
-    target = do_conversion(conversion_config, target)
+    input = normalize(do_conversion(conversion_config, input), conversion_config.sample_rate)
+    target = normalize(do_conversion(conversion_config, target), conversion_config.sample_rate)
 
     pred, _ = state.apply_fn(
         {"params": state.params, "batch_stats": state.batch_stats},
@@ -201,7 +201,7 @@ def compute_loss(state, input, target, conversion_config):
         mutable=["batch_stats"],
     )
     reach_back = min(pred.shape[1], target.shape[1]) // 2
-    loss = optax.l2_loss(pred[:, -reach_back:, :], target[:, -reach_back:, :])
+    loss = optax.l2_loss(pred[:, -reach_back:, :], target[:, -reach_back:, :]).mean()
     return loss
 
 
@@ -257,7 +257,7 @@ if __name__ == "__main__":
     if (device_len != 1) and (device_len % 2 == 1):
         raise ValueError("not ")
 
-    run = Experiment(
+    run = OfflineExperiment(
         api_key=local_env.comet_ml_api_key,
         project_name="jax-tcn-attn",
     )
@@ -272,8 +272,8 @@ if __name__ == "__main__":
     _config["validation_split"] = 0.2
     _config["learning_rate"] = 1e-4
     _config["epochs"] = 2**7
-    _config["window"] = 2**11
-    _config["inference_window"] = 2**11
+    _config["window"] = 2**13
+    _config["inference_window"] = 2**13
     _config["stride"] = 2**8
     _config["step_freq"] = 2**6
     _config["test_size"] = 0.1
@@ -298,12 +298,8 @@ if __name__ == "__main__":
             if k not in in_config:
                 raise ValueError(f"Requires key {k}")
         _config = in_config
-        _config["loss_fn"] = LossFn(_config["loss_fn"])
-        _config["bias_type"] = BiasTypes(_config["bias_type"])
-        _config["activation"] = Activation(_config["activation"])
         _config["mesh_x"] = device_len // _config["mesh_x_div"]
         _config["mesh_y"] = _config["mesh_x_div"]
-        _config["conv_depth"] = tuple(_config["conv_depth"])
         del _config["mesh_x_div"]
     run.log_parameters(_config)
     if local_env.parallelism == Parallelism.PMAP:
@@ -397,7 +393,7 @@ if __name__ == "__main__":
 
     if local_env.parallelism == Parallelism.SHARD:
         abstract_variables = jax.eval_shape(
-            partial(create_train_state, module=module, tx=tx),
+            partial(create_train_state, module=module, tx=tx, conversion_config=conversion_config),
             init_rng,
             onez,
         )
@@ -407,7 +403,7 @@ if __name__ == "__main__":
     jit_create_train_state = fork_on_parallelism(
         partial(
             jax.jit,
-            static_argnums=(2, 3),
+            static_argnums=(2, 3, 4),
             in_shardings=(
                 (
                     mesh_sharding(None)
@@ -418,7 +414,7 @@ if __name__ == "__main__":
             ),  # PRNG key and x
             out_shardings=state_sharding,
         ),
-        partial(jax.pmap, static_broadcasted_argnums=(2, 3)),
+        partial(jax.pmap, static_broadcasted_argnums=(2, 3, 4)),
     )(create_train_state)
     rng_for_train_state = (
         init_rng
@@ -427,12 +423,12 @@ if __name__ == "__main__":
             init_rng, 8
         )  ### #UGH we hardcode 8, not sure why this worked before :-/
     )
-    print("will call jit_create_train_state", rng_for_train_state.shape, onez)
     state = jit_create_train_state(
         rng_for_train_state,
         fork_on_parallelism(onez, onez),
         module,
         tx,
+        conversion_config
     )
 
     target = {"model": state, "config": None}
@@ -465,8 +461,8 @@ if __name__ == "__main__":
     for epoch in range(config.epochs):
         # ugggh
         # commenting out for now
-        epoch_is_0 = False  # epoch == 0
-        to_take_in_0_epoch = 104
+        epoch_is_0 = epoch == 0
+        to_take_in_0_epoch = 16
         train_dataset = (
             proto_train_dataset
             if not epoch_is_0
@@ -550,8 +546,6 @@ if __name__ == "__main__":
             except ValueError as e:
                 logging.warning(f"checkpoint artifact did not work {e}")
             start_time = current_time
-            # hack suggested on https://github.com/google/flax/discussions/1690
-            print(state.params)
         test_dataset.set_epoch(epoch)
         with tqdm(
             enumerate(

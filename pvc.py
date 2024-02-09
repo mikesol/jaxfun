@@ -178,7 +178,41 @@ def do_conversion(obj, ipt):
     converted = jnp.reshape(
         jnp.stack((c_r, c_i), axis=-1), (fkt_batch, fkt_seq, fkt_chan)
     )
+    # XLC should figure this out anyway
+    # but just in case...
+    converted = jax.lax.stop_gradient(converted)
     return converted
+
+
+def normalize(ipt, sample_rate):
+    converted_batch = ipt.shape[0]
+    converted_seq = ipt.shape[1]
+    converted_chan = ipt.shape[2]
+    converted_a, converted_f = normalize_amps(ipt[:, :, ::2]), normalize_freqs(
+        ipt[:, :, 1::2], sample_rate
+    )
+    converted = jnp.reshape(
+        jnp.stack((converted_a, converted_f), axis=-1),
+        (converted_batch, converted_seq, converted_chan),
+    )
+    # XLC should figure this out anyway
+    # but just in case...
+    converted = jax.lax.stop_gradient(converted)
+    return converted
+
+
+def denormalize(attended, sample_rate):
+    att_batch = attended.shape[0]
+    att_seq = attended.shape[1]
+    att_chan = attended.shape[2]
+    attended_a, attended_f = denormalize_amps(attended[:, :, ::2]), denormalize_freqs(
+        attended[:, :, 1::2], sample_rate
+    )
+    attended = jnp.reshape(
+        jnp.stack((attended_a, attended_f), axis=-1),
+        (att_batch, att_seq, att_chan),
+    )
+    return attended
 
 
 class PVC(nn.Module):
@@ -195,16 +229,6 @@ class PVC(nn.Module):
 
     @nn.compact
     def __call__(self, ipt, train: bool):
-        converted_batch = ipt.shape[0]
-        converted_seq = ipt.shape[1]
-        converted_chan = ipt.shape[2]
-        converted_a, converted_f = normalize_amps(ipt[:, :, ::2]), normalize_freqs(
-            ipt[:, :, 1::2], self.sample_rate
-        )
-        converted = jnp.reshape(
-            jnp.stack((converted_a, converted_f), axis=-1),
-            (converted_batch, converted_seq, converted_chan),
-        )
         # XLC should figure this out anyway
         # but just in case...
         converted = jax.lax.stop_gradient(converted)
@@ -222,16 +246,6 @@ class PVC(nn.Module):
                 for _ in range(self.attn_depth)
             ]
         )(encoded)
-        att_batch = attended.shape[0]
-        att_seq = attended.shape[1]
-        att_chan = attended.shape[2]
-        attended_a, attended_f = denormalize_amps(
-            attended[:, :, ::2]
-        ), denormalize_freqs(attended[:, :, 1::2], self.sample_rate)
-        attended = jnp.reshape(
-            jnp.stack((attended_a, attended_f), axis=-1),
-            (att_batch, att_seq, att_chan),
-        )
 
         return attended
 
@@ -249,6 +263,4 @@ if __name__ == "__main__":
         heads=32,
         expand_factor=2.0,
     )
-    print(
-        model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**14, 1)), train=False)
-    )
+    print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**14, 1)), train=False))
