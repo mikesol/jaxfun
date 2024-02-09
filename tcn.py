@@ -422,6 +422,7 @@ if __name__ == "__main__":
         30,
         10,
     )
+    print(coefficients.shape)
     # model = ExperimentalTCNNetwork(
     #     # features=2**6,
     #     activation=nn.vmap(

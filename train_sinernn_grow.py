@@ -253,7 +253,9 @@ if __name__ == "__main__":
                 raise ValueError(f"Requires key {k}")
         _config = in_config
         _config["loss_fn"] = LossFn(_config["loss_fn"])
-        _config["dense_across_stack_activation"] = Activation(_config["dense_across_stack_activation"])
+        _config["dense_across_stack_activation"] = Activation(
+            _config["dense_across_stack_activation"]
+        )
         _config["mesh_x"] = device_len // _config["mesh_x_div"]
         _config["mesh_y"] = _config["mesh_x_div"]
         del _config["mesh_x_div"]
