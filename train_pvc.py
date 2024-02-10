@@ -620,16 +620,18 @@ if __name__ == "__main__":
             input = maybe_replicate(input_)
             input = maybe_device_put(input, x_sharding)
             logging.warning(f"input shape for inference is is {input.shape}")
+
             jit_do_inference = fork_on_parallelism(
                 partial(
                     jax.jit,
+                    static_argnums=(2,),
                     in_shardings=(state_sharding, x_sharding),
                     out_shardings=x_sharding,
                 ),
-                jax.pmap,
+                partial(jax.pmap, static_broadcasted_argnums=(2,)),
             )(do_inference)
 
-            o = jit_do_inference(state, input)
+            o = jit_do_inference(state, input, conversion_config)
             o = maybe_unreplicate(o)
             assert o.shape[-1] == 1
             # logging.info(f"shape of batch is {input.shape}")
