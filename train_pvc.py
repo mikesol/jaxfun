@@ -174,7 +174,7 @@ def do_inference(state, input, conversion_config):
     i_inv = 1.0 / conversion_config.hop_length
     lastval = np.zeros((o.shape[0], o.shape[-1] // 2))
     index = np.zeros((o.shape[0], o.shape[-1] // 2))
-
+    o = denormalize(o)
     o = jnp.vmap(
         partial(
             noscbank,
