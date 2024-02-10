@@ -543,35 +543,34 @@ if __name__ == "__main__":
                     state = replace_metrics(state)
                     current_time = time.time()
                     elapsed_time = current_time - start_time
-        # temporarily move checkpoint to after the first epoch as it crashes otherwise
-        if not epoch_is_0:
-            # we test checkpointing early just to make sure it
-            # works so there aren't any nasty surprises
-            # checkpoint
-            ckpt_model = state
-            # needs to use underscore config
-            # becuase otherwise it doesn't serialize correctly
-            ckpt = {"model": ckpt_model, "config": _config}
-            if local_env.parallelism == Parallelism.PMAP:
-                ckpt = checkpoint_walker(ckpt)
+                if elapsed_time > (60 * 60 * 2):
+                    # we test checkpointing early just to make sure it
+                    # works so there aren't any nasty surprises
+                    # checkpoint
+                    ckpt_model = state
+                    # needs to use underscore config
+                    # becuase otherwise it doesn't serialize correctly
+                    ckpt = {"model": ckpt_model, "config": _config}
+                    if local_env.parallelism == Parallelism.PMAP:
+                        ckpt = checkpoint_walker(ckpt)
 
-            CHECK_NAME = (
-                epoch * train_total
-                # uncomment when we move back
-                # + batch_ix
-                + (RESTORE if RESTORE is not None else 0)
-            )
-            checkpoint_manager.save(CHECK_NAME, ckpt)
-            logging.warning(
-                f"saved checkpoint for epoch {epoch} in {os.listdir(checkpoint_dir)}"
-            )
-            try:
-                artifact = Artifact("checkpoint", artifact_type="model")
-                artifact.add(os.path.join(checkpoint_dir, f"{CHECK_NAME}"))
-                run.log_artifact(artifact)
-            except ValueError as e:
-                logging.warning(f"checkpoint artifact did not work {e}")
-            start_time = current_time
+                    CHECK_NAME = (
+                        epoch * train_total
+                        # uncomment when we move back
+                        # + batch_ix
+                        + (RESTORE if RESTORE is not None else 0)
+                    )
+                    checkpoint_manager.save(CHECK_NAME, ckpt)
+                    logging.warning(
+                        f"saved checkpoint for epoch {epoch} in {os.listdir(checkpoint_dir)}"
+                    )
+                    try:
+                        artifact = Artifact("checkpoint", artifact_type="model")
+                        artifact.add(os.path.join(checkpoint_dir, f"{CHECK_NAME}"))
+                        run.log_artifact(artifact)
+                    except ValueError as e:
+                        logging.warning(f"checkpoint artifact did not work {e}")
+                    start_time = current_time
         test_dataset.set_epoch(epoch)
         with tqdm(
             enumerate(
