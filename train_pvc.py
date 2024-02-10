@@ -170,7 +170,7 @@ def _replace_metrics(state):
     return state.replace(metrics=state.metrics.empty())
 
 
-def do_inference(state, input, conversion_config):
+def do_inference(state, input, conversion_config: ConversionConfig):
     input = normalize(
         do_conversion(conversion_config, input), conversion_config.sample_rate
     )
@@ -181,7 +181,7 @@ def do_inference(state, input, conversion_config):
         mutable=["batch_stats"],
     )
     p_inc = 1.0 / conversion_config.sample_rate
-    i_inv = 1.0 / conversion_config.hop_length
+    i_inv = 1.0 / conversion_config.hop_size
     lastval = np.zeros((o.shape[0], o.shape[-1] // 2))
     index = np.zeros((o.shape[0], o.shape[-1] // 2))
     o = denormalize(o)
