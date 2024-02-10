@@ -262,4 +262,6 @@ if __name__ == "__main__":
         heads=32,
         expand_factor=2.0,
     )
-    print(model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**14, 1)), train=False))
+    print(
+        model.tabulate(jax.random.key(0), jnp.ones((2**2, 2**14, 1)), train=False)
+    )

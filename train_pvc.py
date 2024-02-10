@@ -139,8 +139,13 @@ def interleave_jax(input_array, trained_output):
 def train_step(state, input, target, conversion_config):
     """Train for a single step."""
 
-    input = normalize(do_conversion(conversion_config, input), conversion_config.sample_rate)
-    target = normalize(do_conversion(conversion_config, target), conversion_config.sample_rate)
+    input = normalize(
+        do_conversion(conversion_config, input), conversion_config.sample_rate
+    )
+    target = normalize(
+        do_conversion(conversion_config, target), conversion_config.sample_rate
+    )
+
     def loss_fn(params):
         pred, updates = state.apply_fn(
             {"params": params, "batch_stats": state.batch_stats},
@@ -149,7 +154,9 @@ def train_step(state, input, target, conversion_config):
             mutable=["batch_stats"],
         )
         reach_back = min(pred.shape[1], target.shape[1]) // 2
-        loss = optax.l2_loss(pred[:, -reach_back:, :], target[:, -reach_back:, :]).mean()
+        loss = optax.l2_loss(
+            pred[:, -reach_back:, :], target[:, -reach_back:, :]
+        ).mean()
         return loss, updates
 
     grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
@@ -164,6 +171,9 @@ def _replace_metrics(state):
 
 
 def do_inference(state, input, conversion_config):
+    input = normalize(
+        do_conversion(conversion_config, input), conversion_config.sample_rate
+    )
     o, _ = state.apply_fn(
         {"params": state.params, "batch_stats": state.batch_stats},
         input,
@@ -175,14 +185,16 @@ def do_inference(state, input, conversion_config):
     lastval = np.zeros((o.shape[0], o.shape[-1] // 2))
     index = np.zeros((o.shape[0], o.shape[-1] // 2))
     o = denormalize(o)
-    o = jnp.vmap(
+    o = jax.vmap(
         partial(
             noscbank,
             nw=conversion_config.window_size,
             p_inc=p_inc,
             i_inv=i_inv,
             rg=jnp.arange(conversion_config.hop_size),
-        )
+        ),
+        in_axes=0,
+        out_axes=0,
     )((lastval, index), o)
     return o
 
@@ -191,8 +203,12 @@ replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
 
 
 def compute_loss(state, input, target, conversion_config):
-    input = normalize(do_conversion(conversion_config, input), conversion_config.sample_rate)
-    target = normalize(do_conversion(conversion_config, target), conversion_config.sample_rate)
+    input = normalize(
+        do_conversion(conversion_config, input), conversion_config.sample_rate
+    )
+    target = normalize(
+        do_conversion(conversion_config, target), conversion_config.sample_rate
+    )
 
     pred, _ = state.apply_fn(
         {"params": state.params, "batch_stats": state.batch_stats},
@@ -393,7 +409,12 @@ if __name__ == "__main__":
 
     if local_env.parallelism == Parallelism.SHARD:
         abstract_variables = jax.eval_shape(
-            partial(create_train_state, module=module, tx=tx, conversion_config=conversion_config),
+            partial(
+                create_train_state,
+                module=module,
+                tx=tx,
+                conversion_config=conversion_config,
+            ),
             init_rng,
             onez,
         )
@@ -428,7 +449,7 @@ if __name__ == "__main__":
         fork_on_parallelism(onez, onez),
         module,
         tx,
-        conversion_config
+        conversion_config,
     )
 
     target = {"model": state, "config": None}
@@ -520,7 +541,7 @@ if __name__ == "__main__":
                     current_time = time.time()
                     elapsed_time = current_time - start_time
         # temporarily move checkpoint to after the first epoch as it crashes otherwise
-        if (not epoch_is_0):
+        if not epoch_is_0:
             # we test checkpointing early just to make sure it
             # works so there aren't any nasty surprises
             # checkpoint
