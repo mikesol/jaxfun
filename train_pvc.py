@@ -182,7 +182,7 @@ def do_inference(state, input, conversion_config: ConversionConfig):
     )
     p_inc = 1.0 / conversion_config.sample_rate
     i_inv = 1.0 / conversion_config.hop_size
-    lastval = np.zeros((o.shape[0], o.shape[-1] // 2))
+    lastval = np.zeros((o.shape[0], o.shape[-1] // 2, 2))
     index = np.zeros((o.shape[0], o.shape[-1] // 2))
     o = denormalize(o, conversion_config.sample_rate)
     print("o shape", o.shape)
