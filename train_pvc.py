@@ -520,7 +520,7 @@ if __name__ == "__main__":
                     current_time = time.time()
                     elapsed_time = current_time - start_time
         # temporarily move checkpoint to after the first epoch as it crashes otherwise
-        if True:
+        if (not epoch_is_0):
             # we test checkpointing early just to make sure it
             # works so there aren't any nasty surprises
             # checkpoint
