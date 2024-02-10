@@ -182,8 +182,9 @@ def do_inference(state, input, conversion_config: ConversionConfig):
     )
     p_inc = 1.0 / conversion_config.sample_rate
     i_inv = 1.0 / conversion_config.hop_size
-    lastval = np.zeros((o.shape[0], o.shape[-1] // 2, 2))
-    index = np.zeros((o.shape[0], o.shape[-1] // 2))
+    batch_size = o.shape[0]
+    lastval = np.zeros((batch_size, o.shape[-1] // 2, 2))
+    index = np.zeros((batch_size, o.shape[-1] // 2))
     o = denormalize(o, conversion_config.sample_rate)
     print("o shape", o.shape)
     o = jax.vmap(
@@ -197,6 +198,7 @@ def do_inference(state, input, conversion_config: ConversionConfig):
         in_axes=0,
         out_axes=0,
     )((lastval, index), o)
+    o = jnp.reshape(o[1], (batch_size, -1, 1))
     return o
 
 
