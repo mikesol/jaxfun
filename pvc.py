@@ -231,10 +231,9 @@ class PVC(nn.Module):
     def __call__(self, ipt, train: bool):
         # XLC should figure this out anyway
         # but just in case...
-        converted = jax.lax.stop_gradient(converted)
         # network time!
         features = self.n_phasors * 2
-        convolved = converted
+        convolved = ipt
         for _ in range(self.conv_depth):
             convolved = TCN(
                 features=features, kernel_dilation=1, kernel_size=self.kernel_size
