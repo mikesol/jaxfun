@@ -184,7 +184,8 @@ def do_inference(state, input, conversion_config: ConversionConfig):
     i_inv = 1.0 / conversion_config.hop_size
     lastval = np.zeros((o.shape[0], o.shape[-1] // 2))
     index = np.zeros((o.shape[0], o.shape[-1] // 2))
-    o = denormalize(o)
+    o = denormalize(o, conversion_config.sample_rate)
+    print("o shape", o.shape)
     o = jax.vmap(
         partial(
             noscbank,
