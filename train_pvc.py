@@ -334,7 +334,7 @@ if __name__ == "__main__":
         os.makedirs(checkpoint_dir)
 
     orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
-    options = orbax.checkpoint.CheckpointManagerOptions(max_to_keep=2, create=True)
+    options = orbax.checkpoint.CheckpointManagerOptions(max_to_keep=1, create=True)
     checkpoint_manager = orbax.checkpoint.CheckpointManager(
         checkpoint_dir, orbax_checkpointer, options
     )
