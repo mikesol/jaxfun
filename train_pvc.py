@@ -557,7 +557,6 @@ def run_inference(
 
         for i in range(o.shape[0]):
             audy = np.squeeze(np.array(o[i]))
-            print("prediction dimension", audy.shape)
             run.log_audio(
                 audy,
                 sample_rate=44100,
