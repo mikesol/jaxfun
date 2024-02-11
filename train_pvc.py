@@ -189,35 +189,37 @@ def train_step(state, input_raw, target_raw, conversion_config):
     target_amp = target[:, :, ::2]
     target_freq = target[:, :, 1::2]
 
-    def loss_fn(params):
-        pred, updates = state.apply_fn(
-            {"params": params, "batch_stats": state.batch_stats},
-            input,
-            train=True,
-            mutable=["batch_stats"],
-        )
-        reach_back = min(pred.shape[1], target.shape[1]) // 2
-        pred, target = pred[:, -reach_back:, :], target[:, -reach_back:, :]
-        pred_a = pred[:, :, ::2]
-        pred_f = pred[:, :, 1::2]
-        p = denormalize(pred, conversion_config.sample_rate)
-        p_a = p[:, :, ::2]
-        p_f = p[:, :, 1::2]
-        loss = optax.l2_loss(pred, target).mean()
-        return (
-            loss,
-            updates,
-            jnp.max(pred_a),
-            jnp.min(pred_a),
-            jnp.max(pred_f),
-            jnp.min(pred_f),
-            jnp.max(p_a),
-            jnp.min(p_a),
-            jnp.max(p_f),
-            jnp.min(p_f),
-        )
+    def loss_fn(i, t):
+        def _ret(params):
+            pred, updates = state.apply_fn(
+                {"params": params, "batch_stats": state.batch_stats},
+                i,
+                train=True,
+                mutable=["batch_stats"],
+            )
+            reach_back = min(pred.shape[1], t.shape[1]) // 2
+            pred, t = pred[:, -reach_back:, :], t[:, -reach_back:, :]
+            pred_a = pred[:, :, ::2]
+            pred_f = pred[:, :, 1::2]
+            p = denormalize(pred, conversion_config.sample_rate)
+            p_a = p[:, :, ::2]
+            p_f = p[:, :, 1::2]
+            loss = optax.l2_loss(pred, t).mean()
+            return (
+                loss,
+                updates,
+                jnp.max(pred_a),
+                jnp.min(pred_a),
+                jnp.max(pred_f),
+                jnp.min(pred_f),
+                jnp.max(p_a),
+                jnp.min(p_a),
+                jnp.max(p_f),
+                jnp.min(p_f),
+            )
+        return _ret
 
-    grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
+    grad_fn = jax.value_and_grad(loss_fn(input, target), has_aux=True)
     (
         loss,
         updates,
