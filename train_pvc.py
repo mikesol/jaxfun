@@ -179,7 +179,7 @@ def train_step(state, input_raw, target_raw, conversion_config):
     input_c = do_conversion(conversion_config, input_raw)
     input_c_amp = input_c[:, :, ::2]
     input_c_freq = input_c[:, :, 1::2]
-    target_c =     do_conversion(conversion_config, target_raw)    
+    target_c = do_conversion(conversion_config, target_raw)
     target_c_amp = target_c[:, :, ::2]
     target_c_freq = target_c[:, :, 1::2]
     input = normalize(input_c, conversion_config.sample_rate)
@@ -191,6 +191,7 @@ def train_step(state, input_raw, target_raw, conversion_config):
 
     def loss_fn(i, t):
         targ = t
+
         def _ret(params):
             pred, updates = state.apply_fn(
                 {"params": params, "batch_stats": state.batch_stats},
@@ -206,8 +207,7 @@ def train_step(state, input_raw, target_raw, conversion_config):
             p_a = p[:, :, ::2]
             p_f = p[:, :, 1::2]
             loss = optax.l2_loss(pred, t).mean()
-            return (
-                loss,
+            return loss, (
                 updates,
                 jnp.max(pred_a),
                 jnp.min(pred_a),
@@ -218,20 +218,23 @@ def train_step(state, input_raw, target_raw, conversion_config):
                 jnp.max(p_f),
                 jnp.min(p_f),
             )
+
         return _ret
 
     grad_fn = jax.value_and_grad(loss_fn(input, target), has_aux=True)
     (
         loss,
-        updates,
-        pred_normalized_amp_max,
-        pred_normalized_amp_min,
-        pred_normalized_freq_max,
-        pred_normalized_freq_min,
-        pred_amp_max,
-        pred_amp_min,
-        pred_freq_max,
-        pred_freq_min,
+        (
+            updates,
+            pred_normalized_amp_max,
+            pred_normalized_amp_min,
+            pred_normalized_freq_max,
+            pred_normalized_freq_min,
+            pred_amp_max,
+            pred_amp_min,
+            pred_freq_max,
+            pred_freq_min,
+        ),
     ), grads = grad_fn(state.params)
     state = state.apply_gradients(grads=grads)
     state = state.replace(batch_stats=updates["batch_stats"])
@@ -305,11 +308,10 @@ replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
 
 
 def compute_loss(state, input_raw, target_raw, conversion_config):
-
     input_c = do_conversion(conversion_config, input_raw)
     input_c_amp = input_c[:, :, ::2]
     input_c_freq = input_c[:, :, 1::2]
-    target_c =     do_conversion(conversion_config, target_raw)    
+    target_c = do_conversion(conversion_config, target_raw)
     target_c_amp = target_c[:, :, ::2]
     target_c_freq = target_c[:, :, 1::2]
     input = normalize(input_c, conversion_config.sample_rate)
@@ -318,7 +320,6 @@ def compute_loss(state, input_raw, target_raw, conversion_config):
     target = normalize(target_c, conversion_config.sample_rate)
     target_amp = target[:, :, ::2]
     target_freq = target[:, :, 1::2]
-
 
     pred, _ = state.apply_fn(
         {"params": state.params, "batch_stats": state.batch_stats},
