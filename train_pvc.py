@@ -57,6 +57,7 @@ import sys
 from jax.sharding import Mesh, PartitionSpec, NamedSharding
 from jax.lax import with_sharding_constraint
 from jax.experimental import mesh_utils
+import subprocess
 
 RESTORE = None
 
@@ -646,9 +647,7 @@ if __name__ == "__main__":
                         f"saved checkpoint for epoch {epoch} in {os.listdir(checkpoint_dir)}"
                     )
                     try:
-                        artifact = Artifact("checkpoint", artifact_type="model")
-                        artifact.add(os.path.join(checkpoint_dir, f"{CHECK_NAME}"))
-                        run.log_artifact(artifact)
+                        subprocess.run(f'gsutil -m cp -r {os.path.join(checkpoint_dir, f"{CHECK_NAME}")} gs://meeshkan-experiments/jax-pvc/{run.id}/{CHECK_NAME}/', check=True, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                     except ValueError as e:
                         logging.warning(f"checkpoint artifact did not work {e}")
                     start_time = current_time
