@@ -1044,7 +1044,34 @@ if __name__ == "__main__":
                     target,
                     conversion_config,
                 )
-                state = add_losses_to_metrics(state=state, loss=loss)
+                state = add_losses_to_metrics(
+                    state=state,
+                    loss=loss,
+                    input_max_amp=input_max_amp,
+                    input_min_amp=input_min_amp,
+                    input_max_freq=input_max_freq,
+                    input_min_freq=input_min_freq,
+                    input_normalized_max_amp=input_normalized_max_amp,
+                    input_normalized_min_amp=input_normalized_min_amp,
+                    input_normalized_max_freq=input_normalized_max_freq,
+                    input_normalized_min_freq=input_normalized_min_freq,
+                    pred_max_amp=pred_max_amp,
+                    pred_min_amp=pred_min_amp,
+                    pred_max_freq=pred_max_freq,
+                    pred_min_freq=pred_min_freq,
+                    pred_normalized_max_amp=pred_normalized_max_amp,
+                    pred_normalized_min_amp=pred_normalized_min_amp,
+                    pred_normalized_max_freq=pred_normalized_max_freq,
+                    pred_normalized_min_freq=pred_normalized_min_freq,
+                    target_max_amp=target_max_amp,
+                    target_min_amp=target_min_amp,
+                    target_max_freq=target_max_freq,
+                    target_min_freq=target_min_freq,
+                    target_normalized_max_amp=target_normalized_max_amp,
+                    target_normalized_min_amp=target_normalized_min_amp,
+                    target_normalized_max_freq=target_normalized_max_freq,
+                    target_normalized_min_freq=target_normalized_min_freq,
+                )
         metrics = maybe_unreplicate(state.metrics).compute()
         run.log_metrics(
             {
