@@ -674,7 +674,7 @@ if __name__ == "__main__":
         sample_rate=config.sample_rate,
         amps_log_min=config.amps_log_min,
         amps_log_max=config.amps_log_max,
-        amps_epsilon=jnp.exp(config.amps_log_epsilon),
+        amps_epsilon=np.exp(config.amps_log_epsilon),
         freqs_min=config.freqs_min,
         freqs_max=config.freqs_max,
     )
