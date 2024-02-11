@@ -516,16 +516,16 @@ if __name__ == "__main__":
             ),
             total=train_total if not epoch_is_0 else to_take_in_0_epoch,
             unit="batch",
-        ) as loop:
-            for batch_ix, batch in loop:
-                should_use_gen = batch_ix % 2 == 1
-                input = trim_batch(jnp.array(batch["input"]), config.batch_size)
+        ) as train_loop:
+            for train_batch_ix, train_batch in train_loop:
+                should_use_gen = train_batch_ix % 2 == 1
+                input = trim_batch(jnp.array(train_batch["input"]), config.batch_size)
                 if input.shape[0] == 0:
                     continue
                 assert input.shape[1] == config.window
                 input = maybe_replicate(input)
                 input = maybe_device_put(input, x_sharding)
-                target = trim_batch(jnp.array(batch["target"]), config.batch_size)
+                target = trim_batch(jnp.array(train_batch["target"]), config.batch_size)
                 assert target.shape[1] == config.window
                 target = maybe_replicate(target)
                 with fork_on_parallelism(mesh, nullcontext()):
@@ -535,11 +535,11 @@ if __name__ == "__main__":
 
                     state = add_losses_to_metrics(state=state, loss=loss)
 
-                if batch_ix % config.step_freq == 0:
+                if train_batch_ix % config.step_freq == 0:
                     metrics = maybe_unreplicate(state.metrics).compute()
                     run.log_metrics({"train_loss": metrics["loss"]}, step=step_ctr)
                     step_ctr += 1
-                    loop.set_postfix(loss=metrics["loss"])
+                    train_loop.set_postfix(loss=metrics["loss"])
                     state = replace_metrics(state)
                     current_time = time.time()
                     elapsed_time = current_time - start_time
@@ -557,7 +557,7 @@ if __name__ == "__main__":
                     CHECK_NAME = (
                         epoch * train_total
                         # uncomment when we move back
-                        # + batch_ix
+                        # + train_batch_ix
                         + (RESTORE if RESTORE is not None else 0)
                     )
                     checkpoint_manager.save(CHECK_NAME, ckpt)
@@ -582,16 +582,16 @@ if __name__ == "__main__":
                 else to_take_in_0_epoch
             ),
             unit="batch",
-        ) as loop:
-            for batch_ix, batch in loop:
+        ) as validation_loop:
+            for val_batch_ix, val_batch in validation_loop:
                 input = maybe_replicate(
-                    trim_batch(jnp.array(batch["input"]), config.batch_size)
+                    trim_batch(jnp.array(val_batch["input"]), config.batch_size)
                 )
                 if input.shape[0] == 0:
                     continue
                 input = maybe_device_put(input, x_sharding)
                 target = maybe_replicate(
-                    trim_batch(jnp.array(batch["target"]), config.batch_size)
+                    trim_batch(jnp.array(val_batch["target"]), config.batch_size)
                 )
                 loss = jit_compute_loss(
                     state,
@@ -605,7 +605,7 @@ if __name__ == "__main__":
         state = replace_metrics(state)
         # inference
         inference_dataset.set_epoch(epoch)
-        for batch_ix, batch in tqdm(
+        for inference_batch_ix, inference_batch in tqdm(
             enumerate(
                 inference_dataset.take(
                     config.inference_artifacts_per_batch_per_epoch
@@ -613,11 +613,11 @@ if __name__ == "__main__":
             ),
             total=config.inference_artifacts_per_batch_per_epoch,
         ):
-            input_ = trim_batch(jnp.array(batch["input"]), config.inference_batch_size)
+            input_ = trim_batch(jnp.array(inference_batch["input"]), config.inference_batch_size)
             if input_.shape[0] == 0:
                 continue
             target_ = trim_batch(
-                jnp.array(batch["target"]), config.inference_batch_size
+                jnp.array(inference_batch["target"]), config.inference_batch_size
             )
             input = maybe_replicate(input_)
             input = maybe_device_put(input, x_sharding)
@@ -645,19 +645,19 @@ if __name__ == "__main__":
                     audy,
                     sample_rate=44100,
                     step=epoch,
-                    file_name=f"audio_{epoch}_{batch_ix}_{i}_prediction.wav",
+                    file_name=f"audio_{epoch}_{inference_batch_ix}_{i}_prediction.wav",
                 )
                 audy = np.squeeze(np.array(input_[i, :, :1]))
                 run.log_audio(
                     audy,
                     sample_rate=44100,
                     step=epoch,
-                    file_name=f"audio_{epoch}_{batch_ix}_{i}_input.wav",
+                    file_name=f"audio_{epoch}_{inference_batch_ix}_{i}_input.wav",
                 )
                 audy = np.squeeze(np.array(target_[i]))
                 run.log_audio(
                     audy,
                     sample_rate=44100,
                     step=epoch,
-                    file_name=f"audio_{epoch}_{batch_ix}_{i}_target.wav",
+                    file_name=f"audio_{epoch}_{inference_batch_ix}_{i}_target.wav",
                 )
