@@ -242,6 +242,76 @@ def mesh_sharding(pspec: PartitionSpec) -> NamedSharding:
     return NamedSharding(mesh, pspec)
 
 
+def run_inference(
+    inference_dataset,
+    epoch,
+    config,
+    x_sharding,
+    state_sharding,
+    state,
+    conversion_config,
+    run,
+):
+    for inference_batch_ix, inference_batch in tqdm(
+        enumerate(
+            inference_dataset.take(config.inference_artifacts_per_batch_per_epoch).iter(
+                batch_size=config.inference_batch_size
+            )
+        ),
+        total=config.inference_artifacts_per_batch_per_epoch,
+    ):
+        input_ = trim_batch(
+            jnp.array(inference_batch["input"]), config.inference_batch_size
+        )
+        if input_.shape[0] == 0:
+            continue
+        target_ = trim_batch(
+            jnp.array(inference_batch["target"]), config.inference_batch_size
+        )
+        input = maybe_replicate(input_)
+        input = maybe_device_put(input, x_sharding)
+        logging.warning(f"input shape for inference is is {input.shape}")
+
+        jit_do_inference = fork_on_parallelism(
+            partial(
+                jax.jit,
+                static_argnums=(2,),
+                in_shardings=(state_sharding, x_sharding),
+                out_shardings=x_sharding,
+            ),
+            partial(jax.pmap, static_broadcasted_argnums=(2,)),
+        )(do_inference)
+
+        o = jit_do_inference(state, input, conversion_config)
+        o = maybe_unreplicate(o)
+        assert o.shape[-1] == 1
+        # logging.info(f"shape of batch is {input.shape}")
+
+        for i in range(o.shape[0]):
+            audy = np.squeeze(np.array(o[i]))
+            print("prediction dimension", audy.shape)
+            run.log_audio(
+                audy,
+                sample_rate=44100,
+                step=epoch,
+                file_name=f"audio_{epoch}_{inference_batch_ix}_{i}_prediction.wav",
+            )
+            audy = np.squeeze(np.array(input_[i, :, :1]))
+            run.log_audio(
+                audy,
+                sample_rate=44100,
+                step=epoch,
+                file_name=f"audio_{epoch}_{inference_batch_ix}_{i}_input.wav",
+            )
+            audy = np.squeeze(np.array(target_[i]))
+            run.log_audio(
+                audy,
+                sample_rate=44100,
+                step=epoch,
+                file_name=f"audio_{epoch}_{inference_batch_ix}_{i}_target.wav",
+            )
+
+
 if __name__ == "__main__":
     from get_files import FILES
 
@@ -507,6 +577,7 @@ if __name__ == "__main__":
         # log the epoch
         run.log_current_epoch(epoch)
         train_dataset.set_epoch(epoch)
+        inference_dataset.set_epoch(epoch)
 
         # train
         train_total = train_dataset_total // config.batch_size
@@ -544,6 +615,16 @@ if __name__ == "__main__":
                     current_time = time.time()
                     elapsed_time = current_time - start_time
                 if elapsed_time > (60 * 60 * 2):
+                    run_inference(
+                        inference_dataset,
+                        epoch,
+                        config,
+                        x_sharding,
+                        state_sharding,
+                        state,
+                        conversion_config,
+                        run,
+                    )
                     # we test checkpointing early just to make sure it
                     # works so there aren't any nasty surprises
                     # checkpoint
@@ -605,59 +686,13 @@ if __name__ == "__main__":
         state = replace_metrics(state)
         # inference
         inference_dataset.set_epoch(epoch)
-        for inference_batch_ix, inference_batch in tqdm(
-            enumerate(
-                inference_dataset.take(
-                    config.inference_artifacts_per_batch_per_epoch
-                ).iter(batch_size=config.inference_batch_size)
-            ),
-            total=config.inference_artifacts_per_batch_per_epoch,
-        ):
-            input_ = trim_batch(jnp.array(inference_batch["input"]), config.inference_batch_size)
-            if input_.shape[0] == 0:
-                continue
-            target_ = trim_batch(
-                jnp.array(inference_batch["target"]), config.inference_batch_size
-            )
-            input = maybe_replicate(input_)
-            input = maybe_device_put(input, x_sharding)
-            logging.warning(f"input shape for inference is is {input.shape}")
-
-            jit_do_inference = fork_on_parallelism(
-                partial(
-                    jax.jit,
-                    static_argnums=(2,),
-                    in_shardings=(state_sharding, x_sharding),
-                    out_shardings=x_sharding,
-                ),
-                partial(jax.pmap, static_broadcasted_argnums=(2,)),
-            )(do_inference)
-
-            o = jit_do_inference(state, input, conversion_config)
-            o = maybe_unreplicate(o)
-            assert o.shape[-1] == 1
-            # logging.info(f"shape of batch is {input.shape}")
-
-            for i in range(o.shape[0]):
-                audy = np.squeeze(np.array(o[i]))
-                print("prediction dimension", audy.shape)
-                run.log_audio(
-                    audy,
-                    sample_rate=44100,
-                    step=epoch,
-                    file_name=f"audio_{epoch}_{inference_batch_ix}_{i}_prediction.wav",
-                )
-                audy = np.squeeze(np.array(input_[i, :, :1]))
-                run.log_audio(
-                    audy,
-                    sample_rate=44100,
-                    step=epoch,
-                    file_name=f"audio_{epoch}_{inference_batch_ix}_{i}_input.wav",
-                )
-                audy = np.squeeze(np.array(target_[i]))
-                run.log_audio(
-                    audy,
-                    sample_rate=44100,
-                    step=epoch,
-                    file_name=f"audio_{epoch}_{inference_batch_ix}_{i}_target.wav",
-                )
+        run_inference(
+            inference_dataset,
+            epoch,
+            config,
+            x_sharding,
+            state_sharding,
+            state,
+            conversion_config,
+            run,
+        )
