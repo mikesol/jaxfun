@@ -30,34 +30,27 @@ CarryHistory = Any
 Output = Any
 import numpy as np
 
-amps_log_min = jnp.log(1e-20)
-amps_log_max = jnp.log(1e-3)
-epsilon = 1e-20
 
-
-def normalize_amps(amps):
-    amps_log = jnp.log(amps + epsilon)  # Logarithmic transformation
-    # Scale to [0, 1] or [-1, 1] here based on the min-max of the transformed amps
-    # Assume amps_log_min and amps_log_max are the global min and max values you've determined
-    amps_normalized = (amps_log - amps_log_min) / (
-        amps_log_max - amps_log_min
-    )  # Example for [0, 1]
+def normalize_amps(amps, amps_log_min, amps_log_max, amps_epsilon):
+    amps_log = jnp.log(amps + amps_epsilon)  # Logarithmic transformation
+    # Scale based on the provided min and max values
+    amps_normalized = (amps_log - amps_log_min) / (amps_log_max - amps_log_min) * 2 - 1
     return amps_normalized
 
 
-def denormalize_amps(amps_normalized):
-    amps_log = amps_normalized * (amps_log_max - amps_log_min) + amps_log_min
-    amps = jnp.exp(amps_log) - epsilon  # Subtract epsilon if added during normalization
+def denormalize_amps(amps_normalized, amps_log_min, amps_log_max, amps_epsilon):
+    amps_log = (amps_normalized + 1) / 2 * (amps_log_max - amps_log_min) + amps_log_min
+    amps = jnp.exp(amps_log) - amps_epsilon
     return amps
 
 
-def normalize_freqs(freqs, sample_rate):
-    freqs_normalized = freqs / (sample_rate / 4) - 1
+def normalize_freqs(freqs, freqs_min, freqs_max):
+    freqs_normalized = (freqs - freqs_min) / (freqs_max - freqs_min) * 2 - 1
     return freqs_normalized
 
 
-def denormalize_freqs(freqs_normalized, sample_rate):
-    freqs = (freqs_normalized + 1) * (sample_rate / 4)
+def denormalize_freqs(freqs_normalized, freqs_min, freqs_max):
+    freqs = (freqs_normalized + 1) / 2 * (freqs_max - freqs_min) + freqs_min
     return freqs
 
 
@@ -184,13 +177,16 @@ def do_conversion(obj, ipt):
     return converted
 
 
-def normalize(ipt, sample_rate):
+def normalize(ipt, amps_log_min, amps_log_max, amps_epsilon, freqs_min, freqs_max):
     converted_batch = ipt.shape[0]
     converted_seq = ipt.shape[1]
     converted_chan = ipt.shape[2]
-    converted_a, converted_f = normalize_amps(ipt[:, :, ::2]), normalize_freqs(
-        ipt[:, :, 1::2], sample_rate
-    )
+    converted_a, converted_f = normalize_amps(
+        ipt[:, :, ::2],
+        amps_log_max=amps_log_max,
+        amps_log_min=amps_log_min,
+        amps_epsilon=amps_epsilon,
+    ), normalize_freqs(ipt[:, :, 1::2], freqs_max=freqs_max, freqs_min=freqs_min)
     converted = jnp.reshape(
         jnp.stack((converted_a, converted_f), axis=-1),
         (converted_batch, converted_seq, converted_chan),
@@ -201,13 +197,18 @@ def normalize(ipt, sample_rate):
     return converted
 
 
-def denormalize(attended, sample_rate):
+def denormalize(
+    attended, amps_log_min, amps_log_max, amps_epsilon, freqs_min, freqs_max
+):
     att_batch = attended.shape[0]
     att_seq = attended.shape[1]
     att_chan = attended.shape[2]
-    attended_a, attended_f = denormalize_amps(attended[:, :, ::2]), denormalize_freqs(
-        attended[:, :, 1::2], sample_rate
-    )
+    attended_a, attended_f = denormalize_amps(
+        attended[:, :, ::2],
+        amps_log_max=amps_log_max,
+        amps_log_min=amps_log_min,
+        amps_epsilon=amps_epsilon,
+    ), denormalize_freqs(attended[:, :, 1::2], freqs_max=freqs_max, freqs_min=freqs_min)
     attended = jnp.reshape(
         jnp.stack((attended_a, attended_f), axis=-1),
         (att_batch, att_seq, att_chan),

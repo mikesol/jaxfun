@@ -26,6 +26,11 @@ class ConversionConfig:
     hop_size: int
     window_size: int
     sample_rate: int
+    amps_log_min: float
+    amps_log_max: float
+    amps_epsilon: float
+    freqs_min: float
+    freqs_max: float
 
 
 start_time = time.time()
@@ -147,7 +152,14 @@ class TrainState(train_state.TrainState):
 
 def create_train_state(rng: PRNGKey, x, module, tx, conversion_config) -> TrainState:
     print("creating train state", rng.shape, x.shape)
-    x = normalize(do_conversion(conversion_config, x), conversion_config.sample_rate)
+    x = normalize(
+        do_conversion(conversion_config, x),
+        amps_log_max=conversion_config.amps_log_max,
+        amps_log_min=conversion_config.amps_log_min,
+        amps_epsilon=conversion_config.amps_epsilon,
+        freqs_max=conversion_config.freqs_max,
+        freqs_min=conversion_config.freqs_min,
+    )
     variables = module.init(rng, x, train=False)
     params = variables["params"]
     # if we are not doing batch norm, there won't be any batch_stats
@@ -182,10 +194,24 @@ def train_step(state, input_raw, target_raw, conversion_config):
     target_c = do_conversion(conversion_config, target_raw)
     target_c_amp = target_c[:, :, ::2]
     target_c_freq = target_c[:, :, 1::2]
-    input = normalize(input_c, conversion_config.sample_rate)
+    input = normalize(
+        input_c,
+        amps_log_max=conversion_config.amps_log_max,
+        amps_log_min=conversion_config.amps_log_min,
+        amps_epsilon=conversion_config.amps_epsilon,
+        freqs_max=conversion_config.freqs_max,
+        freqs_min=conversion_config.freqs_min,
+    )
     input_amp = input[:, :, ::2]
     input_freq = input[:, :, 1::2]
-    target = normalize(target_c, conversion_config.sample_rate)
+    target = normalize(
+        target_c,
+        amps_log_max=conversion_config.amps_log_max,
+        amps_log_min=conversion_config.amps_log_min,
+        amps_epsilon=conversion_config.amps_epsilon,
+        freqs_max=conversion_config.freqs_max,
+        freqs_min=conversion_config.freqs_min,
+    )
     target_amp = target[:, :, ::2]
     target_freq = target[:, :, 1::2]
 
@@ -203,7 +229,14 @@ def train_step(state, input_raw, target_raw, conversion_config):
             pred, t = pred[:, -reach_back:, :], targ[:, -reach_back:, :]
             pred_a = pred[:, :, ::2]
             pred_f = pred[:, :, 1::2]
-            p = denormalize(pred, conversion_config.sample_rate)
+            p = denormalize(
+                pred,
+                amps_log_max=conversion_config.amps_log_max,
+                amps_log_min=conversion_config.amps_log_min,
+                amps_epsilon=conversion_config.amps_epsilon,
+                freqs_max=conversion_config.freqs_max,
+                freqs_min=conversion_config.freqs_min,
+            )
             p_a = p[:, :, ::2]
             p_f = p[:, :, 1::2]
             loss = optax.l2_loss(pred, t).mean()
@@ -274,7 +307,12 @@ def _replace_metrics(state):
 
 def do_inference(state, input, conversion_config: ConversionConfig):
     input = normalize(
-        do_conversion(conversion_config, input), conversion_config.sample_rate
+        do_conversion(conversion_config, input),
+        amps_log_max=conversion_config.amps_log_max,
+        amps_log_min=conversion_config.amps_log_min,
+        amps_epsilon=conversion_config.amps_epsilon,
+        freqs_max=conversion_config.freqs_max,
+        freqs_min=conversion_config.freqs_min,
     )
     o, _ = state.apply_fn(
         {"params": state.params, "batch_stats": state.batch_stats},
@@ -287,7 +325,14 @@ def do_inference(state, input, conversion_config: ConversionConfig):
     batch_size = o.shape[0]
     lastval = np.zeros((batch_size, o.shape[-1] // 2, 2))
     index = np.zeros((batch_size, o.shape[-1] // 2))
-    o = denormalize(o, conversion_config.sample_rate)
+    o = denormalize(
+        o,
+        amps_log_max=conversion_config.amps_log_max,
+        amps_log_min=conversion_config.amps_log_min,
+        amps_epsilon=conversion_config.amps_epsilon,
+        freqs_max=conversion_config.freqs_max,
+        freqs_min=conversion_config.freqs_min,
+    )
     print("o shape", o.shape)
     o = jax.vmap(
         partial(
@@ -314,10 +359,24 @@ def compute_loss(state, input_raw, target_raw, conversion_config):
     target_c = do_conversion(conversion_config, target_raw)
     target_c_amp = target_c[:, :, ::2]
     target_c_freq = target_c[:, :, 1::2]
-    input = normalize(input_c, conversion_config.sample_rate)
+    input = normalize(
+        input_c,
+        amps_log_max=conversion_config.amps_log_max,
+        amps_log_min=conversion_config.amps_log_min,
+        amps_epsilon=conversion_config.amps_epsilon,
+        freqs_max=conversion_config.freqs_max,
+        freqs_min=conversion_config.freqs_min,
+    )
     input_amp = input[:, :, ::2]
     input_freq = input[:, :, 1::2]
-    target = normalize(target_c, conversion_config.sample_rate)
+    target = normalize(
+        target_c,
+        amps_log_max=conversion_config.amps_log_max,
+        amps_log_min=conversion_config.amps_log_min,
+        amps_epsilon=conversion_config.amps_epsilon,
+        freqs_max=conversion_config.freqs_max,
+        freqs_min=conversion_config.freqs_min,
+    )
     target_amp = target[:, :, ::2]
     target_freq = target[:, :, 1::2]
 
@@ -331,7 +390,14 @@ def compute_loss(state, input_raw, target_raw, conversion_config):
     pred, target = pred[:, -reach_back:, :], target[:, -reach_back:, :]
     pred_a = pred[:, :, ::2]
     pred_f = pred[:, :, 1::2]
-    p = denormalize(pred, conversion_config.sample_rate)
+    p = denormalize(
+        pred,
+        amps_log_max=conversion_config.amps_log_max,
+        amps_log_min=conversion_config.amps_log_min,
+        amps_epsilon=conversion_config.amps_epsilon,
+        freqs_max=conversion_config.freqs_max,
+        freqs_min=conversion_config.freqs_min,
+    )
     p_a = p[:, :, ::2]
     p_f = p[:, :, 1::2]
     loss = optax.l2_loss(pred, target).mean()
@@ -580,6 +646,11 @@ if __name__ == "__main__":
     _config["attn_depth"] = 16
     _config["heads"] = 32
     _config["expand_factor"] = 2.0
+    _config["amps_log_min"] = -73.682724
+    _config["amps_log_max"] = -6.9077554
+    _config["amps_log_epsilon"] = -73.682724
+    _config["freqs_min"] = 0.0
+    _config["freqs_max"] = 11025.0
     with open(local_env.config_file, "r") as f:
         in_config = yaml.safe_load(f)["config"]
         for k, v in in_config.items():
@@ -602,6 +673,11 @@ if __name__ == "__main__":
         hop_size=config.hop_size,
         window_size=config.window_size,
         sample_rate=config.sample_rate,
+        amps_log_min=config.amps_log_min,
+        amps_log_max=config.amps_log_max,
+        amps_epsilon=jnp.exp(config.amps_log_epsilon),
+        freqs_min=config.freqs_min,
+        freqs_max=config.freqs_max,
     )
     device_mesh = None
     mesh = None
