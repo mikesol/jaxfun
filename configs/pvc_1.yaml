@@ -18,8 +18,8 @@ config:
   sample_rate: 44100
   kernel_size: 5
   n_phasors: 512
-  conv_depth: 16
-  attn_depth: 16
+  conv_depth: 12
+  attn_depth: 8
   heads: 32
   expand_factor: 2.0
   amps_log_min: -27.631021115928547
