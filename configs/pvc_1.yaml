@@ -22,8 +22,8 @@ config:
   attn_depth: 16
   heads: 32
   expand_factor: 2.0
-  amps_log_min: -36.841361487904734
+  amps_log_min: -27.631021115928547
   amps_log_max: -6.9077554
-  amps_log_epsilon: -73.68272297580947
+  amps_log_epsilon: -55.262042231857095
   freqs_min: 0.0
   freqs_max: 11025.0
