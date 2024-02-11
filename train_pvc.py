@@ -102,6 +102,42 @@ def trim_batch(tensor, batch_size):
 @struct.dataclass
 class Metrics(metrics.Collection):
     loss: metrics.Average.from_output("loss")
+    input_max_amp: metrics.LastValue.from_output("input_max_amp")
+    input_min_amp: metrics.LastValue.from_output("input_min_amp")
+    input_max_freq: metrics.LastValue.from_output("input_max_freq")
+    input_min_freq: metrics.LastValue.from_output("input_min_freq")
+    input_normalized_max_amp: metrics.LastValue.from_output("input_normalized_max_amp")
+    input_normalized_min_amp: metrics.LastValue.from_output("input_normalized_min_amp")
+    input_normalized_max_freq: metrics.LastValue.from_output(
+        "input_normalized_max_freq"
+    )
+    input_normalized_min_freq: metrics.LastValue.from_output(
+        "input_normalized_min_freq"
+    )
+    pred_max_amp: metrics.LastValue.from_output("pred_max_amp")
+    pred_min_amp: metrics.LastValue.from_output("pred_min_amp")
+    pred_max_freq: metrics.LastValue.from_output("pred_max_freq")
+    pred_min_freq: metrics.LastValue.from_output("pred_min_freq")
+    pred_normalized_max_amp: metrics.LastValue.from_output("pred_normalized_max_amp")
+    pred_normalized_min_amp: metrics.LastValue.from_output("pred_normalized_min_amp")
+    pred_normalized_max_freq: metrics.LastValue.from_output("pred_normalized_max_freq")
+    pred_normalized_min_freq: metrics.LastValue.from_output("pred_normalized_min_freq")
+    target_max_amp: metrics.LastValue.from_output("target_max_amp")
+    target_min_amp: metrics.LastValue.from_output("target_min_amp")
+    target_max_freq: metrics.LastValue.from_output("target_max_freq")
+    target_min_freq: metrics.LastValue.from_output("target_min_freq")
+    target_normalized_max_amp: metrics.LastValue.from_output(
+        "target_normalized_max_amp"
+    )
+    target_normalized_min_amp: metrics.LastValue.from_output(
+        "target_normalized_min_amp"
+    )
+    target_normalized_max_freq: metrics.LastValue.from_output(
+        "target_normalized_max_freq"
+    )
+    target_normalized_min_freq: metrics.LastValue.from_output(
+        "target_normalized_min_freq"
+    )
 
 
 class TrainState(train_state.TrainState):
@@ -137,15 +173,25 @@ def interleave_jax(input_array, trained_output):
     return interleaved
 
 
-def train_step(state, input, target, conversion_config):
+def train_step(state, input_raw, target_raw, conversion_config):
     """Train for a single step."""
 
-    input = normalize(
-        do_conversion(conversion_config, input), conversion_config.sample_rate
+    input_c = do_conversion(conversion_config, input_raw), conversion_config.sample_rate
+    input_c_amp = input_c[:, :, ::2]
+    input_c_freq = input_c[:, :, 1::2]
+    target_c = (
+        do_conversion(conversion_config, target_raw),
+        conversion_config.sample_rate,
     )
-    target = normalize(
-        do_conversion(conversion_config, target), conversion_config.sample_rate
-    )
+    target_c_amp = target_c[:, :, ::2]
+    target_c_freq = target_c[:, :, 1::2]
+
+    input = normalize(input_c)
+    input_amp = input[:, :, ::2]
+    input_freq = input[:, :, 1::2]
+    target = normalize(target_c)
+    target_amp = target[:, :, ::2]
+    target_freq = target[:, :, 1::2]
 
     def loss_fn(params):
         pred, updates = state.apply_fn(
@@ -155,16 +201,69 @@ def train_step(state, input, target, conversion_config):
             mutable=["batch_stats"],
         )
         reach_back = min(pred.shape[1], target.shape[1]) // 2
-        loss = optax.l2_loss(
-            pred[:, -reach_back:, :], target[:, -reach_back:, :]
-        ).mean()
-        return loss, updates
+        pred, target = pred[:, -reach_back:, :], target[:, -reach_back:, :]
+        pred_a = pred[:, :, ::2]
+        pred_f = pred[:, :, 1::2]
+        p = denormalize(pred, conversion_config.sample_rate)
+        p_a = p[:, :, ::2]
+        p_f = p[:, :, 1::2]
+        loss = optax.l2_loss(pred, target).mean()
+        return (
+            loss,
+            updates,
+            jnp.max(pred_a),
+            jnp.min(pred_a),
+            jnp.max(pred_f),
+            jnp.min(pred_f),
+            jnp.max(p_a),
+            jnp.min(p_a),
+            jnp.max(p_f),
+            jnp.min(p_f),
+        )
 
     grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
-    (loss, updates), grads = grad_fn(state.params)
+    (
+        loss,
+        updates,
+        pred_normalized_amp_max,
+        pred_normalized_amp_min,
+        pred_normalized_freq_max,
+        pred_normalized_freq_min,
+        pred_amp_max,
+        pred_amp_min,
+        pred_freq_max,
+        pred_freq_min,
+    ), grads = grad_fn(state.params)
     state = state.apply_gradients(grads=grads)
     state = state.replace(batch_stats=updates["batch_stats"])
-    return state, loss
+    return (
+        state,
+        loss,
+        jnp.max(input_c_amp),
+        jnp.min(input_c_amp),
+        jnp.max(input_c_freq),
+        jnp.min(input_c_freq),
+        jnp.max(input_amp),
+        jnp.min(input_amp),
+        jnp.max(input_freq),
+        jnp.min(input_freq),
+        pred_amp_max,
+        pred_amp_min,
+        pred_freq_max,
+        pred_freq_min,
+        pred_normalized_amp_max,
+        pred_normalized_amp_min,
+        pred_normalized_freq_max,
+        pred_normalized_freq_min,
+        jnp.max(target_c_amp),
+        jnp.min(target_c_amp),
+        jnp.max(target_c_freq),
+        jnp.min(target_c_freq),
+        jnp.max(target_amp),
+        jnp.min(target_amp),
+        jnp.max(target_freq),
+        jnp.min(target_freq),
+    )
 
 
 def _replace_metrics(state):
@@ -206,13 +305,23 @@ def do_inference(state, input, conversion_config: ConversionConfig):
 replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
 
 
-def compute_loss(state, input, target, conversion_config):
-    input = normalize(
-        do_conversion(conversion_config, input), conversion_config.sample_rate
+def compute_loss(state, input_raw, target_raw, conversion_config):
+    input_c = do_conversion(conversion_config, input_raw), conversion_config.sample_rate
+    input_c_amp = input_c[:, :, ::2]
+    input_c_freq = input_c[:, :, 1::2]
+    target_c = (
+        do_conversion(conversion_config, target_raw),
+        conversion_config.sample_rate,
     )
-    target = normalize(
-        do_conversion(conversion_config, target), conversion_config.sample_rate
-    )
+    target_c_amp = target_c[:, :, ::2]
+    target_c_freq = target_c[:, :, 1::2]
+
+    input = normalize(input_c)
+    input_amp = input[:, :, ::2]
+    input_freq = input[:, :, 1::2]
+    target = normalize(target_c)
+    target_amp = target[:, :, ::2]
+    target_freq = target[:, :, 1::2]
 
     pred, _ = state.apply_fn(
         {"params": state.params, "batch_stats": state.batch_stats},
@@ -221,12 +330,106 @@ def compute_loss(state, input, target, conversion_config):
         mutable=["batch_stats"],
     )
     reach_back = min(pred.shape[1], target.shape[1]) // 2
-    loss = optax.l2_loss(pred[:, -reach_back:, :], target[:, -reach_back:, :]).mean()
-    return loss
+    pred, target = pred[:, -reach_back:, :], target[:, -reach_back:, :]
+    pred_a = pred[:, :, ::2]
+    pred_f = pred[:, :, 1::2]
+    p = denormalize(pred, conversion_config.sample_rate)
+    p_a = p[:, :, ::2]
+    p_f = p[:, :, 1::2]
+    loss = optax.l2_loss(pred, target).mean()
+    pred_normalized_amp_max = jnp.max(pred_a)
+    pred_normalized_amp_min = jnp.min(pred_a)
+    pred_normalized_freq_max = jnp.max(pred_f)
+    pred_normalized_freq_min = jnp.min(pred_f)
+    pred_amp_max = jnp.max(p_a)
+    pred_amp_min = jnp.min(p_a)
+    pred_freq_max = jnp.max(p_f)
+    pred_freq_min = jnp.min(p_f)
+
+    return (
+        loss,
+        jnp.max(input_c_amp),
+        jnp.min(input_c_amp),
+        jnp.max(input_c_freq),
+        jnp.min(input_c_freq),
+        jnp.max(input_amp),
+        jnp.min(input_amp),
+        jnp.max(input_freq),
+        jnp.min(input_freq),
+        pred_amp_max,
+        pred_amp_min,
+        pred_freq_max,
+        pred_freq_min,
+        pred_normalized_amp_max,
+        pred_normalized_amp_min,
+        pred_normalized_freq_max,
+        pred_normalized_freq_min,
+        jnp.max(target_c_amp),
+        jnp.min(target_c_amp),
+        jnp.max(target_c_freq),
+        jnp.min(target_c_freq),
+        jnp.max(target_amp),
+        jnp.min(target_amp),
+        jnp.max(target_freq),
+        jnp.min(target_freq),
+    )
 
 
-def _add_losses_to_metrics(state, loss):
-    metric_updates = state.metrics.single_from_model_output(loss=loss)
+def _add_losses_to_metrics(
+    state,
+    loss,
+    input_max_amp,
+    input_min_amp,
+    input_max_freq,
+    input_min_freq,
+    input_normalized_max_amp,
+    input_normalized_min_amp,
+    input_normalized_max_freq,
+    input_normalized_min_freq,
+    pred_max_amp,
+    pred_min_amp,
+    pred_max_freq,
+    pred_min_freq,
+    pred_normalized_max_amp,
+    pred_normalized_min_amp,
+    pred_normalized_max_freq,
+    pred_normalized_min_freq,
+    target_max_amp,
+    target_min_amp,
+    target_max_freq,
+    target_min_freq,
+    target_normalized_max_amp,
+    target_normalized_min_amp,
+    target_normalized_max_freq,
+    target_normalized_min_freq,
+):
+    metric_updates = state.metrics.single_from_model_output(
+        loss=loss,
+        input_max_amp=input_max_amp,
+        input_min_amp=input_min_amp,
+        input_max_freq=input_max_freq,
+        input_min_freq=input_min_freq,
+        input_normalized_max_amp=input_normalized_max_amp,
+        input_normalized_min_amp=input_normalized_min_amp,
+        input_normalized_max_freq=input_normalized_max_freq,
+        input_normalized_min_freq=input_normalized_min_freq,
+        pred_max_amp=pred_max_amp,
+        pred_min_amp=pred_min_amp,
+        pred_max_freq=pred_max_freq,
+        pred_min_freq=pred_min_freq,
+        pred_normalized_max_amp=pred_normalized_max_amp,
+        pred_normalized_min_amp=pred_normalized_min_amp,
+        pred_normalized_max_freq=pred_normalized_max_freq,
+        pred_normalized_min_freq=pred_normalized_min_freq,
+        target_max_amp=target_max_amp,
+        target_min_amp=target_min_amp,
+        target_max_freq=target_max_freq,
+        target_min_freq=target_min_freq,
+        target_normalized_max_amp=target_normalized_max_amp,
+        target_normalized_min_amp=target_normalized_min_amp,
+        target_normalized_max_freq=target_normalized_max_freq,
+        target_normalized_min_freq=target_normalized_min_freq,
+    )
     metrics = state.metrics.merge(metric_updates)
     state = state.replace(metrics=metrics)
     return state
@@ -538,7 +741,34 @@ if __name__ == "__main__":
             jax.jit,
             static_argnums=(3,),
             in_shardings=(state_sharding, x_sharding, x_sharding),
-            out_shardings=(state_sharding, None),
+            out_shardings=(
+                state_sharding,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ),
         ),
         partial(jax.pmap, static_broadcasted_argnums=(3,)),
     )(train_step)
@@ -601,15 +831,120 @@ if __name__ == "__main__":
                 assert target.shape[1] == config.window
                 target = maybe_replicate(target)
                 with fork_on_parallelism(mesh, nullcontext()):
-                    state, loss = jit_train_step(
-                        state, input, target, conversion_config
-                    )
+                    (
+                        state,
+                        loss,
+                        input_max_amp,
+                        input_min_amp,
+                        input_max_freq,
+                        input_min_freq,
+                        input_normalized_max_amp,
+                        input_normalized_min_amp,
+                        input_normalized_max_freq,
+                        input_normalized_min_freq,
+                        pred_max_amp,
+                        pred_min_amp,
+                        pred_max_freq,
+                        pred_min_freq,
+                        pred_normalized_max_amp,
+                        pred_normalized_min_amp,
+                        pred_normalized_max_freq,
+                        pred_normalized_min_freq,
+                        target_max_amp,
+                        target_min_amp,
+                        target_max_freq,
+                        target_min_freq,
+                        target_normalized_max_amp,
+                        target_normalized_min_amp,
+                        target_normalized_max_freq,
+                        target_normalized_min_freq,
+                    ) = jit_train_step(state, input, target, conversion_config)
 
-                    state = add_losses_to_metrics(state=state, loss=loss)
+                    state = add_losses_to_metrics(
+                        state=state,
+                        loss=loss,
+                        input_max_amp=input_max_amp,
+                        input_min_amp=input_min_amp,
+                        input_max_freq=input_max_freq,
+                        input_min_freq=input_min_freq,
+                        input_normalized_max_amp=input_normalized_max_amp,
+                        input_normalized_min_amp=input_normalized_min_amp,
+                        input_normalized_max_freq=input_normalized_max_freq,
+                        input_normalized_min_freq=input_normalized_min_freq,
+                        pred_max_amp=pred_max_amp,
+                        pred_min_amp=pred_min_amp,
+                        pred_max_freq=pred_max_freq,
+                        pred_min_freq=pred_min_freq,
+                        pred_normalized_max_amp=pred_normalized_max_amp,
+                        pred_normalized_min_amp=pred_normalized_min_amp,
+                        pred_normalized_max_freq=pred_normalized_max_freq,
+                        pred_normalized_min_freq=pred_normalized_min_freq,
+                        target_max_amp=target_max_amp,
+                        target_min_amp=target_min_amp,
+                        target_max_freq=target_max_freq,
+                        target_min_freq=target_min_freq,
+                        target_normalized_max_amp=target_normalized_max_amp,
+                        target_normalized_min_amp=target_normalized_min_amp,
+                        target_normalized_max_freq=target_normalized_max_freq,
+                        target_normalized_min_freq=target_normalized_min_freq,
+                    )
 
                 if train_batch_ix % config.step_freq == 0:
                     metrics = maybe_unreplicate(state.metrics).compute()
-                    run.log_metrics({"train_loss": metrics["loss"]}, step=step_ctr)
+                    run.log_metrics(
+                        {
+                            "train_loss": metrics["loss"],
+                            "train_input_max_amp": metrics["input_max_amp"],
+                            "train_input_min_amp": metrics["input_min_amp"],
+                            "train_input_max_freq": metrics["input_max_freq"],
+                            "train_input_min_freq": metrics["input_min_freq"],
+                            "train_input_normalized_max_amp": metrics[
+                                "input_normalized_max_amp"
+                            ],
+                            "train_input_normalized_min_amp": metrics[
+                                "input_normalized_min_amp"
+                            ],
+                            "train_input_normalized_max_freq": metrics[
+                                "input_normalized_max_freq"
+                            ],
+                            "train_input_normalized_min_freq": metrics[
+                                "input_normalized_min_freq"
+                            ],
+                            "train_pred_max_amp": metrics["pred_max_amp"],
+                            "train_pred_min_amp": metrics["pred_min_amp"],
+                            "train_pred_max_freq": metrics["pred_max_freq"],
+                            "train_pred_min_freq": metrics["pred_min_freq"],
+                            "train_pred_normalized_max_amp": metrics[
+                                "pred_normalized_max_amp"
+                            ],
+                            "train_pred_normalized_min_amp": metrics[
+                                "pred_normalized_min_amp"
+                            ],
+                            "train_pred_normalized_max_freq": metrics[
+                                "pred_normalized_max_freq"
+                            ],
+                            "train_pred_normalized_min_freq": metrics[
+                                "pred_normalized_min_freq"
+                            ],
+                            "train_target_max_amp": metrics["target_max_amp"],
+                            "train_target_min_amp": metrics["target_min_amp"],
+                            "train_target_max_freq": metrics["target_max_freq"],
+                            "train_target_min_freq": metrics["target_min_freq"],
+                            "train_target_normalized_max_amp": metrics[
+                                "target_normalized_max_amp"
+                            ],
+                            "train_target_normalized_min_amp": metrics[
+                                "target_normalized_min_amp"
+                            ],
+                            "train_target_normalized_max_freq": metrics[
+                                "target_normalized_max_freq"
+                            ],
+                            "train_target_normalized_min_freq": metrics[
+                                "target_normalized_min_freq"
+                            ],
+                        },
+                        step=step_ctr,
+                    )
                     step_ctr += 1
                     train_loop.set_postfix(loss=metrics["loss"])
                     state = replace_metrics(state)
@@ -647,7 +982,13 @@ if __name__ == "__main__":
                         f"saved checkpoint for epoch {epoch} in {os.listdir(checkpoint_dir)}"
                     )
                     try:
-                        subprocess.run(f'gsutil -m cp -r {os.path.join(checkpoint_dir, f"{CHECK_NAME}")} gs://meeshkan-experiments/jax-pvc/{run.id}/{CHECK_NAME}/', check=True, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                        subprocess.run(
+                            f'gsutil -m cp -r {os.path.join(checkpoint_dir, f"{CHECK_NAME}")} gs://meeshkan-experiments/jax-pvc/{run.id}/{CHECK_NAME}/',
+                            check=True,
+                            shell=True,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                        )
                     except ValueError as e:
                         logging.warning(f"checkpoint artifact did not work {e}")
                     start_time = current_time
@@ -673,7 +1014,33 @@ if __name__ == "__main__":
                 target = maybe_replicate(
                     trim_batch(jnp.array(val_batch["target"]), config.batch_size)
                 )
-                loss = jit_compute_loss(
+                (
+                    loss,
+                    input_max_amp,
+                    input_min_amp,
+                    input_max_freq,
+                    input_min_freq,
+                    input_normalized_max_amp,
+                    input_normalized_min_amp,
+                    input_normalized_max_freq,
+                    input_normalized_min_freq,
+                    pred_max_amp,
+                    pred_min_amp,
+                    pred_max_freq,
+                    pred_min_freq,
+                    pred_normalized_max_amp,
+                    pred_normalized_min_amp,
+                    pred_normalized_max_freq,
+                    pred_normalized_min_freq,
+                    target_max_amp,
+                    target_min_amp,
+                    target_max_freq,
+                    target_min_freq,
+                    target_normalized_max_amp,
+                    target_normalized_min_amp,
+                    target_normalized_max_freq,
+                    target_normalized_min_freq,
+                ) = jit_compute_loss(
                     state,
                     input,
                     target,
@@ -681,7 +1048,36 @@ if __name__ == "__main__":
                 )
                 state = add_losses_to_metrics(state=state, loss=loss)
         metrics = maybe_unreplicate(state.metrics).compute()
-        run.log_metrics({"val_loss": metrics["loss"]}, step=epoch)
+        run.log_metrics(
+            {
+                "val_loss": metrics["loss"],
+                "val_input_max_amp": metrics["input_max_amp"],
+                "val_input_min_amp": metrics["input_min_amp"],
+                "val_input_max_freq": metrics["input_max_freq"],
+                "val_input_min_freq": metrics["input_min_freq"],
+                "val_input_normalized_max_amp": metrics["input_normalized_max_amp"],
+                "val_input_normalized_min_amp": metrics["input_normalized_min_amp"],
+                "val_input_normalized_max_freq": metrics["input_normalized_max_freq"],
+                "val_input_normalized_min_freq": metrics["input_normalized_min_freq"],
+                "val_pred_max_amp": metrics["pred_max_amp"],
+                "val_pred_min_amp": metrics["pred_min_amp"],
+                "val_pred_max_freq": metrics["pred_max_freq"],
+                "val_pred_min_freq": metrics["pred_min_freq"],
+                "val_pred_normalized_max_amp": metrics["pred_normalized_max_amp"],
+                "val_pred_normalized_min_amp": metrics["pred_normalized_min_amp"],
+                "val_pred_normalized_max_freq": metrics["pred_normalized_max_freq"],
+                "val_pred_normalized_min_freq": metrics["pred_normalized_min_freq"],
+                "val_target_max_amp": metrics["target_max_amp"],
+                "val_target_min_amp": metrics["target_min_amp"],
+                "val_target_max_freq": metrics["target_max_freq"],
+                "val_target_min_freq": metrics["target_min_freq"],
+                "val_target_normalized_max_amp": metrics["target_normalized_max_amp"],
+                "val_target_normalized_min_amp": metrics["target_normalized_min_amp"],
+                "val_target_normalized_max_freq": metrics["target_normalized_max_freq"],
+                "val_target_normalized_min_freq": metrics["target_normalized_min_freq"],
+            },
+            step=epoch,
+        )
         state = replace_metrics(state)
         # inference
         inference_dataset.set_epoch(epoch)
