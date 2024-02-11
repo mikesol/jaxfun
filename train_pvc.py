@@ -1044,19 +1044,13 @@ if __name__ == "__main__":
                     if local_env.parallelism == Parallelism.PMAP:
                         ckpt = checkpoint_walker(ckpt)
 
-                    CHECK_NAME = (
-                        epoch * train_total
-                        # uncomment when we move back
-                        # + train_batch_ix
-                        + (RESTORE if RESTORE is not None else 0)
-                    )
-                    checkpoint_manager.save(CHECK_NAME, ckpt)
+                    checkpoint_manager.save(step_ctr, ckpt)
                     logging.warning(
-                        f"saved checkpoint for epoch {epoch} in {os.listdir(checkpoint_dir)}"
+                        f"saved checkpoint for epoch {epoch} filenmae {step_ctr} in {os.listdir(checkpoint_dir)}"
                     )
                     try:
                         subprocess.run(
-                            f'gsutil -m cp -r {os.path.join(checkpoint_dir, f"{CHECK_NAME}")} gs://meeshkan-experiments/jax-pvc/{run.id}/{CHECK_NAME}/',
+                            f'gsutil -m cp -r {os.path.join(checkpoint_dir, f"{step_ctr}")} gs://meeshkan-experiments/jax-pvc/{run.id}/{step_ctr}/',
                             check=True,
                             shell=True,
                             stdout=subprocess.PIPE,
