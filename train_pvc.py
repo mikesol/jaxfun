@@ -176,20 +176,16 @@ def interleave_jax(input_array, trained_output):
 def train_step(state, input_raw, target_raw, conversion_config):
     """Train for a single step."""
 
-    input_c = do_conversion(conversion_config, input_raw), conversion_config.sample_rate
+    input_c = do_conversion(conversion_config, input_raw)
     input_c_amp = input_c[:, :, ::2]
     input_c_freq = input_c[:, :, 1::2]
-    target_c = (
-        do_conversion(conversion_config, target_raw),
-        conversion_config.sample_rate,
-    )
+    target_c =     do_conversion(conversion_config, target_raw)    
     target_c_amp = target_c[:, :, ::2]
     target_c_freq = target_c[:, :, 1::2]
-
-    input = normalize(input_c)
+    input = normalize(input_c, conversion_config.sample_rate)
     input_amp = input[:, :, ::2]
     input_freq = input[:, :, 1::2]
-    target = normalize(target_c)
+    target = normalize(target_c, conversion_config.sample_rate)
     target_amp = target[:, :, ::2]
     target_freq = target[:, :, 1::2]
 
@@ -306,22 +302,20 @@ replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
 
 
 def compute_loss(state, input_raw, target_raw, conversion_config):
-    input_c = do_conversion(conversion_config, input_raw), conversion_config.sample_rate
+
+    input_c = do_conversion(conversion_config, input_raw)
     input_c_amp = input_c[:, :, ::2]
     input_c_freq = input_c[:, :, 1::2]
-    target_c = (
-        do_conversion(conversion_config, target_raw),
-        conversion_config.sample_rate,
-    )
+    target_c =     do_conversion(conversion_config, target_raw)    
     target_c_amp = target_c[:, :, ::2]
     target_c_freq = target_c[:, :, 1::2]
-
-    input = normalize(input_c)
+    input = normalize(input_c, conversion_config.sample_rate)
     input_amp = input[:, :, ::2]
     input_freq = input[:, :, 1::2]
-    target = normalize(target_c)
+    target = normalize(target_c, conversion_config.sample_rate)
     target_amp = target[:, :, ::2]
     target_freq = target[:, :, 1::2]
+
 
     pred, _ = state.apply_fn(
         {"params": state.params, "batch_stats": state.batch_stats},
