@@ -1059,6 +1059,7 @@ if __name__ == "__main__":
                     except ValueError as e:
                         logging.warning(f"checkpoint artifact did not work {e}")
                     start_time = current_time
+                    elapsed_time = 0
         test_dataset.set_epoch(epoch)
         with tqdm(
             enumerate(
