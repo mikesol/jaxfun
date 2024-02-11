@@ -860,7 +860,7 @@ if __name__ == "__main__":
     for epoch in range(config.epochs):
         # ugggh
         # commenting out for now
-        epoch_is_0 = epoch == 0
+        epoch_is_0 = False # epoch == 0
         to_take_in_0_epoch = 16
         train_dataset = (
             proto_train_dataset
