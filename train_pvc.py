@@ -190,6 +190,7 @@ def train_step(state, input_raw, target_raw, conversion_config):
     target_freq = target[:, :, 1::2]
 
     def loss_fn(i, t):
+        targ = t
         def _ret(params):
             pred, updates = state.apply_fn(
                 {"params": params, "batch_stats": state.batch_stats},
@@ -197,8 +198,8 @@ def train_step(state, input_raw, target_raw, conversion_config):
                 train=True,
                 mutable=["batch_stats"],
             )
-            reach_back = min(pred.shape[1], t.shape[1]) // 2
-            pred, t = pred[:, -reach_back:, :], t[:, -reach_back:, :]
+            reach_back = min(pred.shape[1], targ.shape[1]) // 2
+            pred, t = pred[:, -reach_back:, :], targ[:, -reach_back:, :]
             pred_a = pred[:, :, ::2]
             pred_f = pred[:, :, 1::2]
             p = denormalize(pred, conversion_config.sample_rate)
