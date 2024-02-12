@@ -173,18 +173,6 @@ def create_train_state(rng: PRNGKey, x, module, tx, conversion_config) -> TrainS
     )
 
 
-def interleave_jax(input_array, trained_output):
-    input_expanded = jnp.expand_dims(input_array, axis=3)
-    trained_output_expanded = jnp.expand_dims(trained_output, axis=3)
-    concatenated = jnp.concatenate([input_expanded, trained_output_expanded], axis=3)
-    interleaved = concatenated.reshape(
-        trained_output.shape[0],
-        input_array.shape[1] + trained_output.shape[1],
-        trained_output.shape[2],
-    )
-    return interleaved
-
-
 def train_step(state, input_raw, target_raw, conversion_config):
     """Train for a single step."""
 
@@ -333,7 +321,6 @@ def do_inference(state, input, conversion_config: ConversionConfig):
         freqs_max=conversion_config.freqs_max,
         freqs_min=conversion_config.freqs_min,
     )
-    print("o shape", o.shape)
     o = jax.vmap(
         partial(
             noscbank,
@@ -346,7 +333,7 @@ def do_inference(state, input, conversion_config: ConversionConfig):
         out_axes=0,
     )((lastval, index), o)
     o = jnp.reshape(o[1], (batch_size, -1, 1))
-    return o
+    return o, lastval, index
 
 
 replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
@@ -545,12 +532,12 @@ def run_inference(
                 jax.jit,
                 static_argnums=(2,),
                 in_shardings=(state_sharding, x_sharding),
-                out_shardings=x_sharding,
+                out_shardings=(x_sharding, x_sharding, x_sharding),
             ),
             partial(jax.pmap, static_broadcasted_argnums=(2,)),
         )(do_inference)
 
-        o = jit_do_inference(state, input, conversion_config)
+        o, _, _ = jit_do_inference(state, input, conversion_config)
         o = maybe_unreplicate(o)
         assert o.shape[-1] == 1
         # logging.info(f"shape of batch is {input.shape}")
@@ -860,7 +847,7 @@ if __name__ == "__main__":
     for epoch in range(config.epochs):
         # ugggh
         # commenting out for now
-        epoch_is_0 = False # epoch == 0
+        epoch_is_0 = False  # epoch == 0
         to_take_in_0_epoch = 16
         train_dataset = (
             proto_train_dataset
