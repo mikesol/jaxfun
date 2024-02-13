@@ -229,6 +229,7 @@ if __name__ == "__main__":
     target, _ = librosa.load(local_env.inference_file_target, sr=44100)
     input, target = jnp.reshape(input, (-1,)), jnp.reshape(target, (-1,))
     # for now hardcode the length
+    print(config.window * config.batch_size, input[: config.window * config.batch_size].shape)
     input_ = jnp.reshape(
         input[: config.window * config.batch_size], (config.batch_size, -1, 1)
     )
