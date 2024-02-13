@@ -232,6 +232,7 @@ if __name__ == "__main__":
     input_ = jnp.reshape(
         input[: config.window * 32 * 8], (8, -1, 1)
     )
+    print('input shape is', input_.shape)
     input_ = maybe_replicate(input_)
     input_ = maybe_device_put(input, x_sharding)
 
