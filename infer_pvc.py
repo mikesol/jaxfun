@@ -224,6 +224,19 @@ if __name__ == "__main__":
             init_rng, 8
         )  ### #UGH we hardcode 8, not sure why this worked before :-/
     )
+    ### data
+    input, _ = librosa.load(local_env.inference_file_source, sr=44100)
+    target, _ = librosa.load(local_env.inference_file_target, sr=44100)
+    input, target = jnp.reshape(input, (-1,)), jnp.reshape(target, (-1,))
+    # for now hardcode the length
+    input_ = jnp.reshape(
+        input[: config.window * (2 << 4)], (1, -1, 1)
+    )
+    input_ = maybe_replicate(input_)
+    input_ = maybe_device_put(input, x_sharding)
+
+    ###
+
     state = jit_create_train_state(
         rng_for_train_state,
         fork_on_parallelism(onez, onez),
@@ -250,15 +263,6 @@ if __name__ == "__main__":
         partial(jax.pmap, static_broadcasted_argnums=(2,)),
     )(do_inference)
     del init_rng  # Must not be used anymore.
-    input = librosa.load(local_env.inference_file_source, sr=44100)
-    target = librosa.load(local_env.inference_file_target, sr=44100)
-    input, target = jnp.reshape(input, (-1,)), jnp.reshape(target, (-1,))
-    # for now hardcode the length
-    input_ = jnp.reshape(
-        input[: config.window * (2 << 4)], (1, -1, 1)
-    )
-    input_ = maybe_replicate(input_)
-    input_ = maybe_device_put(input, x_sharding)
     o, _, _ = jit_do_inference(state, input_, conversion_config)
     # # for now, we only keep the second half as we are training it to always have
     # # padding in the beginning
