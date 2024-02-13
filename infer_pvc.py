@@ -207,7 +207,7 @@ if __name__ == "__main__":
             static_argnums=(2, 3, 4),
             in_shardings=(
                 (
-                    mesh_sharding(mesh, None)
+                    NamedSharding(mesh, None)
                     if local_env.parallelism == Parallelism.SHARD
                     else None
                 ),
