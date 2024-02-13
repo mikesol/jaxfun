@@ -231,7 +231,7 @@ if __name__ == "__main__":
     # for now hardcode the length
     # print(config.window * config.batch_size, input[: config.window * config.batch_size].shape)
     input_ = jnp.reshape(
-        input[: config.window * 8], (8, -1, 1)
+        input[: config.window * 32], (1, -1, 1)
     )
     print('input shape is', input_.shape)
     input_ = maybe_replicate(input_)
