@@ -37,17 +37,18 @@ def process_audio(audio_buffer, window_size, phase_jostle_deg):
     return resynthesized_audio
 
 
-# Example usage
-# Load an audio file (replace 'your_audio_file.wav' with the path to your file)
-audio_buffer, sr = sf.read("../data/day1/nt1_middle_far_mid_48_8.wav")
-I = 2**17
-O = 2**18
-audio_buffer = audio_buffer[I : I + O]
-# Process the audio
-window_size = 1024  # Example window size
-phase_jostle_deg = 10  # Example phase jostle in degrees
-processed_audio = process_audio(audio_buffer, window_size, phase_jostle_deg)
+if __name__ == '__main__':
+    # Example usage
+    # Load an audio file (replace 'your_audio_file.wav' with the path to your file)
+    audio_buffer, sr = sf.read("../data/day1/nt1_middle_far_mid_48_8.wav")
+    I = 2**17
+    O = 2**18
+    audio_buffer = audio_buffer[I : I + O]
+    # Process the audio
+    window_size = 1024  # Example window size
+    phase_jostle_deg = 10  # Example phase jostle in degrees
+    processed_audio = process_audio(audio_buffer, window_size, phase_jostle_deg)
 
-# Save the processed audio (optional)
-sf.write("/tmp/nt1_middle_close_mid_38_12296.wav", audio_buffer, sr)
-sf.write("/tmp/jostle_nt1_middle_close_mid_38_12296.wav", processed_audio, sr)
+    # Save the processed audio (optional)
+    sf.write("/tmp/nt1_middle_close_mid_38_12296.wav", audio_buffer, sr)
+    sf.write("/tmp/jostle_nt1_middle_close_mid_38_12296.wav", processed_audio, sr)
