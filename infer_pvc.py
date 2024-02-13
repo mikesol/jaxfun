@@ -230,7 +230,7 @@ if __name__ == "__main__":
     input, target = jnp.reshape(input, (-1,)), jnp.reshape(target, (-1,))
     # for now hardcode the length
     input_ = jnp.reshape(
-        input[: config.window * 32 * 8], (8, -1, 1)
+        input[: config.window * config.batch_size], (config.batch_size, -1, 1)
     )
     print('input shape is', input_.shape)
     input_ = maybe_replicate(input_)
