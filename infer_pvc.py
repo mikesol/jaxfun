@@ -231,7 +231,7 @@ if __name__ == "__main__":
     # for now hardcode the length
     # print(config.window * config.batch_size, input[: config.window * config.batch_size].shape)
     input_ = jnp.reshape(
-        input[: config.window * 32], (1, -1, 1)
+        input[: config.window * 16 * 8], (8, -1, 1)
     )
     print('input shape is', input_.shape)
     input_ = maybe_replicate(input_)
@@ -296,5 +296,5 @@ if __name__ == "__main__":
     # assert o.shape[-1] == 1
     # # logging.info(f"shape of batch is {input.shape}")
 
-    audy = np.reshape(o, (-1,))
+    audy = np.reshape(o[0], (-1,))
     soundfile.write('/tmp/output.wav', audy, samplerate=44100)
