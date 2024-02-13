@@ -165,12 +165,6 @@ if __name__ == "__main__":
         freqs_min=config.freqs_min,
         freqs_max=config.freqs_max,
     )
-    device_mesh = None
-    mesh = None
-    x_sharding = None
-    state_sharding = None
-    old_state_sharding = None
-    ###
 
     init_rng = jax.random.PRNGKey(config.seed)
     onez = jnp.ones([config.batch_size, config.window, 1])  # 1,
