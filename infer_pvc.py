@@ -83,11 +83,6 @@ if __name__ == "__main__":
 
     checkpoint_dir = local_env.checkpoint_dir
 
-    if os.path.exists(checkpoint_dir):
-        logging.warn(f"consisder clearing checkpoint dir first: {checkpoint_dir}")
-    else:
-        os.makedirs(checkpoint_dir)
-
     orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
     options = orbax.checkpoint.CheckpointManagerOptions(max_to_keep=1, create=True)
     checkpoint_manager = orbax.checkpoint.CheckpointManager(
@@ -158,7 +153,7 @@ if __name__ == "__main__":
         device_mesh = mesh_utils.create_device_mesh((config.mesh_x, config.mesh_y))
         mesh = Mesh(devices=device_mesh, axis_names=("data", "model"))
         print(mesh)
-        x_sharding = mesh_sharding(PartitionSpec("data", None))
+        x_sharding = NamedSharding(mesh, PartitionSpec("data", None))
 
     conversion_config = ConversionConfig(
         fft_size=config.fft_size,
