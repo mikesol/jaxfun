@@ -230,7 +230,7 @@ if __name__ == "__main__":
     input, target = jnp.reshape(input, (-1,)), jnp.reshape(target, (-1,))
     # for now hardcode the length
     input_ = jnp.reshape(
-        input[: config.window * (2 << 4)], (1, -1, 1)
+        input[: config.window * 32 * 8], (8, -1, 1)
     )
     input_ = maybe_replicate(input_)
     input_ = maybe_device_put(input, x_sharding)
