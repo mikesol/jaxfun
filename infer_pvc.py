@@ -206,7 +206,7 @@ if __name__ == "__main__":
             init_rng,
             onez,
         )
-
+        print(abstract_variables, mesh)
         state_sharding = nn.get_sharding(abstract_variables, mesh)
 
     jit_create_train_state = fork_on_parallelism(
