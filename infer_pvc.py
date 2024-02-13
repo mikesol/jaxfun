@@ -189,19 +189,17 @@ if __name__ == "__main__":
     )
     tx = optax.adam(config.learning_rate)
 
-    if local_env.parallelism == Parallelism.SHARD:
-        abstract_variables = jax.eval_shape(
-            partial(
-                create_train_state,
-                module=module,
-                tx=tx,
-                conversion_config=conversion_config,
-            ),
-            init_rng,
-            onez,
-        )
-        print(abstract_variables, mesh)
-        state_sharding = nn.get_sharding(abstract_variables, mesh)
+    abstract_variables = jax.eval_shape(
+        partial(
+            create_train_state,
+            module=module,
+            tx=tx,
+            conversion_config=conversion_config,
+        ),
+        init_rng,
+        onez,
+    )
+    state_sharding = nn.get_sharding(abstract_variables, mesh)
 
     jit_create_train_state = fork_on_parallelism(
         partial(
