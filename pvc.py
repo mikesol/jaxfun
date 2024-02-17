@@ -211,7 +211,7 @@ def do_conversion2(obj, ipt):
     batch_size = o.shape[0]
     lastval = np.zeros((batch_size, o.shape[-1] // 2, 2))
     index = np.zeros((batch_size, o.shape[-1] // 2))
-    o = jax.vmap(
+    _, o = jax.vmap(
         partial(
             pvc.noscbank,
             nw=obj.window_size,
