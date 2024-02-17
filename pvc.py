@@ -324,16 +324,19 @@ class PVCFinal(nn.Module):
         features = ipt.shape[-1]
         convolved = ipt
         kd = 1
-        for dpth in range(self.conv_depth):
+        print('IPT SHAPE', ipt.shape)
+        for _ in range(self.conv_depth):
             convolved = TCN(
                 features=features,
                 kernel_dilation=kd,
                 kernel_size=self.kernel_size,
             )(convolved, train=train)
             kd *= 2
+        print('CONVOLVED SHAPE', convolved.shape)
         reduced = nn.Conv(
             features=1, kernel_size=(1,), padding=((0, 0),), use_bias=False
         )(convolved)
+        print('REDUCED SHAPE', reduced.shape)
         encoded = PositionalEncoding()(reduced)
         attended = nn.Sequential(
             [
