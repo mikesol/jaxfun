@@ -17,7 +17,7 @@ config:
   window_size: 2048
   sample_rate: 44100
   kernel_size: 5
-  end_depth: 512
+  end_features: 512
   conv_depth: 12
   attn_depth: 8
   heads: 32
