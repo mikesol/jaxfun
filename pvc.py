@@ -325,6 +325,7 @@ class PVCFinal(nn.Module):
         features = ipt.shape[-1]
         convolved = ipt
         kd = 1
+        print("ipt", ipt.shape)
         for _ in range(self.conv_depth):
             convolved = TCN(
                 features=features,
@@ -335,6 +336,7 @@ class PVCFinal(nn.Module):
         reduced = nn.Conv(
             features=self.end_features, kernel_size=(1,), padding=((0, 0),), use_bias=False
         )(convolved)
+        print("reduced", ipt.shape)
         encoded = PositionalEncoding()(reduced)
         attended = nn.Sequential(
             [
