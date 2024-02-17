@@ -173,9 +173,26 @@ def do_conversion(obj, ipt):
     )
     # XLC should figure this out anyway
     # but just in case...
-    converted = jax.lax.stop_gradient(converted)
     return converted
 
+def do_conversion2(obj, ipt):
+    o = do_conversion(obj, ipt)
+    p_inc = 1.0 / obj.sample_rate
+    i_inv = 1.0 / obj.hop_size
+    batch_size = o.shape[0]
+    lastval = np.zeros((batch_size, o.shape[-1] // 2, 2))
+    index = np.zeros((batch_size, o.shape[-1] // 2))
+    o = jax.vmap(
+        partial(
+            noscbank,
+            nw=obj.window_size,
+            p_inc=p_inc,
+            i_inv=i_inv,
+            rg=jnp.arange(conversion_config.hop_size),
+        ),
+        in_axes=0,
+        out_axes=0,
+    )((lastval, index), o)
 
 def normalize(ipt, amps_log_min, amps_log_max, amps_epsilon, freqs_min, freqs_max):
     converted_batch = ipt.shape[0]
@@ -193,7 +210,6 @@ def normalize(ipt, amps_log_min, amps_log_max, amps_epsilon, freqs_min, freqs_ma
     )
     # XLC should figure this out anyway
     # but just in case...
-    converted = jax.lax.stop_gradient(converted)
     return converted
 
 
@@ -248,6 +264,45 @@ class PVC(nn.Module):
         )(encoded)
 
         return attended
+
+
+class PVCFinal(nn.Module):
+    end_features: int
+    conv_depth: int
+    attn_depth: int
+    heads: int
+    expand_factor: float = 2.0
+
+    @nn.compact
+    def __call__(self, ipt, train: bool):
+        # XLC should figure this out anyway
+        # but just in case...
+        # network time!
+        features = ipt.shape[-1]
+        convolved = ipt
+        kd = 1
+        feature_skip = (ipt.shape[-1] - self.end_features) // self.conv_depth
+        for dpth in range(self.conv_depth):
+            features -= feature_skip
+            convolved = TCN(
+                features=self.end_features
+                if dpth == (self.conv_depth - 1)
+                else features,
+                kernel_dilation=kd,
+                kernel_size=self.kernel_size,
+            )(convolved, train=train)
+            kd *= 2
+        encoded = PositionalEncoding()(convolved)
+        attended = nn.Sequential(
+            [
+                AttnBlock(heads=self.heads, expand_factor=self.expand_factor)
+                for _ in range(self.attn_depth)
+            ]
+        )(encoded)
+
+        return nn.Conv(features=1, kernel_size=(1,), padding=((0, 0),), use_bias=False)(
+            attended
+        )
 
 
 if __name__ == "__main__":

@@ -190,6 +190,7 @@ def train_step(state, input_raw, target_raw, conversion_config):
         freqs_max=conversion_config.freqs_max,
         freqs_min=conversion_config.freqs_min,
     )
+    input = jax.lax.stop_gradient(input)
     input_amp = input[:, :, ::2]
     input_freq = input[:, :, 1::2]
     target = normalize(
@@ -200,6 +201,7 @@ def train_step(state, input_raw, target_raw, conversion_config):
         freqs_max=conversion_config.freqs_max,
         freqs_min=conversion_config.freqs_min,
     )
+    target = jax.lax.stop_gradient(target)
     target_amp = target[:, :, ::2]
     target_freq = target[:, :, 1::2]
 
@@ -302,6 +304,7 @@ def do_inference(state, input, conversion_config: ConversionConfig):
         freqs_max=conversion_config.freqs_max,
         freqs_min=conversion_config.freqs_min,
     )
+    input = jax.lax.stop_gradient(input)
     o, _ = state.apply_fn(
         {"params": state.params, "batch_stats": state.batch_stats},
         input,
@@ -354,6 +357,7 @@ def compute_loss(state, input_raw, target_raw, conversion_config):
         freqs_max=conversion_config.freqs_max,
         freqs_min=conversion_config.freqs_min,
     )
+    input = jax.lax.stop_gradient(input)
     input_amp = input[:, :, ::2]
     input_freq = input[:, :, 1::2]
     target = normalize(
@@ -364,6 +368,7 @@ def compute_loss(state, input_raw, target_raw, conversion_config):
         freqs_max=conversion_config.freqs_max,
         freqs_min=conversion_config.freqs_min,
     )
+    target = jax.lax.stop_gradient(target)
     target_amp = target[:, :, ::2]
     target_freq = target[:, :, 1::2]
 

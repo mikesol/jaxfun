@@ -37,7 +37,7 @@ def process_audio(audio_buffer, window_size, phase_jostle_deg):
     return resynthesized_audio
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Example usage
     # Load an audio file (replace 'your_audio_file.wav' with the path to your file)
     audio_buffer, sr = sf.read("../data/day1/nt1_middle_far_mid_48_8.wav")
