@@ -22,6 +22,8 @@ from dataclasses import dataclass
 
 INPUT_IS = "input"
 TARGET_IS = "target"
+
+
 @dataclass(frozen=True)
 class ConversionConfig:
     fft_size: int
@@ -894,7 +896,9 @@ if __name__ == "__main__":
                 assert input.shape[1] == config.window
                 input = maybe_replicate(input)
                 input = maybe_device_put(input, x_sharding)
-                target = trim_batch(jnp.array(train_batch[TARGET_IS]), config.batch_size)
+                target = trim_batch(
+                    jnp.array(train_batch[TARGET_IS]), config.batch_size
+                )
                 assert target.shape[1] == config.window
                 target = maybe_replicate(target)
                 with fork_on_parallelism(mesh, nullcontext()):

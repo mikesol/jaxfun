@@ -324,18 +324,17 @@ class PVCFinal(nn.Module):
         features = ipt.shape[-1]
         convolved = ipt
         kd = 1
-        feature_skip = (ipt.shape[-1] - self.end_features) // self.conv_depth
         for dpth in range(self.conv_depth):
-            features -= feature_skip
             convolved = TCN(
-                features=self.end_features
-                if dpth == (self.conv_depth - 1)
-                else features,
+                features=features,
                 kernel_dilation=kd,
                 kernel_size=self.kernel_size,
             )(convolved, train=train)
             kd *= 2
-        encoded = PositionalEncoding()(convolved)
+        reduced = nn.Conv(
+            features=1, kernel_size=(1,), padding=((0, 0),), use_bias=False
+        )(convolved)
+        encoded = PositionalEncoding()(reduced)
         attended = nn.Sequential(
             [
                 AttnBlock(heads=self.heads, expand_factor=self.expand_factor)
