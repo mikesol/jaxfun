@@ -218,7 +218,7 @@ def do_conversion2(obj, ipt):
             p_inc=p_inc,
             i_inv=i_inv,
             rg=jnp.arange(obj.hop_size),
-            cell=pvc.noscbank_cell,
+            cell=pvc.noscbank_cell_no_sum,
         ),
         in_axes=0,
         out_axes=0,
@@ -233,7 +233,7 @@ def do_conversion2(obj, ipt):
         out_axes=0,
     )(o)
     seq_len = min(o.shape[1], rnd.shape[1])
-    full_stack = jnp.concatenate([rnd[:, :seq_len, :], o[:, :seq_len, :]], axis=-1)
+    full_stack = jnp.concatenate([o[:, :seq_len, :], rnd[:, :seq_len, :]], axis=-1)
     return full_stack
 
 
