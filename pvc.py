@@ -223,12 +223,12 @@ def do_conversion2(obj, ipt):
         in_axes=0,
         out_axes=0,
     )((lastval, index), o)
+    print("SHAPES pre lob", ipt.shape, o.shape)
     o = jax.vmap(
         partial(lob_padding, cc=obj),
         in_axes=0,
         out_axes=0,
     )(o)
-    print(ipt.shape, o.shape)
     assert False
     assert len(o.shape) == 4
     assert o.shape[-1] == 1
