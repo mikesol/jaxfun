@@ -433,7 +433,8 @@ if __name__ == "__main__":
     print("datasets generated")
     init_rng = jax.random.PRNGKey(config.seed)
     init_rng, loop_rng = jax.random.split(init_rng, 2)
-    onez = jnp.ones([config.batch_size, config.window, 1])  # 1,
+    # 2 to emualte the random channel
+    onez = jnp.ones([config.batch_size, config.window, 2])  # 1,
 
     def array_to_tuple(arr):
         if isinstance(arr, np.ndarray):
@@ -489,7 +490,7 @@ if __name__ == "__main__":
     )
     state = jit_create_train_state(
         rng_for_train_state,
-        fork_on_parallelism(onez, onez),
+        onez,
         module,
         tx,
         conversion_config,
