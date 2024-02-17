@@ -443,6 +443,7 @@ if __name__ == "__main__":
             return arr
 
     module = PVCFinal(
+        kernel_size=config.kernel_size,
         end_features=config.end_features,
         conv_depth=config.conv_depth,
         attn_depth=config.attn_depth,

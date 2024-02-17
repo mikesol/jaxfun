@@ -226,7 +226,6 @@ def do_conversion2(obj, ipt):
     o = jnp.transpose(o, (0, 2, 1, 3))
     o = jnp.reshape(o, (o.shape[0], o.shape[1], -1))
     o = jnp.transpose(o, (0, 2, 1))
-    print("SHAPES pre lob", ipt.shape, o.shape)
     o = jax.vmap(
         partial(lob_padding, cc=obj),
         in_axes=0,
@@ -313,6 +312,7 @@ class PVCFinal(nn.Module):
     end_features: int
     conv_depth: int
     attn_depth: int
+    kernel_size: int
     heads: int
     expand_factor: float = 2.0
 
