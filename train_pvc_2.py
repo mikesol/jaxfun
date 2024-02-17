@@ -86,7 +86,7 @@ def add_randomness(input, loop_rng):
         [
             input,
             jax.random.uniform(
-                loop_rng, shape=(1, input.shape[1], 1), minval=-1, maxval=1
+                loop_rng, shape=(input.shape[0], input.shape[1], 1), minval=-1, maxval=1
             ),
         ],
         axis=-1,
