@@ -325,7 +325,6 @@ class PVCFinal(nn.Module):
         features = ipt.shape[-1]
         convolved = ipt
         kd = 1
-        print('IPT SHAPE', ipt.shape)
         for _ in range(self.conv_depth):
             convolved = TCN(
                 features=features,
