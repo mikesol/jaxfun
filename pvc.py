@@ -223,17 +223,15 @@ def do_conversion2(obj, ipt):
         in_axes=0,
         out_axes=0,
     )((lastval, index), o)
+    o = jnp.transpose(o, (0, 2, 1, 3))
+    o = jnp.reshape(o, (o.shape[0], o.shape[1], -1))
+    o = jnp.transpose(o, (0, 2, 1))
     print("SHAPES pre lob", ipt.shape, o.shape)
     o = jax.vmap(
         partial(lob_padding, cc=obj),
         in_axes=0,
         out_axes=0,
     )(o)
-    assert False
-    assert len(o.shape) == 4
-    assert o.shape[-1] == 1
-    o = jnp.transpose(o, (0, 2, 1, 3))
-    o = jnp.squeeze(o, axis=-1)
     seq_len = min(o.shape[1], rnd.shape[1])
     full_stack = jnp.concatenate([rnd[:, :seq_len, :], o[:, :seq_len, :]], axis=-1)
     return full_stack
