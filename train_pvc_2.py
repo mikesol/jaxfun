@@ -345,7 +345,7 @@ if __name__ == "__main__":
 
     run = Experiment(
         api_key=local_env.comet_ml_api_key,
-        project_name="jax-pvc",
+        project_name="jax-pvc-2",
     )
     ## defaults
     _config = {}
