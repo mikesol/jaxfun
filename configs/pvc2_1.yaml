@@ -6,8 +6,8 @@ config:
   validation_split: 0.2
   learning_rate: 0.0001
   epochs: 128
-  window: 10240
-  inference_window: 10240
+  window: 9216
+  inference_window: 9216
   stride: 256
   dilation_incr: 32
   step_freq: 64
