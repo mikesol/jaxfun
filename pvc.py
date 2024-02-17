@@ -337,7 +337,7 @@ class PVCFinal(nn.Module):
         reduced = nn.Conv(
             features=self.end_features, kernel_size=(1,), padding=((0, 0),), use_bias=False
         )(convolved)
-        print("reduced", ipt.shape)
+        print("reduced", reduced.shape)
         encoded = PositionalEncoding()(reduced)
         attended = nn.Sequential(
             [
