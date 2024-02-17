@@ -365,6 +365,10 @@ if __name__ == "__main__":
     _config["test_size"] = 0.1
     _config["mesh_x_div"] = 1
     #
+    _config["fft_size"] = 1024
+    _config["hop_size"] = 128
+    _config["window_size"] = 2048
+    _config["sample_rate"] = 44100
     _config["end_features"] = 512
     _config["conv_depth"] = 16
     _config["attn_depth"] = 16
