@@ -20,6 +20,8 @@ from loss import LossFn, Loss_fn_to_loss, LogCoshLoss, ESRLoss
 from dataclasses import dataclass
 
 
+INPUT_IS = "input"
+TARGET_IS = "target"
 @dataclass(frozen=True)
 class ConversionConfig:
     fft_size: int
@@ -521,12 +523,12 @@ def run_inference(
         total=config.inference_artifacts_per_batch_per_epoch,
     ):
         input_ = trim_batch(
-            jnp.array(inference_batch["input"]), config.inference_batch_size
+            jnp.array(inference_batch[INPUT_IS]), config.inference_batch_size
         )
         if input_.shape[0] == 0:
             continue
         target_ = trim_batch(
-            jnp.array(inference_batch["target"]), config.inference_batch_size
+            jnp.array(inference_batch[TARGET_IS]), config.inference_batch_size
         )
         input = maybe_replicate(input_)
         input = maybe_device_put(input, x_sharding)
@@ -886,13 +888,13 @@ if __name__ == "__main__":
         ) as train_loop:
             for train_batch_ix, train_batch in train_loop:
                 should_use_gen = train_batch_ix % 2 == 1
-                input = trim_batch(jnp.array(train_batch["input"]), config.batch_size)
+                input = trim_batch(jnp.array(train_batch[INPUT_IS]), config.batch_size)
                 if input.shape[0] == 0:
                     continue
                 assert input.shape[1] == config.window
                 input = maybe_replicate(input)
                 input = maybe_device_put(input, x_sharding)
-                target = trim_batch(jnp.array(train_batch["target"]), config.batch_size)
+                target = trim_batch(jnp.array(train_batch[TARGET_IS]), config.batch_size)
                 assert target.shape[1] == config.window
                 target = maybe_replicate(target)
                 with fork_on_parallelism(mesh, nullcontext()):
@@ -1066,13 +1068,13 @@ if __name__ == "__main__":
         ) as validation_loop:
             for val_batch_ix, val_batch in validation_loop:
                 input = maybe_replicate(
-                    trim_batch(jnp.array(val_batch["input"]), config.batch_size)
+                    trim_batch(jnp.array(val_batch[INPUT_IS]), config.batch_size)
                 )
                 if input.shape[0] == 0:
                     continue
                 input = maybe_device_put(input, x_sharding)
                 target = maybe_replicate(
-                    trim_batch(jnp.array(val_batch["target"]), config.batch_size)
+                    trim_batch(jnp.array(val_batch[TARGET_IS]), config.batch_size)
                 )
                 (
                     loss,

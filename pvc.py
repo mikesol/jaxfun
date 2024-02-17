@@ -175,8 +175,37 @@ def do_conversion(obj, ipt):
     # but just in case...
     return converted
 
+
+def lob_padding(o, cc):
+    return o[cc.fft_size - cc.hop_size :]
+
+
+def zero_stuff_out(o, mute_bottom, mute_top, epsilon):
+    amps = o[::2]
+    freqs = o[1::2]
+    amps = jnp.concatenate(
+        ([jnp.zeros((mute_bottom,))] if mute_bottom > 0 else [])
+        + ([amps[mute_bottom:-mute_top]] if mute_top > 0 else [amps[mute_bottom:]])
+        + ([jnp.zeros((mute_top,))] if mute_top > 0 else [])
+    )
+    amps = jnp.where(amps < epsilon, jnp.zeros_like(amps), amps)
+    return jnp.ravel(jnp.column_stack((amps, freqs)))
+
+
 def do_conversion2(obj, ipt):
+    assert len(ipt.shape) == 3
+    assert ipt.shape[-1] == 2
+    ipt, rnd = ipt[:, :, :1], ipt[:, :, -1:]
     o = do_conversion(obj, ipt)
+    o = jax.vmap(
+        jax.vmap(
+            partial(zero_stuff_out, mute_bottom=0, mute_top=0, epsilon=1e-8),
+            in_axes=0,
+            out_axes=0,
+        ),
+        in_axes=0,
+        out_axes=0,
+    )(o)
     p_inc = 1.0 / obj.sample_rate
     i_inv = 1.0 / obj.hop_size
     batch_size = o.shape[0]
@@ -184,15 +213,31 @@ def do_conversion2(obj, ipt):
     index = np.zeros((batch_size, o.shape[-1] // 2))
     o = jax.vmap(
         partial(
-            noscbank,
+            pvc.noscbank,
             nw=obj.window_size,
             p_inc=p_inc,
             i_inv=i_inv,
-            rg=jnp.arange(conversion_config.hop_size),
+            rg=jnp.arange(obj.hop_size),
+            cell=pvc.noscbank_cell_no_sum,
         ),
         in_axes=0,
         out_axes=0,
     )((lastval, index), o)
+    o = jax.vmap(
+        partial(lob_padding, cc=obj),
+        in_axes=0,
+        out_axes=0,
+    )(o)
+    print(ipt.shape, o.shape)
+    assert False
+    assert len(o.shape) == 4
+    assert o.shape[-1] == 1
+    o = jnp.transpose(o, (0, 2, 1, 3))
+    o = jnp.squeeze(o, axis=-1)
+    seq_len = min(o.shape[1], rnd.shape[1])
+    full_stack = jnp.concatenate([rnd[:, :seq_len, :], o[:, :seq_len, :]], axis=-1)
+    return full_stack
+
 
 def normalize(ipt, amps_log_min, amps_log_max, amps_epsilon, freqs_min, freqs_max):
     converted_batch = ipt.shape[0]
