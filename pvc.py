@@ -218,7 +218,7 @@ def do_conversion2(obj, ipt):
             p_inc=p_inc,
             i_inv=i_inv,
             rg=jnp.arange(obj.hop_size),
-            cell=pvc.noscbank_cell_no_sum,
+            cell=pvc.noscbank_cell,
         ),
         in_axes=0,
         out_axes=0,
