@@ -331,7 +331,7 @@ class PVCFinal(nn.Module):
                 kernel_dilation=kd,
                 kernel_size=self.kernel_size,
             )(convolved, train=train)
-            kd *= 2
+            kd += 8
         print('CONVOLVED SHAPE', convolved.shape)
         reduced = nn.Conv(
             features=1, kernel_size=(1,), padding=((0, 0),), use_bias=False
