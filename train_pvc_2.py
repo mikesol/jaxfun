@@ -159,7 +159,8 @@ def train_step(state, input_raw, target_raw, conversion_config):
                 train=True,
                 mutable=["batch_stats"],
             )
-            pred, t = pred, targ
+            ms = min(pred.shape[1], targ.shape[1])
+            pred, t = pred[:, -ms:, :], targ[:, -ms:, :]
 
             loss = ESRLoss(pred, t)
             return loss, updates
@@ -204,6 +205,8 @@ def compute_loss(state, input_raw, target_raw, conversion_config):
         train=False,
         mutable=["batch_stats"],
     )
+    ms = min(pred.shape[1], target.shape[1])
+    pred, target = pred[:, -ms:, :], target[:, -ms:, :]
     loss = ESRLoss(pred, target)
 
     return loss
@@ -443,6 +446,7 @@ if __name__ == "__main__":
             return arr
 
     module = PVCFinal(
+        end_features=config.end_features,
         kernel_size=config.kernel_size,
         conv_depth=config.conv_depth,
         attn_depth=config.attn_depth,
