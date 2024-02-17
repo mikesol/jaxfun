@@ -363,6 +363,7 @@ if __name__ == "__main__":
     _config["test_size"] = 0.1
     _config["mesh_x_div"] = 1
     #
+    _config["dilation_incr"] = 32
     _config["fft_size"] = 1024
     _config["hop_size"] = 128
     _config["window_size"] = 2048
@@ -446,6 +447,7 @@ if __name__ == "__main__":
             return arr
 
     module = PVCFinal(
+        dilation_incr=config.dilation_incr,
         end_features=config.end_features,
         kernel_size=config.kernel_size,
         conv_depth=config.conv_depth,

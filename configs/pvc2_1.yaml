@@ -9,6 +9,7 @@ config:
   window: 16384
   inference_window: 16384
   stride: 256
+  dilation_incr: 32
   step_freq: 64
   test_size: 0.1
   mesh_x_div: 1

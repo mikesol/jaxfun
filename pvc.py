@@ -309,6 +309,7 @@ class PVC(nn.Module):
 
 
 class PVCFinal(nn.Module):
+    dilation_incr: int
     end_features: int
     conv_depth: int
     attn_depth: int
@@ -332,11 +333,9 @@ class PVCFinal(nn.Module):
                 kernel_size=self.kernel_size,
             )(convolved, train=train)
             kd += 8
-        print('CONVOLVED SHAPE', convolved.shape)
         reduced = nn.Conv(
-            features=1, kernel_size=(1,), padding=((0, 0),), use_bias=False
+            features=self.end_features, kernel_size=(1,), padding=((0, 0),), use_bias=False
         )(convolved)
-        print('REDUCED SHAPE', reduced.shape)
         encoded = PositionalEncoding()(reduced)
         attended = nn.Sequential(
             [
