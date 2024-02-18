@@ -269,7 +269,7 @@ def run_inference(
         input = maybe_device_put(input, x_sharding)
         logging.warning(f"input shape for inference is is {input.shape}")
 
-        o, _, _ = jit_do_inference(state, input, conversion_config)
+        o = jit_do_inference(state, input, conversion_config)
         o = maybe_unreplicate(o)
         assert o.shape[-1] == 1
         # logging.info(f"shape of batch is {input.shape}")
@@ -539,7 +539,7 @@ if __name__ == "__main__":
     for epoch in range(config.epochs):
         # ugggh
         # commenting out for now
-        epoch_is_0 = False  # epoch == 0
+        epoch_is_0 = epoch == 0
         to_take_in_0_epoch = 16
         train_dataset = (
             proto_train_dataset
