@@ -530,7 +530,7 @@ if __name__ == "__main__":
             jax.jit,
             static_argnums=(2,),
             in_shardings=(state_sharding, x_sharding),
-            out_shardings=(x_sharding,),
+            out_shardings=x_sharding,
         ),
         partial(jax.pmap, static_broadcasted_argnums=(2,)),
     )(do_inference)
