@@ -288,9 +288,6 @@ class PVC(nn.Module):
 
     @nn.compact
     def __call__(self, ipt, train: bool):
-        # XLC should figure this out anyway
-        # but just in case...
-        # network time!
         features = self.n_phasors * 2
         convolved = ipt
         for _ in range(self.conv_depth):
@@ -311,33 +308,33 @@ class PVC(nn.Module):
 class PVCFinal(nn.Module):
     dilation_incr: int
     end_features: int
-    conv_depth: int
+    encoder_depth: int
     attn_depth: int
+    decoder_depth: int
     kernel_size: int
     heads: int
     expand_factor: float = 2.0
 
     @nn.compact
     def __call__(self, ipt, train: bool):
-        # XLC should figure this out anyway
-        # but just in case...
-        # network time!
+        # noise should be last channel
+        ipt, noise = ipt[:, :, :-1], ipt[:, :, -1:]
         features = ipt.shape[-1]
         convolved = ipt
         kd = 1
-        # print("ipt", ipt.shape)
-        for _ in range(self.conv_depth):
+        for _ in range(self.encoder_depth):
             convolved = TCN(
                 features=features,
                 kernel_dilation=kd,
                 kernel_size=self.kernel_size,
             )(convolved, train=train)
             kd *= 2
-            # print("CONV SH", convolved.shape)
         reduced = nn.Conv(
-            features=self.end_features, kernel_size=(1,), padding=((0, 0),), use_bias=False
+            features=self.end_features,
+            kernel_size=(1,),
+            padding=((0, 0),),
+            use_bias=False,
         )(convolved)
-        # print("reduced", reduced.shape)
         encoded = PositionalEncoding()(reduced)
         attended = nn.Sequential(
             [
@@ -345,9 +342,16 @@ class PVCFinal(nn.Module):
                 for _ in range(self.attn_depth)
             ]
         )(encoded)
+        decoded = jnp.concatenate([attended, noise[:, : attended.shape[1], :]], axis=-1)
+        for _ in range(self.decoder_depth):
+            convolved = TCN(
+                features=self.end_features,
+                kernel_dilation=1,
+                kernel_size=self.kernel_size,
+            )(convolved, train=train)
 
         return nn.Conv(features=1, kernel_size=(1,), padding=((0, 0),), use_bias=False)(
-            attended
+            decoded
         )
 
 

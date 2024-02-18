@@ -19,7 +19,8 @@ config:
   sample_rate: 44100
   kernel_size: 5
   end_features: 512
-  conv_depth: 11
-  attn_depth: 8
+  encoder_depth: 11
+  attn_depth: 6
+  decoder_depth: 10
   heads: 32
   expand_factor: 2.0

@@ -240,10 +240,11 @@ def run_inference(
     epoch,
     config,
     x_sharding,
-    state_sharding,
+    jit_do_inference,
     state,
     conversion_config,
     run,
+    loop_rng,
 ):
     for inference_batch_ix, inference_batch in tqdm(
         enumerate(
@@ -267,16 +268,6 @@ def run_inference(
         input = maybe_replicate(input_)
         input = maybe_device_put(input, x_sharding)
         logging.warning(f"input shape for inference is is {input.shape}")
-
-        jit_do_inference = fork_on_parallelism(
-            partial(
-                jax.jit,
-                static_argnums=(2,),
-                in_shardings=(state_sharding, x_sharding),
-                out_shardings=(x_sharding,),
-            ),
-            partial(jax.pmap, static_broadcasted_argnums=(2,)),
-        )(do_inference)
 
         o, _, _ = jit_do_inference(state, input, conversion_config)
         o = maybe_unreplicate(o)
@@ -305,6 +296,7 @@ def run_inference(
                 step=epoch,
                 file_name=f"audio_{epoch}_{inference_batch_ix}_{i}_target.wav",
             )
+    return loop_rng
 
 
 if __name__ == "__main__":
@@ -370,7 +362,8 @@ if __name__ == "__main__":
     _config["sample_rate"] = 44100
     _config["kernel_size"] = 7
     _config["end_features"] = 512
-    _config["conv_depth"] = 16
+    _config["encoder_depth"] = 16
+    _config["decoder_depth"] = 16
     _config["attn_depth"] = 16
     _config["heads"] = 32
     _config["expand_factor"] = 2.0
@@ -450,7 +443,8 @@ if __name__ == "__main__":
         dilation_incr=config.dilation_incr,
         end_features=config.end_features,
         kernel_size=config.kernel_size,
-        conv_depth=config.conv_depth,
+        encoder_depth=config.encoder_depth,
+        decoder_depth=config.decoder_depth,
         attn_depth=config.attn_depth,
         heads=config.heads,
         expand_factor=config.expand_factor,
@@ -531,6 +525,15 @@ if __name__ == "__main__":
         partial(jax.pmap, static_broadcasted_argnums=(3,)),
     )(compute_loss)
 
+    jit_do_inference = fork_on_parallelism(
+        partial(
+            jax.jit,
+            static_argnums=(2,),
+            in_shardings=(state_sharding, x_sharding),
+            out_shardings=(x_sharding,),
+        ),
+        partial(jax.pmap, static_broadcasted_argnums=(2,)),
+    )(do_inference)
     del init_rng  # Must not be used anymore.
     step_ctr = 0
     for epoch in range(config.epochs):
@@ -610,15 +613,16 @@ if __name__ == "__main__":
                     current_time = time.time()
                     elapsed_time = current_time - start_time
                 if elapsed_time > (60 * 60 * 2):
-                    run_inference(
+                    loop_rng = run_inference(
                         inference_dataset,
                         epoch,
                         config,
                         x_sharding,
-                        state_sharding,
+                        jit_do_inference,
                         state,
                         conversion_config,
                         run,
+                        loop_rng,
                     )
                     # we test checkpointing early just to make sure it
                     # works so there aren't any nasty surprises
@@ -691,13 +695,14 @@ if __name__ == "__main__":
         state = replace_metrics(state)
         # inference
         inference_dataset.set_epoch(epoch)
-        run_inference(
+        loop_rng = run_inference(
             inference_dataset,
             epoch,
             config,
             x_sharding,
-            state_sharding,
+            jit_do_inference,
             state,
             conversion_config,
             run,
+            loop_rng,
         )
