@@ -323,6 +323,7 @@ class PVCFinal(nn.Module):
         ipt, noise = ipt[:, :, :-1], ipt[:, :, -1:]
         ipt = ipt if not self.collapse_sines else jnp.sum(ipt, axis=-1, keepdims=True)
         features = ipt.shape[-1]
+        features = features if features >= self.end_features else self.end_features
         convolved = ipt
         kd = 1
         for _ in range(self.encoder_depth):
@@ -332,12 +333,16 @@ class PVCFinal(nn.Module):
                 kernel_size=self.kernel_size,
             )(convolved, train=train)
             kd *= 2
-        reduced = nn.Conv(
-            features=self.end_features,
-            kernel_size=(1,),
-            padding=((0, 0),),
-            use_bias=False,
-        )(convolved)
+        reduced = (
+            convolved
+            if self.end_features == features
+            else nn.Conv(
+                features=self.end_features,
+                kernel_size=(1,),
+                padding=((0, 0),),
+                use_bias=False,
+            )(convolved)
+        )
         encoded = PositionalEncoding()(reduced)
         attended = nn.Sequential(
             [
@@ -345,7 +350,11 @@ class PVCFinal(nn.Module):
                 for _ in range(self.attn_depth)
             ]
         )(encoded)
-        decoded = attended if not self.use_noise else jnp.concatenate([attended, noise[:, : attended.shape[1], :]], axis=-1)
+        decoded = (
+            attended
+            if not self.use_noise
+            else jnp.concatenate([attended, noise[:, : attended.shape[1], :]], axis=-1)
+        )
         for _ in range(self.decoder_depth):
             convolved = TCN(
                 features=self.end_features,
