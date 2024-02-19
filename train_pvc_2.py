@@ -367,6 +367,7 @@ if __name__ == "__main__":
     _config["attn_depth"] = 16
     _config["heads"] = 32
     _config["expand_factor"] = 2.0
+    _config["use_noise"] = True
     with open(local_env.config_file, "r") as f:
         in_config = yaml.safe_load(f)["config"]
         for k, v in in_config.items():
@@ -448,6 +449,7 @@ if __name__ == "__main__":
         attn_depth=config.attn_depth,
         heads=config.heads,
         expand_factor=config.expand_factor,
+        use_noise=config.use_noise,
     )
     tx = optax.adam(config.learning_rate)
 

@@ -314,6 +314,7 @@ class PVCFinal(nn.Module):
     kernel_size: int
     heads: int
     expand_factor: float = 2.0
+    use_noise: bool = True
 
     @nn.compact
     def __call__(self, ipt, train: bool):
@@ -342,7 +343,7 @@ class PVCFinal(nn.Module):
                 for _ in range(self.attn_depth)
             ]
         )(encoded)
-        decoded = jnp.concatenate([attended, noise[:, : attended.shape[1], :]], axis=-1)
+        decoded = attended if not self.use_noise else jnp.concatenate([attended, noise[:, : attended.shape[1], :]], axis=-1)
         for _ in range(self.decoder_depth):
             convolved = TCN(
                 features=self.end_features,
