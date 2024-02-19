@@ -368,6 +368,7 @@ if __name__ == "__main__":
     _config["heads"] = 32
     _config["expand_factor"] = 2.0
     _config["use_noise"] = True
+    _config["collapse_sines"] = False
     with open(local_env.config_file, "r") as f:
         in_config = yaml.safe_load(f)["config"]
         for k, v in in_config.items():

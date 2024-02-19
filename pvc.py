@@ -315,11 +315,13 @@ class PVCFinal(nn.Module):
     heads: int
     expand_factor: float = 2.0
     use_noise: bool = True
+    collapse_sines: bool = False
 
     @nn.compact
     def __call__(self, ipt, train: bool):
         # noise should be last channel
         ipt, noise = ipt[:, :, :-1], ipt[:, :, -1:]
+        ipt = ipt if not self.collapse_sines else jnp.sum(ipt, axis=-1, keepdims=True)
         features = ipt.shape[-1]
         convolved = ipt
         kd = 1

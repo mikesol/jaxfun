@@ -25,3 +25,4 @@ config:
   heads: 32
   expand_factor: 2.0
   use_noise: true
+  collapse_sines: false
