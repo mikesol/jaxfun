@@ -1,0 +1,27 @@
+config:
+  seed: 42
+  batch_size: 64
+  inference_batch_size: 8
+  inference_artifacts_per_batch_per_epoch: 32
+  validation_split: 0.2
+  learning_rate: 0.0001
+  epochs: 128
+  window: 9216
+  inference_window: 9216
+  stride: 256
+  dilation_incr: 32
+  step_freq: 64
+  test_size: 0.1
+  mesh_x_div: 1
+  fft_size: 1024
+  hop_size: 64
+  window_size: 2048
+  sample_rate: 44100
+  kernel_size: 5
+  end_features: 512
+  encoder_depth: 11
+  attn_depth: 6
+  decoder_depth: 10
+  heads: 32
+  expand_factor: 2.0
+  use_noise: false
