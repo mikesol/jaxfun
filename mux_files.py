@@ -26,7 +26,7 @@ if __name__ == "__main__":
         )
         for fi in [x, y]:
             ffmpeg.input(f"/tmp/b/{os.path.basename(fi)}").output(
-                fi, format="wav", acodec="pcm_u16le"
+                fi, format="wav", acodec="pcm_s16le"
             ).run(overwrite_output=True)
         for dir_path in ["/tmp/a", "/tmp/b"]:
             shutil.rmtree(dir_path)

@@ -109,6 +109,9 @@ def audio_gen_16(pair, window, stride):
         _, o = wavfile.read(pair[1])
         assert i.dtype == np.int16
         assert o.dtype == np.int16
+        assert i.min() < 0
+        assert o.min() < 0
+        i, o = i + 32768, o + 32768
         assert i.min() >= 0
         assert o.min() >= 0
         i, o = i.astype(np.int32), o.astype(np.int32)
