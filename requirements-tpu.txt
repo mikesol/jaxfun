@@ -4,6 +4,7 @@ aiosignal==1.3.1
 appdirs==1.4.4
 async-timeout==4.0.3
 attrs==23.1.0
+audalign==1.2.4
 audioread==3.0.1
 auraloss==0.4.0
 black==23.12.1
@@ -27,6 +28,7 @@ dulwich==0.21.7
 etils==1.3.0
 everett==3.1.0
 exceptiongroup==1.2.0
+ffmpeg-python==0.2.0
 filelock==3.13.1
 flax==0.7.2
 fouriax==0.1.4

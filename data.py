@@ -105,8 +105,13 @@ def audio_gen_16(pair, window, stride):
     def _audio_gen():
         # these files need to be 16-bit unsigned audio!
         # otherwise it won't work
-        i, _ = wavfile.read(pair[0], sr=44100)
-        o, _ = wavfile.read(pair[1], sr=44100)
+        _, i = wavfile.read(pair[0])
+        _, o = wavfile.read(pair[1])
+        assert i.dtype == np.int16
+        assert o.dtype == np.int16
+        assert i.min() >= 0
+        assert o.min() >= 0
+        i, o = i.astype(np.int32), o.astype(np.int32)
         start = 0
         while start + window <= len(i):
             ii = i[start : start + window]
