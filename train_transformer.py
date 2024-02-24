@@ -143,6 +143,7 @@ def _replace_metrics(state):
     return state.replace(metrics=state.metrics.empty())
 
 
+# todo: should we use scan to reduce compilation time?
 def do_inference(state, input, w_size):
     input = jnp.pad(input, ((0, 0), (1, 0), (0, 0)))
     output = input[:, :1, :]
@@ -160,14 +161,19 @@ def do_inference(state, input, w_size):
 replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
 
 
-def compute_loss(state, input, target):
-    pred, _ = state.apply_fn(
-        {"params": state.params},
-        input[:, :-1, :],
-        target[:, :-1, :],
-        train=False,
+def compute_loss(state, input, target, w_size):
+    output = target[:, :1, :]
+    for x in range(input.shape[1] - w_size):
+        o, _ = state.apply_fn(
+            {"params": state.params},
+            input[:, :x, :] if x < w_size else input[:, (x - w_size) : x, :],
+            output,
+            train=False,
+        )
+        output = jnp.concatenate([output, o], axis=1)
+    loss = optax.softmax_cross_entropy_with_integer_labels(
+        output, target[:, 1 : output.shape[1] + 1, :]
     )
-    loss = optax.softmax_cross_entropy_with_integer_labels(pred, target[:, 1:, :])
     return loss
 
 
@@ -239,6 +245,7 @@ if __name__ == "__main__":
     _config["learning_rate"] = 1e-4
     _config["epochs"] = 2**7
     _config["window_plus_one"] = 2**10 + 1
+    _config["val_window_plus_one"] = 2**11 + 1
     _config["inference_window"] = 2**15
     _config["stride"] = 2**8
     _config["step_freq"] = 2**6
@@ -297,7 +304,7 @@ if __name__ == "__main__":
     )
     proto_test_dataset, test_dataset_total = make_data_16(
         paths=test_files,
-        window=config.window_plus_one,
+        window=config.val_window_plus_one,
         stride=config.stride,
     )
     proto_inference_dataset, inference_dataset_total = make_data_16(
