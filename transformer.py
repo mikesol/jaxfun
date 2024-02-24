@@ -2,6 +2,14 @@ import jax.numpy as jnp
 from flax import linen as nn
 
 
+def make_causal_mask(x):
+    length = x.shape[1]
+    mask = jnp.triu(
+        jnp.ones((length, length), dtype=jnp.bool_), k=1
+    )  # Create upper triangular matrix
+    return mask
+
+
 class TransformerNetwork(nn.Module):
     vocab_size: int
     block_size: int
@@ -20,6 +28,8 @@ class TransformerNetwork(nn.Module):
         position_embedding_encoder = nn.Embed(
             num_embeddings=self.block_size, features=self.n_embed
         )
+        encoder_mask = self.make_causal_mask(encoder_input)
+        decoder_mask = self.make_causal_mask(decoder_input)
 
         # Token and position embeddings for lq
         seq_len_encoder = lq.shape[1]
@@ -40,7 +50,7 @@ class TransformerNetwork(nn.Module):
                 num_heads=self.num_heads,
                 dff=self.dff,
                 dropout_rate=self.dropout_rate,
-            )(encoder_input, train)
+            )(encoder_input, encoder_mask, train)
         encoder_output = encoder_input
         # Embedding layers for hq (high quality - decoder input)
         token_embedding_decoder = nn.Embed(
@@ -69,7 +79,7 @@ class TransformerNetwork(nn.Module):
                 num_heads=self.num_heads,
                 dff=self.dff,
                 dropout_rate=self.dropout_rate,
-            )(decoder_input, encoder_output, train)
+            )(decoder_input, encoder_output, decoder_mask, train)
 
         decoder_input = nn.LayerNorm()(decoder_input)
         output = nn.Dense(features=self.vocab_size, use_bias=False)(
@@ -86,13 +96,13 @@ class EncoderLayer(nn.Module):
     dropout_rate: float
 
     @nn.compact
-    def __call__(self, x, train):
+    def __call__(self, x, encoder_mask, train):
         ln1 = nn.LayerNorm()(x)
         attn_output = nn.SelfAttention(
             features=self.d_model,
             num_heads=self.num_heads,
             dropout_rate=self.dropout_rate,
-        )(ln1, deterministic=not train)
+        )(ln1, mask=encoder_mask if train else None, deterministic=not train)
         attn_output = nn.Dropout(rate=self.dropout_rate)(
             attn_output, deterministic=not train
         )
@@ -114,13 +124,13 @@ class DecoderLayer(nn.Module):
     dropout_rate: float
 
     @nn.compact
-    def __call__(self, x, encoder_output, train):
+    def __call__(self, x, encoder_output, decoder_mask, train):
         ln1 = nn.LayerNorm()(x)
         attn1_output = nn.SelfAttention(
             features=self.d_model,
             num_heads=self.num_heads,
             dropout_rate=self.dropout_rate,
-        )(ln1, deterministic=not train)
+        )(ln1, mask=decoder_mask if train else None, deterministic=not train)
         attn1_output = nn.Dropout(rate=self.dropout_rate)(
             attn1_output, deterministic=not train
         )

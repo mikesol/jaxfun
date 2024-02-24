@@ -143,13 +143,18 @@ def _replace_metrics(state):
     return state.replace(metrics=state.metrics.empty())
 
 
-def do_inference(state, input):
-    o, _ = state.apply_fn(
-        {"params": state.params},
-        input,
-        train=False,
-    )
-    return o
+def do_inference(state, input, w_size):
+    input = jnp.pad(input, ((0, 0), (1, 0), (0, 0)))
+    output = input[:, :1, :]
+    for x in range(input.shape[1] - w_size):
+        o, _ = state.apply_fn(
+            {"params": state.params},
+            input[:, :x, :] if x < w_size else input[:, (x - w_size) : x, :],
+            output,
+            train=False,
+        )
+        output = jnp.concatenate([output, o], axis=1)
+    return output
 
 
 replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
@@ -234,7 +239,7 @@ if __name__ == "__main__":
     _config["learning_rate"] = 1e-4
     _config["epochs"] = 2**7
     _config["window_plus_one"] = 2**10 + 1
-    _config["inference_window_plus_one"] = 2**10 + 1
+    _config["inference_window"] = 2**15
     _config["stride"] = 2**8
     _config["step_freq"] = 2**6
     _config["test_size"] = 0.1
@@ -287,17 +292,17 @@ if __name__ == "__main__":
     proto_train_dataset, train_dataset_total = make_data_16(
         naug=0,
         paths=train_files,
-        window_plus_one=config.window_plus_one,
+        window=config.window_plus_one,
         stride=config.stride,
     )
     proto_test_dataset, test_dataset_total = make_data_16(
         paths=test_files,
-        window_plus_one=config.window_plus_one,
+        window=config.window_plus_one,
         stride=config.stride,
     )
     proto_inference_dataset, inference_dataset_total = make_data_16(
         paths=test_files,
-        window_plus_one=config.inference_window_plus_one,
+        window=config.inference_window,
         stride=config.stride,
     )
     print("datasets generated")
@@ -542,17 +547,20 @@ if __name__ == "__main__":
                     jax.jit,
                     in_shardings=(state_sharding, x_sharding),
                     out_shardings=x_sharding,
+                    static_argnums=(2,),
                 ),
-                jax.pmap,
+                partial(jax.pmap, static_broadcasted_argnums=(2,)),
             )(do_inference)
 
-            o = jit_do_inference(state, input)
+            o = jit_do_inference(state, input, config.window_plus_one - 1)
             o = maybe_unreplicate(o)
-            assert o.shape[-1] == 1
+            # this will squeeze out the logit dimension
+            o = jnp.argmax(o, axis=-1)
+            assert len(o.shape) == 2
             # logging.info(f"shape of batch is {input.shape}")
 
             for i in range(o.shape[0]):
-                audy = np.squeeze(np.array(o[i]))
+                audy = np.array(o[i])
                 # vocab to float
                 audy = audy.astype(np.float32) - 32768
                 audy = audy / 32768

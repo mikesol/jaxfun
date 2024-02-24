@@ -25,8 +25,8 @@ if __name__ == "__main__":
             results, destination_path="/tmp/b/", recognizer=correlation_rec1
         )
         for fi in [x, y]:
-            ffmpeg.input(f"/tmp/b/{os.path.basename(fi)}").output(fi, format="wav", acodec="pcm_u16le").run(
-                overwrite_output=True
-            )
+            ffmpeg.input(f"/tmp/b/{os.path.basename(fi)}").output(
+                fi, format="wav", acodec="pcm_u16le"
+            ).run(overwrite_output=True)
         for dir_path in ["/tmp/a", "/tmp/b"]:
             shutil.rmtree(dir_path)
