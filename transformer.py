@@ -9,7 +9,7 @@ class TransformerNetwork(nn.Module):
     num_heads: int
     dff: int
     depth: int
-    dropout_rate: float = 0.1
+    dropout_rate: float = 0.2
 
     @nn.compact
     def __call__(self, lq, hq, train):

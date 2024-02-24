@@ -2,8 +2,6 @@ import os
 from parallelism import Parallelism
 from contextlib import nullcontext
 import logging
-from bias_types import BiasTypes
-from activation import Activation, make_activation
 import flax.linen as nn
 from fork_on_parallelism import fork_on_parallelism
 from create_filtered_audio import create_biquad_coefficients
@@ -217,7 +215,7 @@ if __name__ == "__main__":
 
     run = Experiment(
         api_key=local_env.comet_ml_api_key,
-        project_name="jax-tcn-attn",
+        project_name="jax-transformer",
     )
     ## defaults
     _config = {}
@@ -230,32 +228,18 @@ if __name__ == "__main__":
     _config["validation_split"] = 0.2
     _config["learning_rate"] = 1e-4
     _config["epochs"] = 2**7
-    _config["window"] = 2**11
-    _config["inference_window"] = 2**11
+    _config["window"] = 2**10
+    _config["inference_window"] = 2**10
     _config["stride"] = 2**8
     _config["step_freq"] = 2**6
     _config["test_size"] = 0.1
-    # _config["features"] = 2**7
-    _config["bias_type"] = BiasTypes.BATCH_NORM
-    _config["kernel_dilation"] = 2**1
-    _config["conv_kernel_size"] = 2**3
-    _config["attn_kernel_size"] = 2**5
-    _config["heads"] = 2**2
-    _config["conv_depth"] = [11, 10, 9]
-    _config["attn_depth"] = 2**3
-    _config["do_last_activation"] = False
-    _config["sidechain_modulo_l"] = 2
-    _config["sidechain_modulo_r"] = 1
-    _config["do_last_skip"] = False
-    _config["expand_factor"] = 2.0
-    _config["positional_encodings"] = True
-    _config["mesh_x_div"] = 1
-    _config["loss_fn"] = LossFn.LOGCOSH
-    _config["activation"] = Activation.PRELU
-    _config["afstart"] = 100
-    _config["afend"] = 19000
-    _config["qstart"] = 30
-    _config["qend"] = 10
+    _config["vocab_size"] = 2**16
+    _config["n_embed"] = 2**10
+    _config["n_heads"] = 2**5
+    _config["dff"] = 2**11
+    _config["depth"] = 2**4
+    _config["dropout_rate"] = 0.2
+    dropout_rate: float = 0.2
     with open(local_env.config_file, "r") as f:
         in_config = yaml.safe_load(f)["config"]
         for k, v in in_config.items():
@@ -266,8 +250,6 @@ if __name__ == "__main__":
                 raise ValueError(f"Requires key {k}")
         _config = in_config
         _config["loss_fn"] = LossFn(_config["loss_fn"])
-        _config["bias_type"] = BiasTypes(_config["bias_type"])
-        _config["activation"] = Activation(_config["activation"])
         _config["mesh_x"] = device_len // _config["mesh_x_div"]
         _config["mesh_y"] = _config["mesh_x_div"]
         _config["conv_depth"] = tuple(_config["conv_depth"])
