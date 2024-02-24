@@ -124,9 +124,13 @@ def train_step(state, input, target, dropout_key):
 
     def loss_fn(params):
         pred, updates = state.apply_fn(
-            {"params": params}, input, train=True, rngs={"dropout": dropout_train_key}
+            {"params": params},
+            input[:, :-1, :],
+            target[:, :-1, :],
+            train=True,
+            rngs={"dropout": dropout_train_key},
         )
-        loss = optax.softmax_cross_entropy_with_integer_labels(pred, target)
+        loss = optax.softmax_cross_entropy_with_integer_labels(pred, target[:, 1:, :])
         return loss, updates
 
     grad_fn = jax.value_and_grad(loss_fn)
@@ -151,13 +155,14 @@ def do_inference(state, input):
 replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
 
 
-def compute_loss(state, input, target, dropout_key):
+def compute_loss(state, input, target):
     pred, _ = state.apply_fn(
         {"params": state.params},
-        input,
+        input[:, :-1, :],
+        target[:, :-1, :],
         train=False,
     )
-    loss = optax.softmax_cross_entropy_with_integer_labels(pred, target)
+    loss = optax.softmax_cross_entropy_with_integer_labels(pred, target[:, 1:, :])
     return loss
 
 
@@ -228,8 +233,8 @@ if __name__ == "__main__":
     _config["validation_split"] = 0.2
     _config["learning_rate"] = 1e-4
     _config["epochs"] = 2**7
-    _config["window"] = 2**10
-    _config["inference_window"] = 2**10
+    _config["window_plus_one"] = 2**10 + 1
+    _config["inference_window_plus_one"] = 2**10 + 1
     _config["stride"] = 2**8
     _config["step_freq"] = 2**6
     _config["test_size"] = 0.1
@@ -239,7 +244,6 @@ if __name__ == "__main__":
     _config["dff"] = 2**11
     _config["depth"] = 2**4
     _config["dropout_rate"] = 0.2
-    dropout_rate: float = 0.2
     with open(local_env.config_file, "r") as f:
         in_config = yaml.safe_load(f)["config"]
         for k, v in in_config.items():
@@ -283,23 +287,23 @@ if __name__ == "__main__":
     proto_train_dataset, train_dataset_total = make_data_16(
         naug=0,
         paths=train_files,
-        window=config.window,
+        window_plus_one=config.window_plus_one,
         stride=config.stride,
     )
     proto_test_dataset, test_dataset_total = make_data_16(
         paths=test_files,
-        window=config.window,
+        window_plus_one=config.window_plus_one,
         stride=config.stride,
     )
     proto_inference_dataset, inference_dataset_total = make_data_16(
         paths=test_files,
-        window=config.inference_window,
+        window_plus_one=config.inference_window_plus_one,
         stride=config.stride,
     )
     print("datasets generated")
     init_rng = jax.random.PRNGKey(config.seed)
     init_rng, dropout_rng = jax.random.split(init_rng, 2)
-    onez = jnp.ones([config.batch_size, config.window, 1])  # 1,
+    onez = jnp.ones([config.batch_size, config.window_plus_one, 1])  # 1,
     module = TransformerNetwork()
     tx = optax.adamw(config.learning_rate)
 
@@ -422,11 +426,11 @@ if __name__ == "__main__":
                 input = trim_batch(jnp.array(batch["input"]), config.batch_size)
                 if input.shape[0] == 0:
                     continue
-                assert input.shape[1] == config.window
+                assert input.shape[1] == config.window_plus_one
                 input = maybe_replicate(input)
                 input = maybe_device_put(input, x_sharding)
                 target = trim_batch(jnp.array(batch["target"]), config.batch_size)
-                assert target.shape[1] == config.window
+                assert target.shape[1] == config.window_plus_one
                 target = maybe_replicate(target)
                 with fork_on_parallelism(mesh, nullcontext()):
                     loop_rng, new_dropout_rng = jax.random.split(loop_rng, 2)

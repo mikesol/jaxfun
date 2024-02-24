@@ -1,0 +1,19 @@
+config:
+  seed: 42
+  batch_size: 16
+  inference_batch_size: 8
+  inference_artifacts_per_batch_per_epoch: 32
+  validation_split: 0.2
+  learning_rate: 0.0001
+  epochs: 128
+  window_plus_one: 1025
+  inference_window_plus_one: 1025
+  stride: 256
+  step_freq: 64
+  test_size: 0.1
+  vocab_size: 65536
+  n_embed: 1024
+  n_heads: 32
+  dff: 2048
+  depth: 16
+  dropout_rate: 0.2
