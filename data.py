@@ -4,6 +4,7 @@ import numpy as np
 from functools import partial
 import wave
 import soundfile
+from scipy.io import wavfile
 from jostle import process_audio
 import multiprocessing
 from create_filtered_audio import create_filtered_audio
@@ -100,6 +101,26 @@ def audio_gen(pair, window, stride, normalize=True, naug=3):
     return _audio_gen
 
 
+def audio_gen_16(pair, window, stride):
+    def _audio_gen():
+        # these files need to be 16-bit unsigned audio!
+        # otherwise it won't work
+        i, _ = wavfile.read(pair[0], sr=44100)
+        o, _ = wavfile.read(pair[1], sr=44100)
+        start = 0
+        while start + window <= len(i):
+            ii = i[start : start + window]
+            assert len(ii) == window
+            oo = o[start : start + window]
+            yield {
+                "input": ii,
+                "target": oo,
+            }
+            start += stride
+
+    return _audio_gen
+
+
 def Paul(a, b):
     assert a.shape[-1] == b.shape[-1]
     c = np.empty(
@@ -157,6 +178,24 @@ def make_data(
             IterableDataset.from_generator(
                 audio_gen(pair, window, stride, normalize=normalize, naug=naug)
             )
+            for pair in paths
+        ]
+    ).map(
+        lambda x: {
+            "input": np.expand_dims(x["input"], axis=feature_dim),
+            "target": np.expand_dims(x["target"], axis=feature_dim),
+        },
+    )
+    if shuffle:
+        dataset = dataset.shuffle(seed=42, buffer_size=2**10)
+
+    return dataset, get_total_lens(paths, window, stride) * 2
+
+
+def make_data_16(paths, window, stride, feature_dim=-1, shuffle=True):
+    dataset = interleave_datasets(
+        [
+            IterableDataset.from_generator(audio_gen_16(pair, window, stride))
             for pair in paths
         ]
     ).map(
