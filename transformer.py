@@ -82,9 +82,8 @@ class TransformerNetwork(nn.Module):
             )(decoder_input, encoder_output, decoder_mask, train)
 
         decoder_input = nn.LayerNorm()(decoder_input)
-        output = nn.Dense(features=self.vocab_size, use_bias=False)(
-            decoder_input if train else decoder_input[:, [-1], :]
-        )
+        # could theoretically only do this on the last timestep during inference
+        output = nn.Dense(features=self.vocab_size, use_bias=False)(decoder_input)
 
         return output
 
@@ -102,7 +101,7 @@ class EncoderLayer(nn.Module):
             features=self.d_model,
             num_heads=self.num_heads,
             dropout_rate=self.dropout_rate,
-        )(ln1, mask=encoder_mask if train else None, deterministic=not train)
+        )(ln1, mask=encoder_mask, deterministic=not train)
         attn_output = nn.Dropout(rate=self.dropout_rate)(
             attn_output, deterministic=not train
         )
@@ -130,7 +129,7 @@ class DecoderLayer(nn.Module):
             features=self.d_model,
             num_heads=self.num_heads,
             dropout_rate=self.dropout_rate,
-        )(ln1, mask=decoder_mask if train else None, deterministic=not train)
+        )(ln1, mask=decoder_mask, deterministic=not train)
         attn1_output = nn.Dropout(rate=self.dropout_rate)(
             attn1_output, deterministic=not train
         )

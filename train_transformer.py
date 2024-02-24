@@ -154,7 +154,7 @@ def do_inference(state, input, w_size):
             output,
             train=False,
         )
-        output = jnp.concatenate([output, o], axis=1)
+        output = jnp.concatenate([output, o[:, -1:, :]], axis=1)
     return output
 
 
@@ -170,7 +170,7 @@ def compute_loss(state, input, target, w_size):
             output,
             train=False,
         )
-        output = jnp.concatenate([output, o], axis=1)
+        output = jnp.concatenate([output, o[:, -1:, :]], axis=1)
     loss = optax.softmax_cross_entropy_with_integer_labels(
         output, target[:, 1 : output.shape[1] + 1, :]
     )
