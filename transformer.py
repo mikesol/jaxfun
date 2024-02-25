@@ -180,7 +180,7 @@ if __name__ == "__main__":
         dff=2**11,
         depth=2**2,
         dropout_rate=0.2,
-        mask_encoder=True
+        mask_encoder=True,
     )
     print(
         model.tabulate(

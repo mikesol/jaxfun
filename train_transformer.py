@@ -216,8 +216,8 @@ maybe_unreplicate = fork_on_parallelism(lambda x: x, jax_utils.unreplicate)
 maybe_device_put = fork_on_parallelism(jax.device_put, lambda x, _: x)
 
 
-def mesh_sharding(pspec: PartitionSpec) -> NamedSharding:
-    return NamedSharding(mesh, pspec)
+def mesh_sharding(mesh_, pspec: PartitionSpec) -> NamedSharding:
+    return NamedSharding(mesh_, pspec)
 
 
 if __name__ == "__main__":
@@ -309,7 +309,7 @@ if __name__ == "__main__":
         device_mesh = mesh_utils.create_device_mesh((config.mesh_x, config.mesh_y))
         mesh = Mesh(devices=device_mesh, axis_names=("data", "model"))
         print(mesh)
-        x_sharding = mesh_sharding(PartitionSpec("data", None))
+        x_sharding = mesh_sharding(mesh, PartitionSpec("data", None))
     ###
 
     len_files = len(FILES)
@@ -349,7 +349,7 @@ if __name__ == "__main__":
         dff=config.dff,
         depth=config.depth,
         dropout_rate=config.dropout_rate,
-        mask_encoder=config.mask_encoder
+        mask_encoder=config.mask_encoder,
     )
     tx = optax.adamw(config.learning_rate)
 
@@ -369,12 +369,12 @@ if __name__ == "__main__":
             static_argnums=(3, 4),
             in_shardings=(
                 (
-                    mesh_sharding(None)
+                    mesh_sharding(mesh, None)
                     if local_env.parallelism == Parallelism.SHARD
                     else None
                 ),
                 (
-                    mesh_sharding(None)
+                    mesh_sharding(mesh, None)
                     if local_env.parallelism == Parallelism.SHARD
                     else None
                 ),
@@ -422,7 +422,7 @@ if __name__ == "__main__":
                 x_sharding,
                 x_sharding,
                 (
-                    mesh_sharding(None)
+                    mesh_sharding(mesh, None)
                     if local_env.parallelism == Parallelism.SHARD
                     else None
                 ),
@@ -571,9 +571,7 @@ if __name__ == "__main__":
                 if input is None:
                     continue
                 input = maybe_device_put(input, x_sharding)
-                target = maybe_replicate(
-                    trim_batch(batch["target"], config.batch_size)
-                )
+                target = maybe_replicate(trim_batch(batch["target"], config.batch_size))
                 if target is None:
                     continue
                 loss = jit_compute_loss(
