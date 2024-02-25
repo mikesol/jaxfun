@@ -167,6 +167,7 @@ def do_inference(state, input, w_size):
         )[:, 1:, :]
     return oo
 
+
 replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
 
 
