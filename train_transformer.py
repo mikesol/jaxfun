@@ -145,15 +145,15 @@ def _replace_metrics(state):
 # todo: should we use scan to reduce compilation time?
 def do_inference(state, input, w_size):
     input = jnp.pad(input, ((0, 0), (1, 0), (0, 0)))
-    output = input[:, :1, :]
+    output = input[:, :w_size, :]
     for x in range(input.shape[1] - w_size):
         o, _ = state.apply_fn(
             {"params": state.params},
-            input[:, :x, :] if x < w_size else input[:, (x - w_size) : x, :],
+            input[:, x : x + w_size, :],
             output,
             train=False,
         )
-        output = jnp.concatenate([output, o[:, -1:, :]], axis=1)
+        output = jnp.concatenate([output, o[:, -1:, :]], axis=1)[:, 1:, :]
     return output
 
 
@@ -161,18 +161,16 @@ replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
 
 
 def compute_loss(state, input, target, w_size):
-    output = target[:, :1, :]
+    output = target[:, :w_size, :]
     for x in range(input.shape[1] - w_size):
         o, _ = state.apply_fn(
             {"params": state.params},
-            input[:, :x, :] if x < w_size else input[:, (x - w_size) : x, :],
+            input[:, x : x + w_size, :],
             output,
             train=False,
         )
-        output = jnp.concatenate([output, o[:, -1:, :]], axis=1)
-    loss = optax.softmax_cross_entropy_with_integer_labels(
-        output, target[:, 1 : output.shape[1] + 1, :]
-    )
+        output = jnp.concatenate([output, o[:, -1:, :]], axis=1)[:, 1:, :]
+    loss = optax.softmax_cross_entropy_with_integer_labels(output, target)
     return loss
 
 
@@ -240,7 +238,6 @@ if __name__ == "__main__":
     _config["inference_artifacts_per_batch_per_epoch"] = (
         _config["inference_batch_size"] * 4
     )
-    _config["validation_split"] = 0.2
     _config["learning_rate"] = 1e-4
     _config["epochs"] = 2**7
     _config["window_plus_one"] = 2**10 + 1
