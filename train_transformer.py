@@ -95,7 +95,7 @@ class TrainState(train_state.TrainState):
 
 def create_train_state(rng: PRNGKey, dropout_key: PRNGKey, x, module, tx) -> TrainState:
     print("creating train state", rng.shape, x.shape)
-    variables = module.init(rng, x, train=False)
+    variables = module.init(rng, x, x, train=False)
     params = variables["params"]
     return TrainState.create(
         apply_fn=module.apply,
