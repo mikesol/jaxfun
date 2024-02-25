@@ -456,6 +456,7 @@ if __name__ == "__main__":
         ) as loop:
             for batch_ix, batch in loop:
                 should_use_gen = batch_ix % 2 == 1
+                print('batch DTYPE', batch["input"].dtype)
                 input = trim_batch(jnp.array(batch["input"]), config.batch_size)
                 if input.shape[0] == 0:
                     continue
