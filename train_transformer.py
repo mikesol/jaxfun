@@ -132,7 +132,7 @@ def train_step(state, input, target, dropout_key):
         )
         loss = optax.softmax_cross_entropy_with_integer_labels(
             pred, jnp.squeeze(target[:, 1:, :], axis=-1)
-        )
+        ).mean()
         print("shapes!!", pred.shape, target[:, 1:, :], loss.shape)
         return loss
 
@@ -177,7 +177,7 @@ def compute_loss(state, input, target, w_size):
         output = jnp.concatenate([output, o[:, -1:, :]], axis=1)[:, 1:, :]
     loss = optax.softmax_cross_entropy_with_integer_labels(
         output, jnp.reshape(target[:, 1:-w_size], (-1, T - w_size - 1))
-    )
+    ).mean()
     return loss
 
 
