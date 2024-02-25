@@ -64,6 +64,7 @@ PRNGKey = jax.Array
 
 def do_inference(state, input, w_size):
     B, T, C = input.shape
+    assert C == 1
 
     # first, make input into dilated patches with w_size padding on both sides
     # then, make a carry with the previous prediction that is w_size long, initializing to 0
@@ -81,6 +82,7 @@ def do_inference(state, input, w_size):
     # (batch, seq, C)
     output = jnp.zeros((B, T, C))
 
+    # (b, t, c) (b, w_size)
     def _loop(c, x):
         o = state.apply_fn(
             {"params": state.params},
@@ -100,7 +102,11 @@ def do_inference(state, input, w_size):
 
         return c, c[:,-1,:]
 
-    return jax.lax.scan(_loop, output, input)
+    # (seq, b, c)
+    output = jax.lax.scan(_loop, output, input)
+    output = jnp.transpose(output, (1, 0, 2))
+    assert output.shape == input.shape
+    return output
 
 
 if __name__ == "__main__":
