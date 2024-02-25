@@ -72,10 +72,12 @@ def trim_batch(tensor, batch_size):
     jax.numpy.ndarray: The truncated tensor.
     """
     # Get the size of the leading dimension (batch dimension)
-    batch_dim = tensor.shape[0]
+    B, T, C = tensor.shape
+    if (B < batch_size) or (T == 0) or (C == 0):
+        return None
 
     # Calculate the size of the truncated dimension
-    truncated_size = (batch_dim // batch_size) * batch_size
+    truncated_size = (B // batch_size) * batch_size
 
     # Truncate the tensor
     truncated_tensor = tensor[:truncated_size]
@@ -148,9 +150,9 @@ def _replace_metrics(state):
 # todo: should we use scan to reduce compilation time?
 def do_inference(state, input, w_size):
     B, T, C = input.shape
-    input = input # input = jnp.pad(input, ((0, 0), (w_size, 0), (0, 0)))
+    input = input  # input = jnp.pad(input, ((0, 0), (w_size, 0), (0, 0)))
     output = input[:, :w_size, :]
-    to_loop = 1 # T - 1
+    to_loop = 1  # T - 1
     oo = None
     for x in range(to_loop):
         o = state.apply_fn(
@@ -176,8 +178,8 @@ def compute_loss(state, input, target, w_size):
     B, T, C = input.shape
     # find a way to make jitting practical
     # and then we can do the whole shebang
-    input = input # input = jnp.pad(input, ((0, 0), (w_size, 0), (0, 0)))
-    to_loop = 1 # T - 1
+    input = input  # input = jnp.pad(input, ((0, 0), (w_size, 0), (0, 0)))
+    to_loop = 1  # T - 1
     output = input[:, :w_size, :]
     oo = None
     for x in range(to_loop):
@@ -195,7 +197,7 @@ def compute_loss(state, input, target, w_size):
             axis=1,
         )[:, 1:, :]
     loss = optax.softmax_cross_entropy_with_integer_labels(
-        oo, jnp.reshape(target[:, 1:w_size + to_loop], (-1, w_size + to_loop - 1))
+        oo, jnp.reshape(target[:, 1 : w_size + to_loop], (-1, w_size + to_loop - 1))
     ).mean()
     return loss
 
@@ -482,13 +484,15 @@ if __name__ == "__main__":
         ) as loop:
             for batch_ix, batch in loop:
                 should_use_gen = batch_ix % 2 == 1
-                input = trim_batch(jnp.array(batch["input"]), config.batch_size)
-                if input.shape[0] == 0:
+                input = trim_batch(batch["input"], config.batch_size)
+                if input is None:
                     continue
                 assert input.shape[1] == config.window_plus_one
                 input = maybe_replicate(input)
                 input = maybe_device_put(input, x_sharding)
-                target = trim_batch(jnp.array(batch["target"]), config.batch_size)
+                target = trim_batch(batch["target"], config.batch_size)
+                if target is None:
+                    continue
                 assert target.shape[1] == config.window_plus_one
                 target = maybe_replicate(target)
                 with fork_on_parallelism(mesh, nullcontext()):
@@ -561,15 +565,15 @@ if __name__ == "__main__":
             unit="batch",
         ) as loop:
             for batch_ix, batch in loop:
-                input = maybe_replicate(
-                    trim_batch(jnp.array(batch["input"]), config.batch_size)
-                )
-                if input.shape[0] == 0:
+                input = maybe_replicate(trim_batch(batch["input"], config.batch_size))
+                if input is None:
                     continue
                 input = maybe_device_put(input, x_sharding)
                 target = maybe_replicate(
-                    trim_batch(jnp.array(batch["target"]), config.batch_size)
+                    trim_batch(batch["target"], config.batch_size)
                 )
+                if target is None:
+                    continue
                 loss = jit_compute_loss(
                     state,
                     input,
@@ -590,12 +594,12 @@ if __name__ == "__main__":
             ),
             total=config.inference_artifacts_per_batch_per_epoch,
         ):
-            input_ = trim_batch(jnp.array(batch["input"]), config.inference_batch_size)
-            if input_.shape[0] == 0:
+            input_ = trim_batch(batch["input"], config.inference_batch_size)
+            if input_ is None:
                 continue
-            target_ = trim_batch(
-                jnp.array(batch["target"]), config.inference_batch_size
-            )
+            target_ = trim_batch(batch["target"], config.inference_batch_size)
+            if target_ is None:
+                continue
             input = maybe_replicate(input_)
             input = maybe_device_put(input, x_sharding)
             logging.warning(f"input shape for inference is is {input.shape}")
