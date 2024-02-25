@@ -12,9 +12,9 @@ config:
   step_freq: 64
   test_size: 0.1
   vocab_size: 65536
-  n_embed: 1024
+  n_embed: 512
   n_heads: 32
-  dff: 2048
+  dff: 1024
   depth: 4
   dropout_rate: 0.2
   mesh_x_div: 1
