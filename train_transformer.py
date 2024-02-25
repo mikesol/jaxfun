@@ -147,35 +147,50 @@ def _replace_metrics(state):
 
 # todo: should we use scan to reduce compilation time?
 def do_inference(state, input, w_size):
-    input = jnp.pad(input, ((0, 0), (1, 0), (0, 0)))
+    B, T, C = input.shape
+    input = jnp.pad(input, ((0, 0), (w_size, 0), (0, 0)))
     output = input[:, :w_size, :]
-    for x in range(input.shape[1] - w_size):
+    oo = None
+    for x in range(T - 1):
         o = state.apply_fn(
             {"params": state.params},
             input[:, x : x + w_size, :],
             output,
             train=False,
         )
-        output = jnp.concatenate([output, o[:, -1:, :]], axis=1)[:, 1:, :]
-    return output
-
+        # output is B, T, 1
+        # o is (B, T, Logits)
+        oo = o if x == 0 else jnp.concatenate([oo, o[:, -1:, :]], axis=1)
+        output = jnp.concatenate(
+            [output, jnp.expand_dims(jnp.argmax(o[:, -1:, :], axis=-1), axis=-1)],
+            axis=1,
+        )[:, 1:, :]
+    return oo
 
 replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
 
 
 def compute_loss(state, input, target, w_size):
     B, T, C = input.shape
-    output = target[:, :w_size, :]
-    for x in range(T - w_size - 1):
+    input = jnp.pad(input, ((0, 0), (w_size, 0), (0, 0)))
+    output = input[:, :w_size, :]
+    oo = None
+    for x in range(T - 1):
         o = state.apply_fn(
             {"params": state.params},
             input[:, x : x + w_size, :],
             output,
             train=False,
         )
-        output = jnp.concatenate([output, o[:, -1:, :]], axis=1)[:, 1:, :]
+        # output is B, T, 1
+        # o is (B, T, Logits)
+        oo = o if x == 0 else jnp.concatenate([oo, o[:, -1:, :]], axis=1)
+        output = jnp.concatenate(
+            [output, jnp.expand_dims(jnp.argmax(o[:, -1:, :], axis=-1), axis=-1)],
+            axis=1,
+        )[:, 1:, :]
     loss = optax.softmax_cross_entropy_with_integer_labels(
-        output, jnp.reshape(target[:, 1:-w_size], (-1, T - w_size - 1))
+        oo, jnp.reshape(target[:, 1:-w_size], (-1, T - w_size - 1))
     ).mean()
     return loss
 
@@ -528,7 +543,7 @@ if __name__ == "__main__":
                 logging.warning(f"checkpoint artifact did not work {e}")
             start_time = current_time
             # hack suggested on https://github.com/google/flax/discussions/1690
-            print(state.params)
+            # print(state.params)
         test_dataset.set_epoch(epoch)
         with tqdm(
             enumerate(
