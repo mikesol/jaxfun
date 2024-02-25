@@ -310,7 +310,7 @@ if __name__ == "__main__":
     print("datasets generated")
     init_rng = jax.random.PRNGKey(config.seed)
     init_rng, dropout_rng = jax.random.split(init_rng, 2)
-    onez = jnp.ones([config.batch_size, config.window_plus_one, 1], dtype=jnp.int32)  # 1,
+    onez = jnp.ones([config.batch_size, config.window_plus_one -1, 1], dtype=jnp.int32)  # 1,
     module = TransformerNetwork(
         vocab_size=config.vocab_size,
         block_size=config.window_plus_one - 1,
