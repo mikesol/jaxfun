@@ -533,7 +533,7 @@ if __name__ == "__main__":
             )
             try:
                 subprocess.run(
-                    f"gsutil -m rsync -r {os.path.join(checkpoint_dir)} gs://meeshkan-experiments/jax-pvc/{run.id}",
+                    f"gsutil -m rsync -r {os.path.join(checkpoint_dir)} gs://meeshkan-experiments/jax-transformer/{run.id}",
                     check=True,
                     shell=True,
                     stdout=subprocess.PIPE,
