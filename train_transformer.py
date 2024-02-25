@@ -194,7 +194,7 @@ def compute_loss(state, input, target, w_size):
             axis=1,
         )[:, 1:, :]
     loss = optax.softmax_cross_entropy_with_integer_labels(
-        oo, jnp.reshape(target[:, 1:w_size + to_loop - 1], (-1, w_size + to_loop - 1))
+        oo, jnp.reshape(target[:, 1:w_size + to_loop], (-1, w_size + to_loop - 1))
     ).mean()
     return loss
 
