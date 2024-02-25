@@ -22,6 +22,9 @@ class TransformerNetwork(nn.Module):
 
     @nn.compact
     def __call__(self, lq, hq, train):
+        # we squeeze because there is a channel in the audio and we want to turn
+        # the whole thing into tokens
+        lq, hq = jnp.squeeze(lq, axis=-1), jnp.squeeze(hq, axis=-1)
         # Embedding layers for lq (low quality - encoder input)
         token_embedding_encoder = nn.Embed(
             num_embeddings=self.vocab_size, features=self.n_embed

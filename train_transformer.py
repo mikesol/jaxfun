@@ -130,8 +130,10 @@ def train_step(state, input, target, dropout_key):
             train=True,
             rngs={"dropout": dropout_train_key},
         )
-        loss = optax.softmax_cross_entropy_with_integer_labels(pred, target[:, 1:, :])
-        print('shapes!!', pred.shape, target[:, 1:, :], loss.shape)
+        loss = optax.softmax_cross_entropy_with_integer_labels(
+            pred, jnp.squeeze(target[:, 1:, :], axis=-1)
+        )
+        print("shapes!!", pred.shape, target[:, 1:, :], loss.shape)
         return loss
 
     grad_fn = jax.value_and_grad(loss_fn)
@@ -163,8 +165,9 @@ replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
 
 
 def compute_loss(state, input, target, w_size):
+    B, T, C = input.shape
     output = target[:, :w_size, :]
-    for x in range(input.shape[1] - w_size):
+    for x in range(T - w_size - 1):
         o = state.apply_fn(
             {"params": state.params},
             input[:, x : x + w_size, :],
@@ -172,7 +175,9 @@ def compute_loss(state, input, target, w_size):
             train=False,
         )
         output = jnp.concatenate([output, o[:, -1:, :]], axis=1)[:, 1:, :]
-    loss = optax.softmax_cross_entropy_with_integer_labels(output, target)
+    loss = optax.softmax_cross_entropy_with_integer_labels(
+        output, jnp.reshape(target[:, 1:-w_size], (-1, T - w_size - 1))
+    )
     return loss
 
 
@@ -311,7 +316,9 @@ if __name__ == "__main__":
     print("datasets generated")
     init_rng = jax.random.PRNGKey(config.seed)
     init_rng, dropout_rng = jax.random.split(init_rng, 2)
-    onez = jnp.ones([config.batch_size, config.window_plus_one -1, 1], dtype=jnp.int32)  # 1,
+    onez = jnp.ones(
+        [config.batch_size, config.window_plus_one - 1, 1], dtype=jnp.int32
+    )  # 1,
     module = TransformerNetwork(
         vocab_size=config.vocab_size,
         block_size=config.window_plus_one - 1,
