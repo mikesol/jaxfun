@@ -161,10 +161,6 @@ def do_inference(state, input, w_size):
         # output is B, T, 1
         # o is (B, T, Logits)
         oo = o if x == 0 else jnp.concatenate([oo, o[:, -1:, :]], axis=1)
-        output = jnp.concatenate(
-            [output, jnp.expand_dims(jnp.argmax(o[:, -1:, :], axis=-1), axis=-1)],
-            axis=1,
-        )[:, 1:, :]
     return oo
 
 
