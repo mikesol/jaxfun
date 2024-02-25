@@ -6,7 +6,8 @@ config:
   learning_rate: 0.0001
   epochs: 128
   window_plus_one: 1025
-  inference_window_plus_one: 1025
+  val_window_plus_one: 2049
+  inference_window: 8192
   stride: 256
   step_freq: 64
   test_size: 0.1
