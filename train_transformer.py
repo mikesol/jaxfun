@@ -4,7 +4,6 @@ from contextlib import nullcontext
 import logging
 import flax.linen as nn
 from fork_on_parallelism import fork_on_parallelism
-from create_filtered_audio import create_biquad_coefficients
 import yaml
 
 # import logging
@@ -316,7 +315,15 @@ if __name__ == "__main__":
     init_rng = jax.random.PRNGKey(config.seed)
     init_rng, dropout_rng = jax.random.split(init_rng, 2)
     onez = jnp.ones([config.batch_size, config.window_plus_one, 1])  # 1,
-    module = TransformerNetwork()
+    module = TransformerNetwork(
+        vocab_size=config.vocab_size,
+        block_size=config.window_size_plus_one - 1,
+        n_embed=config.n_embed,
+        num_heads=config.num_heads,
+        dff=config.dff,
+        depth=config.depth,
+        dropout_rate=config.dropout_rate,
+    )
     tx = optax.adamw(config.learning_rate)
 
     if local_env.parallelism == Parallelism.SHARD:
@@ -384,7 +391,16 @@ if __name__ == "__main__":
     jit_train_step = fork_on_parallelism(
         partial(
             jax.jit,
-            in_shardings=(state_sharding, x_sharding, x_sharding, state_sharding),
+            in_shardings=(
+                state_sharding,
+                x_sharding,
+                x_sharding,
+                (
+                    mesh_sharding(None)
+                    if local_env.parallelism == Parallelism.SHARD
+                    else None
+                ),
+            ),
             out_shardings=(state_sharding, None),
         ),
         jax.pmap,
