@@ -17,4 +17,5 @@ config:
   dff: 1024
   depth: 4
   dropout_rate: 0.2
+  mask_encoder: true
   mesh_x_div: 1

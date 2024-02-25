@@ -18,7 +18,8 @@ class TransformerNetwork(nn.Module):
     num_heads: int
     dff: int
     depth: int
-    dropout_rate: float = 0.2
+    dropout_rate: float
+    mask_encoder: bool
 
     @nn.compact
     def __call__(self, lq, hq, train):
@@ -39,7 +40,7 @@ class TransformerNetwork(nn.Module):
         encoder_input = token_embedding_encoder(lq) + position_embedding_encoder(
             positions_encoder
         )
-        encoder_mask = make_causal_mask(encoder_input)
+        encoder_mask = make_causal_mask(encoder_input) if self.mask_encoder else None
 
         # Dropout for encoder embeddings
         encoder_input = nn.Dropout(rate=self.dropout_rate)(
@@ -179,6 +180,7 @@ if __name__ == "__main__":
         dff=2**11,
         depth=2**2,
         dropout_rate=0.2,
+        mask_encoder=True
     )
     print(
         model.tabulate(

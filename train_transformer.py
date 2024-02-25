@@ -276,6 +276,7 @@ if __name__ == "__main__":
     _config["step_freq"] = 2**6
     _config["test_size"] = 0.1
     _config["vocab_size"] = 2**16
+    _config["mask_encoder"] = True
     _config["n_embed"] = 2**10
     _config["n_heads"] = 2**5
     _config["dff"] = 2**11
@@ -348,6 +349,7 @@ if __name__ == "__main__":
         dff=config.dff,
         depth=config.depth,
         dropout_rate=config.dropout_rate,
+        mask_encoder=config.mask_encoder
     )
     tx = optax.adamw(config.learning_rate)
 
