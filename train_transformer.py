@@ -148,10 +148,10 @@ def _replace_metrics(state):
 # todo: should we use scan to reduce compilation time?
 def do_inference(state, input, w_size):
     B, T, C = input.shape
-    input = jnp.pad(input, ((0, 0), (w_size, 0), (0, 0)))
-    output = input[:, :w_size, :]
+    input = input # input = jnp.pad(input, ((0, 0), (w_size, 0), (0, 0)))
+    to_loop = 1 # T - 1
     oo = None
-    for x in range(T - 1):
+    for x in range(to_loop):
         o = state.apply_fn(
             {"params": state.params},
             input[:, x : x + w_size, :],
@@ -173,10 +173,13 @@ replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
 
 def compute_loss(state, input, target, w_size):
     B, T, C = input.shape
-    input = jnp.pad(input, ((0, 0), (w_size, 0), (0, 0)))
+    # find a way to make jitting practical
+    # and then we can do the whole shebang
+    input = input # input = jnp.pad(input, ((0, 0), (w_size, 0), (0, 0)))
+    to_loop = 1 # T - 1
     output = input[:, :w_size, :]
     oo = None
-    for x in range(T - 1):
+    for x in range(to_loop):
         o = state.apply_fn(
             {"params": state.params},
             input[:, x : x + w_size, :],
@@ -191,7 +194,7 @@ def compute_loss(state, input, target, w_size):
             axis=1,
         )[:, 1:, :]
     loss = optax.softmax_cross_entropy_with_integer_labels(
-        oo, jnp.reshape(target[:, 1:-w_size], (-1, T - w_size - 1))
+        oo, jnp.reshape(target[:, 1:w_size + to_loop - 1], (-1, w_size + to_loop - 1))
     ).mean()
     return loss
 
