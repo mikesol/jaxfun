@@ -120,6 +120,7 @@ def audio_gen_16(pair, window, stride):
             ii = i[start : start + window]
             assert len(ii) == window
             oo = o[start : start + window]
+            print("DTYPES", ii.dtype, oo.dtype)
             yield {
                 "input": ii,
                 "target": oo,
