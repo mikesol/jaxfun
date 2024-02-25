@@ -409,9 +409,10 @@ if __name__ == "__main__":
     jit_compute_loss = fork_on_parallelism(
         partial(
             jax.jit,
+            static_argnums=(3,),
             in_shardings=(state_sharding, x_sharding, x_sharding),
         ),
-        jax.pmap,
+        partial(jax.pmap, static_broadcasted_argnums=(3,)),
     )(compute_loss)
 
     del init_rng  # Must not be used anymore.
