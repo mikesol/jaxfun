@@ -133,7 +133,6 @@ def train_step(state, input, target, dropout_key):
         loss = optax.softmax_cross_entropy_with_integer_labels(
             pred, jnp.squeeze(target[:, 1:, :], axis=-1)
         ).mean()
-        print("shapes!!", pred.shape, target[:, 1:, :], loss.shape)
         return loss
 
     grad_fn = jax.value_and_grad(loss_fn)
