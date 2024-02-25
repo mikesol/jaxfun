@@ -131,7 +131,7 @@ def train_step(state, input, target, dropout_key):
             rngs={"dropout": dropout_train_key},
         )
         loss = optax.softmax_cross_entropy_with_integer_labels(pred, target[:, 1:, :])
-        print('shapes!!', pred.shape, loss.shape)
+        print('shapes!!', pred.shape, target[:, 1:, :], loss.shape)
         return loss
 
     grad_fn = jax.value_and_grad(loss_fn)
