@@ -310,7 +310,7 @@ if __name__ == "__main__":
     print("datasets generated")
     init_rng = jax.random.PRNGKey(config.seed)
     init_rng, dropout_rng = jax.random.split(init_rng, 2)
-    onez = jnp.ones([config.batch_size, config.window_plus_one, 1])  # 1,
+    onez = jnp.ones([config.batch_size, config.window_plus_one, 1], dtype=jnp.int32)  # 1,
     module = TransformerNetwork(
         vocab_size=config.vocab_size,
         block_size=config.window_plus_one - 1,
@@ -456,7 +456,6 @@ if __name__ == "__main__":
         ) as loop:
             for batch_ix, batch in loop:
                 should_use_gen = batch_ix % 2 == 1
-                print('batch DTYPE', batch["input"].dtype)
                 input = trim_batch(jnp.array(batch["input"]), config.batch_size)
                 if input.shape[0] == 0:
                     continue
