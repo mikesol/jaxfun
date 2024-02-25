@@ -315,7 +315,7 @@ if __name__ == "__main__":
         vocab_size=config.vocab_size,
         block_size=config.window_plus_one - 1,
         n_embed=config.n_embed,
-        num_heads=config.num_heads,
+        num_heads=config.n_heads,
         dff=config.dff,
         depth=config.depth,
         dropout_rate=config.dropout_rate,
