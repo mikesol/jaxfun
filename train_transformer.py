@@ -313,7 +313,7 @@ if __name__ == "__main__":
     onez = jnp.ones([config.batch_size, config.window_plus_one, 1])  # 1,
     module = TransformerNetwork(
         vocab_size=config.vocab_size,
-        block_size=config.window_size_plus_one - 1,
+        block_size=config.window_plus_one - 1,
         n_embed=config.n_embed,
         num_heads=config.num_heads,
         dff=config.dff,
@@ -410,7 +410,15 @@ if __name__ == "__main__":
         ),
         partial(jax.pmap, static_broadcasted_argnums=(3,)),
     )(compute_loss)
-
+    jit_do_inference = fork_on_parallelism(
+        partial(
+            jax.jit,
+            in_shardings=(state_sharding, x_sharding),
+            out_shardings=x_sharding,
+            static_argnums=(2,),
+        ),
+        partial(jax.pmap, static_broadcasted_argnums=(2,)),
+    )(do_inference)
     del init_rng  # Must not be used anymore.
     for epoch in range(config.epochs):
         # ugggh
@@ -504,7 +512,7 @@ if __name__ == "__main__":
             )
             try:
                 subprocess.run(
-                    f'gsutil -m rsync -r {os.path.join(checkpoint_dir)} gs://meeshkan-experiments/jax-pvc/{run.id}',
+                    f"gsutil -m rsync -r {os.path.join(checkpoint_dir)} gs://meeshkan-experiments/jax-pvc/{run.id}",
                     check=True,
                     shell=True,
                     stdout=subprocess.PIPE,
@@ -541,7 +549,7 @@ if __name__ == "__main__":
                     state,
                     input,
                     target,
-                    config.loss_fn,
+                    config.window_plus_one - 1,
                 )
                 state = add_losses_to_metrics(state=state, loss=loss)
         metrics = maybe_unreplicate(state.metrics).compute()
@@ -566,16 +574,6 @@ if __name__ == "__main__":
             input = maybe_replicate(input_)
             input = maybe_device_put(input, x_sharding)
             logging.warning(f"input shape for inference is is {input.shape}")
-            jit_do_inference = fork_on_parallelism(
-                partial(
-                    jax.jit,
-                    in_shardings=(state_sharding, x_sharding),
-                    out_shardings=x_sharding,
-                    static_argnums=(2,),
-                ),
-                partial(jax.pmap, static_broadcasted_argnums=(2,)),
-            )(do_inference)
-
             o = jit_do_inference(state, input, config.window_plus_one - 1)
             o = maybe_unreplicate(o)
             # this will squeeze out the logit dimension

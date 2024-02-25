@@ -1,5 +1,6 @@
 import jax.numpy as jnp
 from flax import linen as nn
+import jax
 
 
 def make_causal_mask(x):
@@ -28,8 +29,6 @@ class TransformerNetwork(nn.Module):
         position_embedding_encoder = nn.Embed(
             num_embeddings=self.block_size, features=self.n_embed
         )
-        encoder_mask = self.make_causal_mask(encoder_input)
-        decoder_mask = self.make_causal_mask(decoder_input)
 
         # Token and position embeddings for lq
         seq_len_encoder = lq.shape[1]
@@ -37,6 +36,7 @@ class TransformerNetwork(nn.Module):
         encoder_input = token_embedding_encoder(lq) + position_embedding_encoder(
             positions_encoder
         )
+        encoder_mask = make_causal_mask(encoder_input)
 
         # Dropout for encoder embeddings
         encoder_input = nn.Dropout(rate=self.dropout_rate)(
@@ -66,6 +66,7 @@ class TransformerNetwork(nn.Module):
         decoder_input = token_embedding_decoder(hq) + position_embedding_decoder(
             positions_decoder
         )
+        decoder_mask = make_causal_mask(decoder_input)
 
         # Dropout for decoder embeddings
         decoder_input = nn.Dropout(rate=self.dropout_rate)(
@@ -98,7 +99,6 @@ class EncoderLayer(nn.Module):
     def __call__(self, x, encoder_mask, train):
         ln1 = nn.LayerNorm()(x)
         attn_output = nn.SelfAttention(
-            features=self.d_model,
             num_heads=self.num_heads,
             dropout_rate=self.dropout_rate,
         )(ln1, mask=encoder_mask, deterministic=not train)
@@ -126,7 +126,6 @@ class DecoderLayer(nn.Module):
     def __call__(self, x, encoder_output, decoder_mask, train):
         ln1 = nn.LayerNorm()(x)
         attn1_output = nn.SelfAttention(
-            features=self.d_model,
             num_heads=self.num_heads,
             dropout_rate=self.dropout_rate,
         )(ln1, mask=decoder_mask, deterministic=not train)
@@ -137,7 +136,6 @@ class DecoderLayer(nn.Module):
 
         ln2 = nn.LayerNorm()(x)
         attn2_output = nn.MultiHeadDotProductAttention(
-            features=self.d_model,
             num_heads=self.num_heads,
             dropout_rate=self.dropout_rate,
         )(ln2, encoder_output, deterministic=not train)
@@ -167,3 +165,23 @@ class PositionwiseFeedForward(nn.Module):
         dropout = nn.Dropout(rate=self.dropout_rate)(gelu, deterministic=not train)
         dense2 = nn.Dense(self.d_model)(dropout)
         return dense2
+
+
+if __name__ == "__main__":
+    model = TransformerNetwork(
+        vocab_size=2**16,
+        block_size=2**11,
+        n_embed=2**10,
+        num_heads=2**5,
+        dff=2**11,
+        depth=2**2,
+        dropout_rate=0.2,
+    )
+    print(
+        model.tabulate(
+            jax.random.key(0),
+            jnp.ones((2**2, 2**11, 1), dtype=jnp.int32),
+            jnp.ones((2**2, 2**11, 1), dtype=jnp.int32),
+            train=False,
+        )
+    )

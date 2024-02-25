@@ -15,6 +15,6 @@ config:
   n_embed: 1024
   n_heads: 32
   dff: 2048
-  depth: 16
+  depth: 4
   dropout_rate: 0.2
   mesh_x_div: 1
