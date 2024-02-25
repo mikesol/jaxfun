@@ -123,7 +123,7 @@ def train_step(state, input, target, dropout_key):
     dropout_train_key = jax.random.fold_in(key=dropout_key, data=state.step)
 
     def loss_fn(params):
-        pred, updates = state.apply_fn(
+        pred = state.apply_fn(
             {"params": params},
             input[:, :-1, :],
             target[:, :-1, :],
@@ -131,7 +131,7 @@ def train_step(state, input, target, dropout_key):
             rngs={"dropout": dropout_train_key},
         )
         loss = optax.softmax_cross_entropy_with_integer_labels(pred, target[:, 1:, :])
-        return loss, updates
+        return loss
 
     grad_fn = jax.value_and_grad(loss_fn)
     loss, grads = grad_fn(state.params)
@@ -148,7 +148,7 @@ def do_inference(state, input, w_size):
     input = jnp.pad(input, ((0, 0), (1, 0), (0, 0)))
     output = input[:, :w_size, :]
     for x in range(input.shape[1] - w_size):
-        o, _ = state.apply_fn(
+        o = state.apply_fn(
             {"params": state.params},
             input[:, x : x + w_size, :],
             output,
@@ -164,7 +164,7 @@ replace_metrics = fork_on_parallelism(jax.jit, jax.pmap)(_replace_metrics)
 def compute_loss(state, input, target, w_size):
     output = target[:, :w_size, :]
     for x in range(input.shape[1] - w_size):
-        o, _ = state.apply_fn(
+        o = state.apply_fn(
             {"params": state.params},
             input[:, x : x + w_size, :],
             output,
@@ -368,7 +368,6 @@ if __name__ == "__main__":
             dropout_rng, 8
         )  ### #UGH we hardcode 8, not sure why this worked before :-/
     )
-    print("will call jit_create_train_state", rng_for_train_state.shape, onez)
     state = jit_create_train_state(
         rng_for_train_state,
         dropout_rng_for_train_state,
