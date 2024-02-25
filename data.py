@@ -120,6 +120,9 @@ def audio_gen_16(pair, window, stride):
             ii = i[start : start + window]
             assert len(ii) == window
             oo = o[start : start + window]
+            if len(oo) != len(ii):
+                print("Warning - data loss in oo")
+                break
             yield {
                 "input": ii,
                 "target": oo,
@@ -215,7 +218,7 @@ def make_data_16(paths, window, stride, feature_dim=-1, shuffle=True):
     if shuffle:
         dataset = dataset.shuffle(seed=42, buffer_size=2**10)
 
-    return dataset, get_total_lens(paths, window, stride) * 2
+    return dataset.with_format("jax"), get_total_lens(paths, window, stride) * 2
 
 
 def make_2d_data(paths, window, stride, feature_dim=-1, shuffle=True, normalize=True):

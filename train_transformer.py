@@ -82,7 +82,7 @@ def trim_batch(tensor, batch_size):
     # Truncate the tensor
     truncated_tensor = tensor[:truncated_size]
 
-    return jnp.array(truncated_tensor)
+    return truncated_tensor
 
 
 @struct.dataclass
