@@ -20,6 +20,7 @@ if IS_CPU:
     print("no gpus found")
     os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
 
+import subprocess
 from typing import Any
 from flax import struct
 from comet_ml import Experiment, Artifact
@@ -292,7 +293,6 @@ if __name__ == "__main__":
     )
     print("making datasets")
     proto_train_dataset, train_dataset_total = make_data_16(
-        naug=0,
         paths=train_files,
         window=config.window_plus_one,
         stride=config.stride,
@@ -503,9 +503,13 @@ if __name__ == "__main__":
                 f"saved checkpoint for epoch {epoch} in {os.listdir(checkpoint_dir)}"
             )
             try:
-                artifact = Artifact("checkpoint", artifact_type="model")
-                artifact.add(os.path.join(checkpoint_dir, f"{CHECK_NAME}"))
-                run.log_artifact(artifact)
+                subprocess.run(
+                    f'gsutil -m rsync -r {os.path.join(checkpoint_dir)} gs://meeshkan-experiments/jax-pvc/{run.id}',
+                    check=True,
+                    shell=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
             except ValueError as e:
                 logging.warning(f"checkpoint artifact did not work {e}")
             start_time = current_time
