@@ -580,58 +580,55 @@ if __name__ == "__main__":
         metrics = maybe_unreplicate(state.metrics).compute()
         run.log_metrics({"val_loss": metrics["loss"]}, step=batch_ix)
         state = replace_metrics(state)
-        # comment out inference for now
-        # taking stuff of the gpu may be causing weird memory issues
-        # not sure why
         # inference
-        # inference_dataset.set_epoch(epoch)
-        # for batch_ix, batch in tqdm(
-        #     enumerate(
-        #         inference_dataset.take(
-        #             config.inference_artifacts_per_batch_per_epoch
-        #         ).iter(batch_size=config.inference_batch_size)
-        #     ),
-        #     total=config.inference_artifacts_per_batch_per_epoch,
-        # ):
-        #     input_ = trim_batch(jnp.array(batch["input"]), config.inference_batch_size)
-        #     if input_.shape[0] == 0:
-        #         continue
-        #     target_ = trim_batch(
-        #         jnp.array(batch["target"]), config.inference_batch_size
-        #     )
-        #     input = maybe_replicate(input_)
-        #     input = maybe_device_put(input, x_sharding)
-        #     logging.warning(f"input shape for inference is is {input.shape}")
-        #     o = jit_do_inference(state, input, config.window_plus_one - 1)
-        #     o = maybe_unreplicate(o)
-        #     # this will squeeze out the logit dimension
-        #     o = jnp.argmax(o, axis=-1)
-        #     assert len(o.shape) == 2
-        #     # logging.info(f"shape of batch is {input.shape}")
+        inference_dataset.set_epoch(epoch)
+        for batch_ix, batch in tqdm(
+            enumerate(
+                inference_dataset.take(
+                    config.inference_artifacts_per_batch_per_epoch
+                ).iter(batch_size=config.inference_batch_size)
+            ),
+            total=config.inference_artifacts_per_batch_per_epoch,
+        ):
+            input_ = trim_batch(jnp.array(batch["input"]), config.inference_batch_size)
+            if input_.shape[0] == 0:
+                continue
+            target_ = trim_batch(
+                jnp.array(batch["target"]), config.inference_batch_size
+            )
+            input = maybe_replicate(input_)
+            input = maybe_device_put(input, x_sharding)
+            logging.warning(f"input shape for inference is is {input.shape}")
+            o = jit_do_inference(state, input, config.window_plus_one - 1)
+            o = maybe_unreplicate(o)
+            # this will squeeze out the logit dimension
+            o = jnp.argmax(o, axis=-1)
+            assert len(o.shape) == 2
+            # logging.info(f"shape of batch is {input.shape}")
 
-        #     for i in range(o.shape[0]):
-        #         audy = np.array(o[i])
-        #         # vocab to float
-        #         audy = audy.astype(np.float32) - 32768
-        #         audy = audy / 32768
-        #         print("prediction dimension", audy.shape)
-        #         run.log_audio(
-        #             audy,
-        #             sample_rate=44100,
-        #             step=batch_ix,
-        #             file_name=f"audio_{epoch}_{batch_ix}_{i}_prediction.wav",
-        #         )
-        #         audy = np.squeeze(np.array(input_[i, :, :1]))
-        #         run.log_audio(
-        #             audy,
-        #             sample_rate=44100,
-        #             step=batch_ix,
-        #             file_name=f"audio_{epoch}_{batch_ix}_{i}_input.wav",
-        #         )
-        #         audy = np.squeeze(np.array(target_[i]))
-        #         run.log_audio(
-        #             audy,
-        #             sample_rate=44100,
-        #             step=batch_ix,
-        #             file_name=f"audio_{epoch}_{batch_ix}_{i}_target.wav",
-        #         )
+            for i in range(o.shape[0]):
+                audy = np.array(o[i])
+                # vocab to float
+                audy = audy.astype(np.float32) - 32768
+                audy = audy / 32768
+                print("prediction dimension", audy.shape)
+                run.log_audio(
+                    audy,
+                    sample_rate=44100,
+                    step=batch_ix,
+                    file_name=f"audio_{epoch}_{batch_ix}_{i}_prediction.wav",
+                )
+                audy = np.squeeze(np.array(input_[i, :, :1]))
+                run.log_audio(
+                    audy,
+                    sample_rate=44100,
+                    step=batch_ix,
+                    file_name=f"audio_{epoch}_{batch_ix}_{i}_input.wav",
+                )
+                audy = np.squeeze(np.array(target_[i]))
+                run.log_audio(
+                    audy,
+                    sample_rate=44100,
+                    step=batch_ix,
+                    file_name=f"audio_{epoch}_{batch_ix}_{i}_target.wav",
+                )
