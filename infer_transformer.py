@@ -12,7 +12,6 @@ from create_filtered_audio import create_biquad_coefficients
 import yaml
 from train_transformer import (
     create_train_state,
-    do_inference,
     mesh_sharding,
     maybe_replicate,
     maybe_device_put,
@@ -62,8 +61,47 @@ import subprocess
 
 PRNGKey = jax.Array
 
-def do_inference_(state, input, w_size):
-    return do_inference(state, input, w_size)
+
+def do_inference(state, input, w_size):
+    B, T, C = input.shape
+
+    # first, make input into dilated patches with w_size padding on both sides
+    # then, make a carry with the previous prediction that is w_size long, initializing to 0
+    # scan over the input
+    input = jax.lax.conv_general_dilated_patches(
+        jnp.transpose(input, (0, 2, 1)),
+        filter_shape=(w_size,),
+        window_strides=(1,),
+        padding=((w_size, w_size),),
+    )
+    # (batch, w_size, seq)
+    input = jnp.reshape(input, (B, w_size, -1))
+    # (seq, batch, w_size)
+    input = jnp.transpose(input, (2, 0, 1))
+    # (batch, seq, C)
+    output = jnp.zeros((B, T, C))
+
+    def _loop(c, x):
+        o = state.apply_fn(
+            {"params": state.params},
+            jnp.reshape(x, (B, w_size, 1)),
+            c[:, -w_size:, :],
+            train=False,
+        )
+        # output is B, T, 1
+        # o is (B, T, Logits)
+        c = jnp.concatenate(
+            [
+                output[:, 1:, :],
+                jnp.reshape(jnp.argmax(o[:, -1:, :], axis=-1), (B, 1, C)),
+            ],
+            axis=1,
+        )
+
+        return c, c[:,-1,:]
+
+    return jax.lax.scan(_loop, output, input)
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.WARN)
@@ -240,38 +278,10 @@ if __name__ == "__main__":
             out_shardings=x_sharding,
         ),
         partial(jax.pmap, static_broadcasted_argnums=(2,)),
-    )(do_inference_)
+    )(do_inference)
     del init_rng  # Must not be used anymore.
     o = jit_do_inference(state, input, config.window_plus_one - 1)
-    # # for now, we only keep the second half as we are training it to always have
-    # # padding in the beginning
-    # # we can alter training later if needed
-    # out_length = o.shape[1] // 2
-    # # hopefully this is the case, if not figure out something creative!
-    # assert o.shape[1] % 2 == 0
-    # logging.warning(
-    #     f"input shape for inference is is {input_.shape} with output {out_length}"
-    # )
-    # input_ = jax.lax.conv_general_dilated_patches(
-    #     jnp.transpose(
-    #         jnp.reshape(input[: config.window * config.batch_size], (1, -1, 1)),
-    #         (0, 2, 1),
-    #     ),
-    #     filter_shape=(config.window,),
-    #     window_strides=(out_length // 2,),
-    #     padding=((0, 0),),
-    # )
-    # input_ = jnp.transpose(
-    #     # kernel, seq, chan
-    #     jnp.reshape(input_, (config.window, -1, 1)),
-    #     # seq, kernel, chan
-    #     (0, 2, 1),
-    # )
-
-    # (o,) = jit_do_inference(state, input, conversion_config)
-    # o = maybe_unreplicate(o)
-    # assert o.shape[-1] == 1
-    # # logging.info(f"shape of batch is {input.shape}")
-
     audy = np.reshape(o[0], (-1,))
+    audy = audy.astype(np.float32) - 32768
+    audy = audy / 32768
     soundfile.write("/tmp/output.wav", audy, samplerate=44100)
