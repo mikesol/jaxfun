@@ -232,6 +232,7 @@ if __name__ == "__main__":
     )
     ## defaults
     _config = {}
+    _config["mesh_x_div"] = 1
     _config["seed"] = 42
     _config["batch_size"] = 2**4
     _config["inference_batch_size"] = 2**3
@@ -261,10 +262,8 @@ if __name__ == "__main__":
             if k not in in_config:
                 raise ValueError(f"Requires key {k}")
         _config = in_config
-        _config["loss_fn"] = LossFn(_config["loss_fn"])
         _config["mesh_x"] = device_len // _config["mesh_x_div"]
         _config["mesh_y"] = _config["mesh_x_div"]
-        _config["conv_depth"] = tuple(_config["conv_depth"])
         del _config["mesh_x_div"]
     run.log_parameters(_config)
     if local_env.parallelism == Parallelism.PMAP:
