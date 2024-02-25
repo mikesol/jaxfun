@@ -149,6 +149,7 @@ def _replace_metrics(state):
 def do_inference(state, input, w_size):
     B, T, C = input.shape
     input = input # input = jnp.pad(input, ((0, 0), (w_size, 0), (0, 0)))
+    output = input[:, :w_size, :]
     to_loop = 1 # T - 1
     oo = None
     for x in range(to_loop):
@@ -161,6 +162,10 @@ def do_inference(state, input, w_size):
         # output is B, T, 1
         # o is (B, T, Logits)
         oo = o if x == 0 else jnp.concatenate([oo, o[:, -1:, :]], axis=1)
+        output = jnp.concatenate(
+            [output, jnp.expand_dims(jnp.argmax(o[:, -1:, :], axis=-1), axis=-1)],
+            axis=1,
+        )[:, 1:, :]
     return oo
 
 
@@ -533,7 +538,7 @@ if __name__ == "__main__":
             )
             try:
                 subprocess.run(
-                    f"gsutil -m rsync -r {os.path.join(checkpoint_dir)} gs://meeshkan-experiments/jax-transformer/{run.id}",
+                    f"gsutil -m rsync -r {os.path.join(checkpoint_dir)} gs://meeshkan-experiments/jax-transformers/{run.id}",
                     check=True,
                     shell=True,
                     stdout=subprocess.PIPE,
