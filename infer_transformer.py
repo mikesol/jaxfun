@@ -299,8 +299,10 @@ if __name__ == "__main__":
     print('input for inference', input_.shape, input_.dtype)
     o = jit_do_inference(state, input_, config.window_plus_one - 1)
     print('o done', o.shape)
-    audy = np.reshape(o[0], (-1,))
-    audy = audy.astype(np.float32) - 32768
-    audy = audy / 32768
-    soundfile.write("/tmp/output.wav", audy, samplerate=44100)
-    print('written')
+    B, _, _ = o.shape
+    for x in range(B):
+        audy = np.reshape(o[x], (-1,))
+        audy = audy.astype(np.float32) - 32768
+        audy = audy / 32768
+        soundfile.write(f"/tmp/output_{x}.wav", audy, samplerate=44100)
+        print(f'wrote file {x}')
