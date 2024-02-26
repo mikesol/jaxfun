@@ -254,8 +254,8 @@ if __name__ == "__main__":
     _, input = wavfile.read(local_env.inference_file_source)
     input = jnp.reshape(input, (-1,))
     # for now hardcode the length
-    # print(config.window * config.batch_size, input[: config.window * config.batch_size].shape)
-    input_ = jnp.reshape(input[: config.window * 16 * 8], (8, -1, 1))
+    # 3 second batches. why? why not...
+    input_ = jnp.reshape(input[: 44100 * 3 * 8], (8, -1, 1))
     print("input shape is", input_.shape)
     input_ = maybe_replicate(input_)
     input_ = maybe_device_put(input_, x_sharding)
