@@ -65,6 +65,7 @@ PRNGKey = jax.Array
 
 def do_inference(state, input, w_size):
     B, T, C = input.shape
+    input_ = input
     assert C == 1
 
     # first, make input into dilated patches with w_size padding on both sides
@@ -107,8 +108,8 @@ def do_inference(state, input, w_size):
     c, output = jax.lax.scan(_loop, output, input)
     print('CC', c.shape, 'OO', output.shape)
     output = jnp.transpose(output, (1, 0, 2))
-    print('shapes',output.shape, input.shape)
-    assert output.shape == input.shape
+    print('shapes',output.shape, input_.shape)
+    assert output.shape == input_.shape
     return output
 
 
