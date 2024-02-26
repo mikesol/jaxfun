@@ -258,7 +258,8 @@ if __name__ == "__main__":
     input = jnp.reshape(input, (-1,))
     # for now hardcode the length
     # 3 second batches. why? why not...
-    input_ = jnp.reshape(input[: 44100 * 3 * 8], (8, -1, 1))
+    n_sec = 1.0
+    input_ = jnp.reshape(input[: int(44100 * n_sec * 8)], (8, -1, 1))
     print("input shape is", input_.shape)
     input_ = maybe_replicate(input_)
     input_ = maybe_device_put(input_, x_sharding)
