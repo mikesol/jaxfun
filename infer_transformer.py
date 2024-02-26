@@ -101,7 +101,7 @@ def do_inference(state, input, w_size):
             axis=1,
         )
 
-        return c, c[:,-1,:]
+        return c, c[:, -1, :]
 
     # (seq, b, c)
     output = jax.lax.scan(_loop, output, input)
@@ -181,7 +181,7 @@ if __name__ == "__main__":
 
     init_rng = jax.random.PRNGKey(config.seed)
     init_rng, dropout_rng = jax.random.split(init_rng, 2)
-    onez = jnp.ones([config.batch_size, config.window, 1])  # 1,
+    onez = jnp.ones([config.batch_size, config.window_plus_one - 1, 1], dtype=jnp.int32)
 
     def array_to_tuple(arr):
         if isinstance(arr, np.ndarray):
