@@ -287,10 +287,10 @@ if __name__ == "__main__":
         partial(jax.pmap, static_broadcasted_argnums=(2,)),
     )(do_inference)
     del init_rng  # Must not be used anymore.
+    print('input shape', input_.shape, input_.dtype, input_.max(), input_.min())
     assert input_.min() < 0
     input_ = input_ + 32768
     assert input_.min() >= 0
-    print('input shape', input_.shape, input_.dtype)
     o = jit_do_inference(state, input_, config.window_plus_one - 1)
     audy = np.reshape(o[0], (-1,))
     audy = audy.astype(np.float32) - 32768
