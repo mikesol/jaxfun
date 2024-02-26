@@ -81,7 +81,7 @@ def do_inference(state, input, w_size):
     # (seq, batch, w_size)
     input = jnp.transpose(input, (2, 0, 1))
     # (batch, seq, C)
-    output = jnp.zeros((B, T, C))
+    output = jnp.zeros((B, T, C), dtype=jnp.int32)
 
     # (b, t, c) (b, w_size)
     def _loop(c, x):
@@ -96,7 +96,7 @@ def do_inference(state, input, w_size):
         c = jnp.concatenate(
             [
                 output[:, 1:, :],
-                jnp.reshape(jnp.argmax(o[:, -1:, :], axis=-1), (B, 1, C)),
+                jnp.reshape(jnp.argmax(o[:, -1:, :], axis=-1).astype(jnp.int32), (B, 1, C)),
             ],
             axis=1,
         )
