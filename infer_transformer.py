@@ -208,6 +208,7 @@ if __name__ == "__main__":
             tx=tx,
         ),
         init_rng,
+        dropout_rng,
         onez,
     )
     state_sharding = nn.get_sharding(abstract_variables, mesh)
