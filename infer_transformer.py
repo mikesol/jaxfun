@@ -3,6 +3,7 @@ from parallelism import Parallelism
 from contextlib import nullcontext
 import logging
 import librosa
+from scipy.io import wavfile
 from bias_types import BiasTypes
 from activation import Activation, make_activation
 from enum import Enum
@@ -249,9 +250,8 @@ if __name__ == "__main__":
     )
 
     ### data
-    input, _ = librosa.load(local_env.inference_file_source, sr=44100)
-    target, _ = librosa.load(local_env.inference_file_target, sr=44100)
-    input, target = jnp.reshape(input, (-1,)), jnp.reshape(target, (-1,))
+    _, input = wavfile.read(local_env.inference_file_source)
+    input = jnp.reshape(input, (-1,))
     # for now hardcode the length
     # print(config.window * config.batch_size, input[: config.window * config.batch_size].shape)
     input_ = jnp.reshape(input[: config.window * 16 * 8], (8, -1, 1))
