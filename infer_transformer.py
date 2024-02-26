@@ -288,6 +288,7 @@ if __name__ == "__main__":
     )(do_inference)
     del init_rng  # Must not be used anymore.
     print('input shape', input_.shape, input_.dtype, input_.max(), input_.min())
+    input_ = input_.astype(np.int32)
     assert input_.min() < 0
     input_ = input_ + 32768
     assert input_.min() >= 0
