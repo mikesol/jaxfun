@@ -302,7 +302,9 @@ if __name__ == "__main__":
     B, _, _ = o.shape
     for x in range(B):
         audy = np.reshape(o[x], (-1,))
+        print('staaaats', x, audy.max(), audy.min())
         audy = audy.astype(np.float32) - 32768
         audy = audy / 32768
+        print('staaaats again', x, audy.max(), audy.min())
         soundfile.write(f"/tmp/output_{x}.wav", audy, samplerate=44100)
         print(f'wrote file {x}')
