@@ -219,12 +219,12 @@ if __name__ == "__main__":
             static_argnums=(3, 4),
             in_shardings=(
                 (
-                    mesh_sharding(None)
+                    mesh_sharding(mesh, None)
                     if local_env.parallelism == Parallelism.SHARD
                     else None
                 ),
                 (
-                    mesh_sharding(None)
+                    mesh_sharding(mesh, None)
                     if local_env.parallelism == Parallelism.SHARD
                     else None
                 ),
