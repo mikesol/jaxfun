@@ -104,7 +104,8 @@ def do_inference(state, input, w_size):
         return c, c[:, -1, :]
 
     # (seq, b, c)
-    _, output = jax.lax.scan(_loop, output, input)
+    c, output = jax.lax.scan(_loop, output, input)
+    print('CC', c.shape, 'OO', output.shape)
     output = jnp.transpose(output, (1, 0, 2))
     print('shapes',output.shape, input.shape)
     assert output.shape == input.shape
