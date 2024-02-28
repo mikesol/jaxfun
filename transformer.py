@@ -88,7 +88,11 @@ class TransformerNetwork(nn.Module):
 
         decoder_input = nn.LayerNorm()(decoder_input)
         # could theoretically only do this on the last timestep during inference
-        output = nn.Dense(features=self.vocab_size, use_bias=False)(decoder_input)
+        output = nn.Dense(
+            features=self.vocab_size,
+            use_bias=False,
+            kernel_init=jax.nn.initializers.he_normal(),
+        )(decoder_input)
 
         return output
 
@@ -105,6 +109,7 @@ class EncoderLayer(nn.Module):
         attn_output = nn.SelfAttention(
             num_heads=self.num_heads,
             dropout_rate=self.dropout_rate,
+            kernel_init=jax.nn.initializers.he_normal(),
         )(ln1, mask=encoder_mask, deterministic=not train)
         attn_output = nn.Dropout(rate=self.dropout_rate)(
             attn_output, deterministic=not train
@@ -132,6 +137,7 @@ class DecoderLayer(nn.Module):
         attn1_output = nn.SelfAttention(
             num_heads=self.num_heads,
             dropout_rate=self.dropout_rate,
+            kernel_init=jax.nn.initializers.he_normal(),
         )(ln1, mask=decoder_mask, deterministic=not train)
         attn1_output = nn.Dropout(rate=self.dropout_rate)(
             attn1_output, deterministic=not train
@@ -142,6 +148,7 @@ class DecoderLayer(nn.Module):
         attn2_output = nn.MultiHeadDotProductAttention(
             num_heads=self.num_heads,
             dropout_rate=self.dropout_rate,
+            kernel_init=jax.nn.initializers.he_normal(),
         )(ln2, encoder_output, deterministic=not train)
         attn2_output = nn.Dropout(rate=self.dropout_rate)(
             attn2_output, deterministic=not train
@@ -164,10 +171,16 @@ class PositionwiseFeedForward(nn.Module):
 
     @nn.compact
     def __call__(self, x, train):
-        dense1 = nn.Dense(self.dff)(x)
+        dense1 = nn.Dense(
+            self.dff,
+            kernel_init=jax.nn.initializers.he_normal(),
+        )(x)
         gelu = nn.gelu(dense1)
         dropout = nn.Dropout(rate=self.dropout_rate)(gelu, deterministic=not train)
-        dense2 = nn.Dense(self.d_model)(dropout)
+        dense2 = nn.Dense(
+            self.d_model,
+            kernel_init=jax.nn.initializers.he_normal(),
+        )(dropout)
         return dense2
 
 

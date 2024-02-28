@@ -97,7 +97,9 @@ def do_inference(state, input, w_size):
         c = jnp.concatenate(
             [
                 output[:, 1:, :],
-                jnp.reshape(jnp.argmax(o[:, -1:, :], axis=-1).astype(jnp.int32), (B, 1, C)),
+                jnp.reshape(
+                    jnp.argmax(o[:, -1:, :], axis=-1).astype(jnp.int32), (B, 1, C)
+                ),
             ],
             axis=1,
         )
@@ -291,20 +293,20 @@ if __name__ == "__main__":
         partial(jax.pmap, static_broadcasted_argnums=(2,)),
     )(do_inference)
     del init_rng  # Must not be used anymore.
-    print('input shape', input_.shape, input_.dtype, input_.max(), input_.min())
+    print("input shape", input_.shape, input_.dtype, input_.max(), input_.min())
     input_ = input_.astype(np.int32)
     assert input_.min() < 0
     input_ = input_ + 32768
     assert input_.min() >= 0
-    print('input for inference', input_.shape, input_.dtype)
+    print("input for inference", input_.shape, input_.dtype)
     o = jit_do_inference(state, input_, config.window_plus_one - 1)
-    print('o done', o.shape)
+    print("o done", o.shape)
     B, _, _ = o.shape
     for x in range(B):
         audy = np.reshape(o[x], (-1,))
-        print('staaaats', x, audy.max(), audy.min())
+        print("staaaats", x, audy.max(), audy.min())
         audy = audy.astype(np.float32) - 32768
         audy = audy / 32768
-        print('staaaats again', x, audy.max(), audy.min())
+        print("staaaats again", x, audy.max(), audy.min())
         soundfile.write(f"/tmp/output_{x}.wav", audy, samplerate=44100)
-        print(f'wrote file {x}')
+        print(f"wrote file {x}")
