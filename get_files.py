@@ -1,7 +1,14 @@
 import os
+import local_env
 
-D1 = [f"../data/day1/{x}" for x in os.listdir("../data/day1")]
-D2 = [f"../data/day2/{x}" for x in os.listdir("../data/day2")]
+D1 = [
+    os.path.join(local_env.data_path, "day1", x)
+    for x in os.path.join(local_env.data_path, "day1")
+]
+D2 = [
+    os.path.join(local_env.data_path, "day2", x)
+    for x in os.path.join(local_env.data_path, "day2")
+]
 
 
 def make_pairings(i):
