@@ -209,7 +209,7 @@ def compute_vals_for_curve(state, input, target):
         target,
         train=False,
     )
-    return jnp.expand_dims(jnp.argmax(o, axis=-1), axis=-1)
+    return o
 
 
 def _add_losses_to_metrics(state, loss):
@@ -533,7 +533,16 @@ if __name__ == "__main__":
                     if batch_ix % config.step_freq == 0:
                         metrics = maybe_unreplicate(state.metrics).compute()
                         run.log_metrics({"train_loss": metrics["loss"]}, step=batch_ix)
-                        pred = jit_compute_vals_for_curve(state, input, target)
+                        pred_ = jit_compute_vals_for_curve(state, input, target)
+                        pred = jnp.expand_dims(jnp.argmax(pred_, axis=-1), axis=-1)
+                        for bn in range(pred_.shape[0]):
+                            run.log_confusion_matrix(
+                                title=f"confusion batch {bn}",
+                                y_true=target[bn].reshape((-1,)).tolist(),
+                                y_predicted=pred_[bn].tolist(),
+                                overwrite=True,
+                                step=batch_ix,
+                            )
                         for label, curve in [
                             ("input", input),
                             ("pred", pred),
@@ -542,7 +551,7 @@ if __name__ == "__main__":
                             for bn in range(curve.shape[0]):
                                 y_ax = np.reshape(np.array(curve[bn]), (-1,))
                                 run.log_curve(
-                                    f'{label}_{bn}',
+                                    f"{label}_{bn}",
                                     x=np.arange(y_ax.shape[0]).tolist(),
                                     y=y_ax.tolist(),
                                     overwrite=True,
