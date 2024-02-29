@@ -203,13 +203,17 @@ def compute_loss(state, input, target, w_size):
 
 
 def compute_vals_for_curve(state, input, target):
-    o = state.apply_fn(
+    pred_ = state.apply_fn(
         {"params": state.params},
         input,
         target,
         train=False,
     )
-    return o
+
+    pred2_ = jax.nn.softmax(pred_, axis=-1)
+    pred = jnp.expand_dims(jnp.argmax(pred_, axis=-1), axis=-1)
+
+    return pred2_, pred
 
 
 def _add_losses_to_metrics(state, loss):
@@ -533,10 +537,8 @@ if __name__ == "__main__":
                     if batch_ix % config.step_freq == 0:
                         metrics = maybe_unreplicate(state.metrics).compute()
                         run.log_metrics({"train_loss": metrics["loss"]}, step=batch_ix)
-                        pred_ = jit_compute_vals_for_curve(state, input, target)
-                        pred2_ = jax.nn.softmax(pred_, axis=-1)
-                        pred = jnp.expand_dims(jnp.argmax(pred_, axis=-1), axis=-1)
-                        for bn in range(pred_.shape[0]):
+                        pred2_, pred = jit_compute_vals_for_curve(state, input, target)
+                        for bn in range(pred2_.shape[0]):
                             run.log_confusion_matrix(
                                 title=f"confusion batch {bn}",
                                 y_true=target[bn].reshape((-1,)).tolist(),
