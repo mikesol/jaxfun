@@ -539,14 +539,15 @@ if __name__ == "__main__":
                             ("pred", pred),
                             ("target", target),
                         ]:
-                            y_ax = np.reshape(np.array(curve[0]), (-1,))
-                            run.log_curve(
-                                label,
-                                x=np.arange(y_ax.shape[0]),
-                                y=y_ax,
-                                overwrite=True,
-                                step=batch_ix,
-                            )
+                            for bn in range(curve.shape[0]):
+                                y_ax = np.reshape(np.array(curve[bn]), (-1,))
+                                run.log_curve(
+                                    f'{label}_{bn}',
+                                    x=np.arange(y_ax.shape[0]),
+                                    y=y_ax,
+                                    overwrite=True,
+                                    step=batch_ix,
+                                )
                         loop.set_postfix(loss=metrics["loss"])
                         state = replace_metrics(state)
                         current_time = time.time()
