@@ -1,15 +1,13 @@
 import os
 import local_env
 
-print('searching for files in', os.path.join(local_env.data_path, "day1", x))
-
 D1 = [
     os.path.join(local_env.data_path, "day1", x)
-    for x in os.path.join(local_env.data_path, "day1")
+    for x in os.listdir(os.path.join(local_env.data_path, "day1"))
 ]
 D2 = [
     os.path.join(local_env.data_path, "day2", x)
-    for x in os.path.join(local_env.data_path, "day2")
+    for x in os.listdir(os.path.join(local_env.data_path, "day2"))
 ]
 
 
