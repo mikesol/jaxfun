@@ -543,8 +543,8 @@ if __name__ == "__main__":
                                 y_ax = np.reshape(np.array(curve[bn]), (-1,))
                                 run.log_curve(
                                     f'{label}_{bn}',
-                                    x=np.arange(y_ax.shape[0]),
-                                    y=y_ax,
+                                    x=np.arange(y_ax.shape[0]).tolist(),
+                                    y=y_ax.tolist(),
                                     overwrite=True,
                                     step=batch_ix,
                                 )
