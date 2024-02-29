@@ -1,6 +1,8 @@
 import os
 import local_env
 
+print('searching for files in', os.path.join(local_env.data_path, "day1", x))
+
 D1 = [
     os.path.join(local_env.data_path, "day1", x)
     for x in os.path.join(local_env.data_path, "day1")
