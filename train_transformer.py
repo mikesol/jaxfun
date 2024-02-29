@@ -202,6 +202,16 @@ def compute_loss(state, input, target, w_size):
     return loss
 
 
+def compute_vals_for_curve(state, input, target):
+    o = state.apply_fn(
+        {"params": state.params},
+        input,
+        target,
+        train=False,
+    )
+    return jnp.expand_dims(jnp.argmax(o, axis=-1), axis=-1)
+
+
 def _add_losses_to_metrics(state, loss):
     metric_updates = state.metrics.single_from_model_output(loss=loss)
     metrics = state.metrics.merge(metric_updates)
@@ -438,6 +448,16 @@ if __name__ == "__main__":
         ),
         partial(jax.pmap, static_broadcasted_argnums=(3,)),
     )(compute_loss)
+
+    jit_compute_vals_for_curve = fork_on_parallelism(
+        partial(
+            jax.jit,
+            # static_argnums=(3,),
+            in_shardings=(state_sharding, x_sharding, x_sharding),
+        ),
+        jax.pmap,  # partial(jax.pmap, static_broadcasted_argnums=(3,)),
+    )(compute_vals_for_curve)
+
     jit_do_inference = fork_on_parallelism(
         partial(
             jax.jit,
@@ -510,13 +530,27 @@ if __name__ == "__main__":
 
                     state = add_losses_to_metrics(state=state, loss=loss)
 
-                if batch_ix % config.step_freq == 0:
-                    metrics = maybe_unreplicate(state.metrics).compute()
-                    run.log_metrics({"train_loss": metrics["loss"]}, step=batch_ix)
-                    loop.set_postfix(loss=metrics["loss"])
-                    state = replace_metrics(state)
-                    current_time = time.time()
-                    elapsed_time = current_time - start_time
+                    if batch_ix % config.step_freq == 0:
+                        metrics = maybe_unreplicate(state.metrics).compute()
+                        run.log_metrics({"train_loss": metrics["loss"]}, step=batch_ix)
+                        pred = jit_compute_vals_for_curve(state, input, target)
+                        for label, curve in [
+                            ("input", input),
+                            ("pred", pred),
+                            ("target", target),
+                        ]:
+                            y_ax = np.reshape(np.array(curve[0]), (-1,))
+                            run.log_curve(
+                                label,
+                                x=np.arange(y_ax.shape[0]),
+                                y=y_ax,
+                                overwrite=True,
+                                step=batch_ix,
+                            )
+                        loop.set_postfix(loss=metrics["loss"])
+                        state = replace_metrics(state)
+                        current_time = time.time()
+                        elapsed_time = current_time - start_time
         # temporarily move checkpoint to after the first epoch as it crashes otherwise
         if True:
             # we test checkpointing early just to make sure it
